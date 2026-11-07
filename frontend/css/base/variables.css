@@ -1,0 +1,76 @@
+
+/* =========================================
+   LAN YEN PHARMACY - DESIGN SYSTEM
+   Version: 1.1
+========================================= */
+
+:root {
+
+    /* ===== BRAND COLORS ===== */
+
+    --primary-color: #16865B;
+    --primary-dark: #106B48;
+    --primary-light: #E8F5EE;
+
+    /* ===== BACKGROUND COLORS ===== */
+
+    --white-color: #FFFFFF;
+    --background-color: #F5F7F6;
+    --surface-color: #FFFFFF;
+
+    /* ===== TEXT COLORS ===== */
+
+    --text-color: #333333;
+    --text-secondary: #767676;
+    --text-light: #FFFFFF;
+
+    /* ===== BORDER COLORS ===== */
+
+    --border-color: #E5E7EB;
+
+    /* ===== STATUS COLORS ===== */
+
+    --success-color: #28A745;
+    --warning-color: #FFC107;
+    --danger-color: #DC3545;
+    --info-color: #17A2B8;
+
+    /* ===== TYPOGRAPHY ===== */
+
+    --font-family: Arial, sans-serif;
+
+    --font-size-xs: 12px;
+    --font-size-sm: 14px;
+    --font-size-md: 16px;
+    --font-size-lg: 20px;
+    --font-size-xl: 24px;
+    --font-size-2xl: 30px;
+
+    /* ===== SPACING ===== */
+
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --spacing-2xl: 48px;
+
+    /* ===== BORDER RADIUS ===== */
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* ===== SHADOW ===== */
+
+    --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    /* ===== TRANSITION ===== */
+
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+
+}

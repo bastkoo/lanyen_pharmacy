@@ -1,0 +1,55 @@
+/* =========================================
+   LAN YEN PHARMACY - CSS RESET
+   Design System: Green 1.1
+========================================= */
+
+/* ===== UNIVERSAL RESET ===== */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* ===== DOCUMENT DEFAULTS ===== */
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* ===== MEDIA DEFAULTS ===== */
+
+img,
+picture,
+video,
+canvas,
+svg {
+    display: block;
+    max-width: 100%;
+}
+
+/* ===== FORM CONTROL NORMALIZATION ===== */
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+/* ===== BUTTON NORMALIZATION ===== */
+
+button {
+    border: none;
+    background: none;
+}
+
+/* ===== TABLE NORMALIZATION ===== */
+
+table {
+    border-collapse: collapse;
+    border-spacing: 0;
+}
