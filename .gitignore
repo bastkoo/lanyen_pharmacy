@@ -1,4 +1,185 @@
+
+```gitignore
+# =========================================
+# LAN YEN PHARMACY - GITIGNORE
+# Flask + PostgreSQL + HTML/CSS/JavaScript
+# =========================================
+
 # Chặn các file/thư mục agent và skill
 .agents/
 AGENTS.md
 skills-lock.json
+
+# =========================================
+# 1. ENVIRONMENT VARIABLES & SECRETS
+# =========================================
+
+.env
+.env.*
+!.env.example
+!.env.sample
+
+.flaskenv
+*.env.local
+
+# Local configuration containing credentials
+config.local.py
+settings.local.py
+secrets.py
+
+# Secret and credential directories
+secrets/
+credentials/
+private/
+
+
+# =========================================
+# 2. DATABASE FILES & BACKUPS
+# =========================================
+
+*.sql
+*.sql.gz
+*.dump
+*.backup
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL local data
+postgres-data/
+pgdata/
+
+# Database backup directories
+database/backups/
+database/dumps/
+backups/
+dumps/
+
+
+# =========================================
+# 3. PYTHON & FLASK
+# =========================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+*.so
+.Python
+
+build/
+dist/
+develop-eggs/
+eggs/
+wheels/
+*.egg-info/
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Flask
+instance/
+.webassets-cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+
+# =========================================
+# 4. LOGS & TEMPORARY FILES
+# =========================================
+
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Crash reports
+*.stackdump
+
+
+# =========================================
+# 5. NODE.JS & FRONTEND
+# =========================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build outputs
+frontend/dist/
+frontend/build/
+
+# Package manager caches
+.npm/
+.yarn/cache/
+.pnpm-store/
+
+
+# =========================================
+# 6. IDE & EDITOR
+# =========================================
+
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+
+# =========================================
+# 7. GENERATED FILES & CACHE
+# =========================================
+
+.cache/
+.pyright/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+*.orig
+*.rej
+
+
+# =========================================
+# 8. UPLOADED USER DATA
+# =========================================
+
+# Runtime uploads (not source assets)
+backend/uploads/
+uploads/
+media/uploads/
+
+
+# =========================================
+# 9. PRIVATE KEYS & CERTIFICATES
+# =========================================
+
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+
+
+# =========================================
+# 10. LOCAL OVERRIDES
+# =========================================
+
+local_settings.py
+config_override.py
