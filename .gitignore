@@ -1,0 +1,4 @@
+# Chặn các file/thư mục agent và skill
+.agents/
+AGENTS.md
+skills-lock.json
