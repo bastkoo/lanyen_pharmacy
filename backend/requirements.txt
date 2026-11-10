@@ -6,3 +6,4 @@ psycopg[binary]
 python-dotenv
 Flask-JWT-Extended
 marshmallow
+firebase-admin

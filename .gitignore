@@ -183,3 +183,7 @@ media/uploads/
 
 local_settings.py
 config_override.py
+
+# Firebase Admin credentials
+backend/secrets/
+**/*service-account*.json
