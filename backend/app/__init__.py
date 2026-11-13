@@ -35,5 +35,7 @@ def create_app(test_config=None):
 
     from app.routes.auth_routes import auth_bp
     app.register_blueprint(auth_bp)
+    from app.routes.category_routes import category_bp
+    app.register_blueprint(category_bp)
 
     return app
