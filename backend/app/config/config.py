@@ -6,9 +6,11 @@ load_dotenv()
 
 
 class Config:
+    APP_ENV = os.getenv('APP_ENV', 'production')
+    OTP_DEV_ENABLED = os.getenv('OTP_DEV_ENABLED', 'false').lower() == 'true'
+    REDIS_URL = os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/0')
+    OTP_TTL_SECONDS = 300
     SECRET_KEY = os.getenv("SECRET_KEY")
-    FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH")
-    FIREBASE_PROJECT_ID = os.getenv("FIREBASE_PROJECT_ID")
     AUTH_ALLOWED_ORIGINS = [
         origin.strip().rstrip("/")
         for origin in os.getenv("AUTH_ALLOWED_ORIGINS", "").split(",")

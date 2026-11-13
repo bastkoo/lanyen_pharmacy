@@ -1,5 +1,5 @@
 // Native Chrome DevTools smoke checks; no installed browser automation dependency.
-// Requires a local Chrome debugging port 9222, frontend 5500 and real Flask 5000.
+// Requires a local Chrome debugging port 9222, frontend 5500 and Flask 5000. Use --fixture only with serve_auth_fixture.py.
 import assert from 'node:assert/strict';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -36,6 +36,15 @@ async function evaluate(expression) {
 }
 try {
     await command('Page.enable');
+    await command('Network.enable');
+    await command('Network.setCacheDisabled', { cacheDisabled: true });
+    if (process.argv.includes('--fixture')) {
+        await command('Page.addScriptToEvaluateOnNewDocument', { source: `
+            const realFetch = window.fetch.bind(window);
+            window.fetch = (url, options) => realFetch(
+                typeof url === 'string' ? url.replace(':5000/api/', ':5001/api/') : url, options);
+        ` });
+    }
     await command('Page.bringToFront');
     await command('Emulation.setDeviceMetricsOverride', { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
     await command('Page.navigate', { url: 'http://localhost:5500/pages/customer/home.html' });
@@ -78,16 +87,48 @@ try {
         }
         await evaluate(`document.querySelector('#close-auth').click()`);
     }
+    if (process.argv.includes('--fixture')) {
+        const fixturePhone = '09' + Date.now().toString().slice(-8);
+        async function waitFor(expression) {
+            await evaluate(`new Promise((resolve, reject) => {
+                let tries = 0;
+                const timer = setInterval(() => {
+                    if (${expression}) { clearInterval(timer); resolve(true); }
+                    else if (++tries > 100) { clearInterval(timer); reject(new Error('UI timeout')); }
+                }, 50);
+            })`);
+        }
+        async function submit(form, field, value) {
+            await evaluate(`document.getElementById('${field}').value = ${JSON.stringify(value)};
+                document.getElementById('${form}').requestSubmit()`);
+        }
+        await evaluate(`document.querySelector('#login-button').click()`);
+        await submit('phone-form', 'phone', fixturePhone);
+        await waitFor(`!document.querySelector('#otp-form').hidden && !document.querySelector('#otp').disabled`);
+        await submit('otp-form', 'otp', '000000');
+        await waitFor(`document.querySelector('#otp').getAttribute('aria-invalid') === 'true'`);
+        await waitFor(`!document.querySelector('#otp').disabled`);
+        await submit('otp-form', 'otp', '123456');
+        await waitFor(`!document.querySelector('#profile-form').hidden && !document.querySelector('#full-name').disabled`);
+        await submit('profile-form', 'full-name', 'Nguyễn An');
+        await waitFor(`!document.querySelector('#member-content').hidden`);
+        assert.equal(await evaluate(`document.querySelector('#account-name').textContent`), 'Nguyễn An');
+        assert.equal(await evaluate(`document.querySelector('#auth-dialog').open`), false);
+        await command('Page.reload');
+        await waitFor(`!document.querySelector('#member-content').hidden`);
+        await evaluate(`document.querySelector('#logout-button').click()`);
+        await waitFor(`!document.querySelector('#guest-content').hidden && !document.querySelector('#logout-button').disabled`);
+        await evaluate(`document.querySelector('#login-button').click()`);
+        await submit('phone-form', 'phone', fixturePhone);
+        await waitFor(`document.querySelector('#auth-status').textContent.includes('Có quá nhiều')`);
+        console.log('PASS: browser + Flask + fake Redis Lua + mock PostgreSQL: wrong OTP, registration, reload session, logout, resend throttling.');
+    }
     console.log('PASS: real Flask anonymous session, desktop/tablet/mobile layout, dialog focus, Escape, validation, labels and OTP autofill.');
     console.log(`Screenshots: ${path.join(tmpdir(), 'lanyen-desktop.png')}, ${path.join(tmpdir(), 'lanyen-mobile-auth.png')}`);
-    if (process.argv.includes('--firebase')) {
-        const sdkCheck = await evaluate(`Promise.race([
-            import('/js/config/firebase.js').then(module => module.prepareFirebase()).then(() => 'SDK_READY').catch(error => error.code || 'SDK_LOAD_FAILED'),
-            new Promise(resolve => setTimeout(() => resolve('SDK_TIMEOUT'), 12000))
-        ])`);
-        console.log('Firebase SDK initialization:', sdkCheck);
-        assert.equal(sdkCheck, 'SDK_READY');
-    }
+
+} catch (error) {
+    console.error(await evaluate(`JSON.stringify({ status: document.querySelector('#auth-status')?.textContent, phone: document.querySelector('#phone')?.value, page: document.querySelector('#page-status')?.textContent })`));
+    throw error;
 } finally {
     await call('Target.closeTarget', { targetId });
     socket.close();

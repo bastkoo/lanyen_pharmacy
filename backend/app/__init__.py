@@ -15,10 +15,17 @@ def create_app(test_config=None):
     if not app.config.get("SECRET_KEY") or len(app.config["SECRET_KEY"]) < 32:
         raise RuntimeError("SECRET_KEY must contain at least 32 characters.")
 
+    if '*' in app.config['AUTH_ALLOWED_ORIGINS']:
+        raise RuntimeError('Explicit frontend origins are required.')
+    if app.config['APP_ENV'] != 'development' and app.config['OTP_DEV_ENABLED']:
+        raise RuntimeError('Development OTP cannot be enabled outside development.')
+    from app.services.otp_service import init_app as init_otp
+    init_otp(app)
+
     # Initialize extensions
     db.init_app(app)
 
-    # Import models để Flask-Migrate nhận diện các bảng
+    # Import models so Flask-Migrate can discover the approved tables.
     from app import models
 
     migrate.init_app(app, db)

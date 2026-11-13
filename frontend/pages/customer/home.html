@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Đăng nhập tài khoản Lan Yến Pharmacy bằng số điện thoại.">
+    <meta name="theme-color" content="#16865B">
+    <title>Trang chủ · Lan Yến Pharmacy</title>
+    <link rel="stylesheet" href="../../css/base/variables.css">
+    <link rel="stylesheet" href="../../css/base/reset.css">
+    <link rel="stylesheet" href="../../css/base/global.css">
+    <link rel="stylesheet" href="../../css/pages/home.css">
+    <link rel="stylesheet" href="../../css/components/auth.css">
+    <script type="module" src="../../js/pages/home.js"></script>
+</head>
+<body>
+    <a class="skip-link" href="#main">Đến nội dung chính</a>
+    <header class="site-header">
+        <a class="brand" href="home.html" aria-label="Lan Yến Pharmacy — Trang chủ">
+            <img src="../../assets/images/LY-removebg-preview.png" alt="" width="64" height="64">
+            <span>Lan Yến<span class="brand-caption">PHARMACY</span></span>
+        </a>
+        <div class="header-account">
+            <span id="header-status">Đang kiểm tra phiên…</span>
+            <button type="button" class="button button-outline" id="login-button" aria-haspopup="dialog">Đăng nhập</button>
+            <button type="button" class="button button-outline" id="logout-button" hidden>Đăng xuất</button>
+        </div>
+    </header>
+    <main id="main" class="home-main" tabindex="-1">
+        <section class="welcome" aria-labelledby="welcome-title">
+            <p class="eyebrow">LAN YẾN PHARMACY / TÀI KHOẢN</p>
+            <h1 id="welcome-title">Chào bạn,<br>Lan Yến luôn ở đây.</h1>
+            <p class="welcome-copy">Bắt đầu bằng số điện thoại của bạn.<br>Một mã xác thực, một tài khoản riêng.</p>
+            <p class="privacy-note">Không cần ghi nhớ mật khẩu. Mã OTP giúp xác minh số điện thoại mỗi khi bạn đăng nhập.</p>
+        </section>
+        <section class="account-section" aria-labelledby="account-title">
+            <p class="eyebrow">TÀI KHOẢN CỦA BẠN</p>
+            <h2 id="account-title">Rất vui được đón bạn</h2>
+            <div id="guest-content">
+                <p>Đăng nhập hoặc tạo tài khoản ngay trong cùng một luồng xác thực.</p>
+                <button type="button" class="button button-primary" id="start-login" aria-haspopup="dialog">Đăng nhập bằng số điện thoại <span aria-hidden="true">→</span></button>
+                <ol class="journey" aria-label="Các bước đăng nhập">
+                    <li><span aria-hidden="true">01</span> Nhập số điện thoại</li>
+                    <li><span aria-hidden="true">02</span> Xác thực mã OTP</li>
+                    <li><span aria-hidden="true">03</span> Hoàn tất hồ sơ nếu là lần đầu</li>
+                </ol>
+            </div>
+            <div id="member-content" hidden>
+                <p class="member-state">Đã đăng nhập</p>
+                <dl class="account-details">
+                    <div><dt>Họ tên</dt><dd id="account-name"></dd></div>
+                    <div><dt>Số điện thoại</dt><dd id="account-phone"></dd></div>
+                    <div><dt>Vai trò</dt><dd id="account-role"></dd></div>
+                </dl>
+                <button type="button" class="button button-outline" id="refresh-account">Kiểm tra phiên đăng nhập</button>
+            </div>
+        </section>
+        <p id="page-status" class="page-status" role="status" aria-live="polite"></p>
+        <button type="button" id="retry-session" class="button button-outline" hidden>Thử kết nối lại</button>
+        <noscript><p>Bạn cần bật JavaScript để đăng nhập bằng số điện thoại.</p></noscript>
+    </main>
+    <footer class="site-footer"><span>Lan Yến Pharmacy</span><span>Kết nối tài khoản bằng số điện thoại của bạn.</span></footer>
+    <div id="auth-backdrop" hidden aria-hidden="true"></div>
+    <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
+        <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
+        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
+        <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
+        <form id="phone-form" novalidate>
+            <label for="phone">Số điện thoại</label>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
+            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <p id="phone-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Gửi mã OTP</button>
+            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
+        </form>
+        <form id="otp-form" hidden novalidate>
+            <label for="otp">Mã OTP gồm 6 chữ số</label>
+            <input id="otp" name="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required spellcheck="false" aria-describedby="otp-help otp-error">
+            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã vào ô này.</p>
+            <p id="otp-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
+            <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>
+        </form>
+        <form id="profile-form" hidden novalidate>
+            <label for="full-name">Họ và tên</label>
+            <input id="full-name" name="ho_ten" type="text" autocomplete="name" maxlength="255" required aria-describedby="name-help name-error">
+            <p id="name-help" class="field-help">Tên này sẽ hiển thị trong tài khoản của bạn.</p>
+            <p id="name-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Hoàn tất và đăng nhập</button>
+        </form>
+    </dialog>
+</body>
+</html>

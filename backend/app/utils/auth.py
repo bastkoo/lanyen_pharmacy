@@ -40,7 +40,9 @@ def require_roles(*roles):
                 if roles and g.current_user.VaiTro not in roles:
                     raise AuthError("FORBIDDEN", 403)
             except AuthError as error:
-                if error.code in ("UNAUTHENTICATED", "ACCOUNT_LOCKED"):
+                if error.code == "ACCOUNT_LOCKED" or (
+                    error.code == "UNAUTHENTICATED" and session.get("user_id") is not None
+                ):
                     session.clear()
                 return jsonify(code=error.code, csrf_token=csrf_token()), error.status
             return view(*args, **kwargs)
