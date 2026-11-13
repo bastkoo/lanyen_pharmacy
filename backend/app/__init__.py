@@ -39,5 +39,7 @@ def create_app(test_config=None):
     app.register_blueprint(category_bp)
     from app.routes.product_routes import product_bp
     app.register_blueprint(product_bp)
+    from app.routes.unit_routes import unit_bp
+    app.register_blueprint(unit_bp)
 
     return app
