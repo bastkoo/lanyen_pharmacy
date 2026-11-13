@@ -1,0 +1,25 @@
+#auth-dialog { margin: auto; border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: var(--spacing-xl); width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; color: var(--text-color); background: var(--surface-color); box-shadow: var(--shadow-lg); }
+#auth-dialog::backdrop { background: rgb(0 0 0 / .45); }
+#auth-dialog[open] { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; z-index: 101; }
+#auth-backdrop { position: fixed; inset: 0; z-index: 100; background: rgb(0 0 0 / .45); }
+body.auth-open { overflow: hidden; }
+.auth-heading, .auth-secondary { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-sm); }
+.auth-heading .eyebrow { margin: 0; }
+.close-button { min-width: 44px; min-height: 44px; font-size: var(--font-size-2xl); border-radius: var(--radius-sm); }
+.close-button:hover { background: var(--background-color); }
+.auth-progress { font-size: var(--font-size-sm); color: var(--primary-dark); margin-top: var(--spacing-sm); }
+#auth-title { margin-bottom: var(--spacing-sm); }
+#auth-dialog form { margin-top: var(--spacing-lg); }
+#auth-dialog label { display: block; font-weight: 600; margin-bottom: var(--spacing-sm); }
+#auth-dialog input { width: 100%; min-height: 48px; border: 1px solid var(--text-secondary); border-radius: var(--radius-md); padding: var(--spacing-sm) var(--spacing-md); background: var(--surface-color); }
+#auth-dialog input[aria-invalid="true"] { border: 2px solid var(--danger-color); }
+#auth-dialog .button-primary { width: 100%; margin-top: var(--spacing-md); }
+.field-help { font-size: var(--font-size-sm); margin-top: var(--spacing-sm); }
+.field-error { color: var(--text-color); font-weight: 600; font-size: var(--font-size-sm); }
+.field-error:not(:empty) { border-left: 3px solid var(--danger-color); padding-left: var(--spacing-sm); margin-top: var(--spacing-sm); }
+.auth-status:not(:empty) { background: var(--primary-light); padding: var(--spacing-sm) var(--spacing-md); margin-top: var(--spacing-md); overflow-wrap: anywhere; }
+.auth-status[data-error="true"] { background: var(--background-color); border-left: 3px solid var(--danger-color); }
+.otp-input { font-size: var(--font-size-xl); letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+.auth-secondary { margin-top: var(--spacing-md); flex-wrap: wrap; }
+.text-button { min-height: 44px; color: var(--primary-dark); text-decoration: underline; padding: var(--spacing-sm); }
+@media (max-width: 374px) { #auth-dialog { padding: var(--spacing-md); width: calc(100% - 16px); } }
