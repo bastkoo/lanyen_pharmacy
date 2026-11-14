@@ -44,5 +44,7 @@ def create_app(test_config=None):
     from app.routes.batch_routes import batch_bp, inventory_bp
     app.register_blueprint(batch_bp)
     app.register_blueprint(inventory_bp)
+    from app.routes.upload_routes import upload_bp
+    app.register_blueprint(upload_bp)
 
     return app
