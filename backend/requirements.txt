@@ -7,3 +7,5 @@ python-dotenv
 Flask-JWT-Extended
 marshmallow
 redis
+cloudinary
+Pillow

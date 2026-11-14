@@ -5,6 +5,8 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from app.repositories import loai_thuoc_repository as categories
 from app.repositories import thuoc_repository as products
 from app.schemas.product_schema import ProductSchema
+from app.services.cloudinary_service import validate_product_image_url
+from app.utils.image_validator import ImageError
 
 
 class ProductError(Exception):
@@ -21,6 +23,9 @@ def database_operation(view):
         except ProductError:
             products.rollback()
             raise
+        except ImageError as error:
+            products.rollback()
+            raise ProductError(error.code, error.status) from None
         except IntegrityError as error:
             products.rollback()
             if getattr(error.orig, 'sqlstate', None) == '23503':
@@ -61,6 +66,7 @@ def get_product(product_id):
 @database_operation
 def create_product(data):
     require_category(data['MaLoaiThuoc'])
+    validate_product_image_url(data['HinhAnh'])
     result = ProductSchema().dump(products.create(data))
     products.commit()
     return result
@@ -70,6 +76,8 @@ def create_product(data):
 def update_product(product_id, data):
     product = require_product(product_id, for_update=True)
     require_category(data['MaLoaiThuoc'])
+    if data['HinhAnh'] != product.HinhAnh:
+        validate_product_image_url(data['HinhAnh'])
     result = ProductSchema().dump(products.update(product, data))
     products.commit()
     return result
