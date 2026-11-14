@@ -78,6 +78,8 @@ export function setupDashboard({ root, onAccessError }) {
 
     async function loadOne(key, attempt, signal) {
         metrics[key].forEach(id => { $(id).textContent = '—'; });
+        if (key === 'low-stock') $('low-stock-caption').textContent = '';
+        if (key === 'expiring') $('expiring-caption').textContent = '';
         state(key, 'loading', 'Đang tải dữ liệu…');
         try {
             const data = await requests[key]({ signal });
@@ -102,6 +104,7 @@ export function setupDashboard({ root, onAccessError }) {
     async function load() {
         if (!active) return;
         controller?.abort(); controller = new AbortController();
+        $('dashboard-period').textContent = '';
         const attempt = ++generation;
         $('dashboard-refresh').disabled = true;
         $('dashboard-live').textContent = 'Đang cập nhật Dashboard…';

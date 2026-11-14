@@ -46,5 +46,7 @@ def create_app(test_config=None):
     app.register_blueprint(inventory_bp)
     from app.routes.upload_routes import upload_bp
     app.register_blueprint(upload_bp)
+    from app.routes.dashboard_routes import dashboard_bp
+    app.register_blueprint(dashboard_bp)
 
     return app
