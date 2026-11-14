@@ -1,0 +1,32 @@
+.manager-app [hidden] { display: none !important; }
+.manager-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.manager-app :focus-visible { outline: 2px solid var(--manager-focus); outline-offset: 4px; }
+.manager-app :focus { scroll-margin-block: 100px 24px; }
+.manager-app h1, .manager-app h2, .manager-app h3 { letter-spacing: var(--manager-tracking); line-height: var(--manager-heading-line); }
+.manager-icon { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.manager-app .button { display: inline-flex; justify-content: center; align-items: center; gap: var(--manager-space-2); min-height: 44px; padding: 10px 18px; border: 1px solid var(--manager-border); border-radius: var(--manager-radius); font-size: var(--manager-label); font-weight: 500; line-height: 1.5; transition: background-color .15s ease, border-color .15s ease; }
+.manager-app .button-primary { color: var(--white-color); background: var(--primary-dark); border-color: var(--primary-dark); }
+.manager-app .button-primary:hover { background: var(--primary-color); border-color: var(--primary-color); }
+.manager-app .button-outline { background: var(--manager-surface); color: var(--manager-text); }
+.manager-app .button-outline:hover { border-color: var(--manager-muted); background: var(--manager-hover); }
+.manager-app .button:disabled { background: var(--manager-disabled-bg); color: var(--manager-disabled-text); border-color: var(--manager-border); opacity: 1; cursor: not-allowed; }
+.manager-icon-button { display: inline-grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: var(--manager-radius); color: var(--manager-muted); }
+.manager-icon-button:hover { color: var(--manager-text); background: var(--manager-hover); }
+.manager-eyebrow { font-size: var(--manager-small); font-weight: 500; color: var(--manager-muted); letter-spacing: .075em; text-transform: uppercase; margin: 0; }
+.manager-badge { display: inline-flex; align-items: center; gap: 6px; font-size: var(--manager-small); line-height: 1.4; padding: 5px 9px; border: 1px solid var(--manager-border); border-radius: 5px; color: var(--manager-muted); background: var(--manager-surface); white-space: nowrap; }
+.manager-badge--success { border-color: transparent; color: var(--manager-success); background: var(--manager-success-bg); }
+.manager-badge--warning { border-color: transparent; color: var(--manager-warning); background: var(--manager-warning-bg); }
+.manager-state { display: flex; gap: var(--manager-space-4); align-items: flex-start; padding: var(--manager-space-6); border: 1px solid var(--manager-border); border-radius: var(--manager-radius-lg); background: var(--manager-surface); }
+.manager-state__icon { display: grid; place-items: center; width: 44px; height: 44px; flex: none; border-radius: var(--manager-radius); background: var(--manager-hover); color: var(--manager-muted); }
+.manager-state h2 { font-size: var(--manager-section); margin: 0 0 var(--manager-space-2); }
+.manager-state p { color: var(--manager-muted); max-width: 65ch; margin: 0; }
+.manager-state[data-state='error'] { border-color: var(--manager-error); }
+.manager-state[data-state='error'] .manager-state__icon { color: var(--manager-error); background: var(--manager-error-bg); }
+.manager-state[data-state='loading'] .manager-state__icon { color: var(--primary-dark); }
+.manager-app .skip-link { position: fixed; top: 12px; left: 12px; z-index: 100; transform: translateY(-180%); background: var(--primary-dark); color: var(--white-color); padding: 12px 20px; border-radius: var(--manager-radius); }
+.manager-app .skip-link:focus { transform: none; }
+.manager-brand { display: flex; align-items: center; gap: 10px; color: var(--manager-text); min-width: 0; }
+.manager-brand img { width: 42px; height: 42px; object-fit: contain; flex: none; }
+.manager-brand__name { display: block; font-size: 1.125rem; font-weight: 600; letter-spacing: -.035em; line-height: 1.35; }
+.manager-brand__sub { display: block; color: var(--manager-muted); font-size: .6875rem; letter-spacing: .18em; text-transform: uppercase; line-height: 1.8; }
+@media (max-width: 599px) { .manager-state { flex-direction: column; padding: var(--manager-space-6); } }

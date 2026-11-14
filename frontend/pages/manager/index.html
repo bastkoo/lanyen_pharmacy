@@ -1,0 +1,180 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#F5F7F6">
+    <title>Quản lý · Lan Yến Pharmacy</title>
+    <link rel="icon" href="../../assets/images/LY-removebg-preview.png">
+    <link rel="preload" href="../../assets/fonts/be-vietnam-pro-400.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="../../css/base/variables.css">
+    <link rel="stylesheet" href="../../css/base/reset.css">
+    <link rel="stylesheet" href="../../css/base/global.css">
+    <link rel="stylesheet" href="../../css/base/manager-tokens.css">
+    <link rel="stylesheet" href="../../css/components/auth.css">
+    <link rel="stylesheet" href="../../css/components/manager.css">
+    <link rel="stylesheet" href="../../css/layouts/manager.css">
+    <link rel="stylesheet" href="../../css/pages/manager-dashboard.css">
+    <script type="module" src="../../js/layouts/manager.js"></script>
+</head>
+<body class="manager-app">
+    <a id="manager-skip" class="skip-link" href="#manager-main" hidden>Bỏ qua điều hướng</a>
+    <main id="manager-gate" class="manager-gate">
+        <a class="manager-brand" href="../customer/home.html" aria-label="Lan Yến Pharmacy, về trang nhà thuốc">
+            <img src="../../assets/images/LY-removebg-preview.png" alt="" width="42" height="42">
+            <span><span class="manager-brand__name">Lan Yến</span><span class="manager-brand__sub" translate="no">Pharmacy</span></span>
+        </a>
+        <section id="access-state" class="manager-state" data-state="loading" aria-busy="true" aria-labelledby="gate-title">
+            <span class="manager-state__icon" data-state-icon><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#loader-circle"></use></svg></span>
+            <div>
+                <p class="manager-eyebrow">Khu vực quản lý</p>
+                <h1 id="gate-title" tabindex="-1" data-state-title>Đang kiểm tra phiên đăng nhập…</h1>
+                <p data-state-description>Vui lòng chờ trong khi hệ thống xác minh quyền truy cập của bạn.</p>
+                <div class="manager-gate__actions">
+                    <button id="manager-login" class="button button-primary" type="button" hidden>Đăng nhập quản lý</button>
+                    <button id="manager-retry" class="button button-outline" type="button" hidden>Kiểm tra lại kết nối</button>
+                    <button id="manager-switch-account" class="button button-primary" type="button" hidden>Đăng nhập tài khoản khác</button>
+                </div>
+            </div>
+        </section>
+        <a class="manager-gate__back" href="../customer/home.html"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-left"></use></svg>Về trang nhà thuốc</a>
+        <noscript><p>Bật JavaScript để kiểm tra phiên đăng nhập và mở khu vực quản lý.</p></noscript>
+    </main>
+
+    <div id="manager-shell" class="manager-shell" data-auth-background hidden>
+        <aside id="manager-sidebar" class="manager-sidebar" aria-label="Điều hướng quản lý">
+            <a class="manager-brand manager-sidebar__brand" href="#overview" aria-label="Lan Yến Pharmacy, Tổng quan quản lý">
+                <img src="../../assets/images/LY-removebg-preview.png" alt="" width="42" height="42">
+                <span><span class="manager-brand__name">Lan Yến</span><span class="manager-brand__sub" translate="no">Pharmacy</span></span>
+            </a>
+            <button id="close-sidebar" class="manager-icon-button manager-drawer-close" type="button" aria-label="Đóng điều hướng"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button>
+            <nav aria-label="Các khu vực quản lý">
+                <ul><li><a class="manager-nav-item" href="#overview" data-manager-view="overview"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#layout-dashboard"></use></svg>Tổng quan</a></li></ul>
+                <p class="manager-sidebar__group">Dữ liệu thuốc</p>
+                <ul>
+                    <li><a class="manager-nav-item" href="#categories" data-manager-view="categories"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#list-tree"></use></svg>Danh mục thuốc</a></li>
+                    <li><a class="manager-nav-item" href="#products" data-manager-view="products"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#pill"></use></svg>Quản lý thuốc</a></li>
+                    <li><a class="manager-nav-item" href="#units" data-manager-view="units"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#boxes"></use></svg>Đơn vị tính &amp; giá bán</a></li>
+                </ul>
+                <p class="manager-sidebar__group">Kho nhà thuốc</p>
+                <ul>
+                    <li><a class="manager-nav-item" href="#batches" data-manager-view="batches"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg>Lô thuốc</a></li>
+                    <li><a class="manager-nav-item" href="#inventory" data-manager-view="inventory"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#warehouse"></use></svg>Tồn kho</a></li>
+                </ul>
+            </nav>
+            <div class="manager-sidebar__footer">
+                <a href="../customer/home.html"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-up-right"></use></svg>Về trang nhà thuốc</a>
+                <p>Lan Yến Pharmacy<br>Không gian quản lý nhà thuốc.</p>
+            </div>
+        </aside>
+        <button id="drawer-backdrop" class="manager-drawer-backdrop" type="button" aria-label="Đóng điều hướng" tabindex="-1" hidden></button>
+        <div id="manager-workspace" class="manager-workspace">
+            <header class="manager-header">
+                <button id="open-sidebar" class="manager-icon-button manager-mobile-toggle" type="button" aria-label="Mở điều hướng" aria-controls="manager-sidebar" aria-expanded="false"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#menu"></use></svg></button>
+                <nav class="manager-breadcrumb" aria-label="Đường dẫn trang"><ol><li><a href="#overview">Quản lý nhà thuốc</a></li><li id="breadcrumb-current" aria-current="page">Tổng quan</li></ol></nav>
+                <details id="account-menu" class="manager-account">
+                    <summary id="account-summary" aria-label="Tài khoản quản lý">
+                        <span id="account-avatar" class="manager-avatar" aria-hidden="true"></span>
+                        <span class="manager-account__label"><span id="account-name" class="manager-account__name"></span><span class="manager-account__role">Quản lý nhà thuốc</span></span>
+                        <svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#chevron-down"></use></svg>
+                    </summary>
+                    <div class="manager-account__panel">
+                        <div class="manager-account__identity"><strong id="account-full-name"></strong><span>Tài khoản quản lý</span></div>
+                        <a href="../customer/home.html"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-up-right"></use></svg>Trang nhà thuốc</a>
+                        <button id="manager-logout" type="button"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#log-out"></use></svg>Đăng xuất</button>
+                    </div>
+                </details>
+            </header>
+            <main id="manager-main" class="manager-main" tabindex="-1">
+                <div class="manager-page-header">
+                    <div><p id="page-eyebrow" class="manager-eyebrow">Không gian quản lý</p><h1 id="page-title" tabindex="-1">Tổng quan</h1><p id="page-description">Một nơi làm việc thống nhất cho hoạt động nhà thuốc.</p></div>
+                    <div class="manager-page-actions"><span class="manager-badge manager-badge--success"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Khu vực quản lý</span></div>
+                </div>
+                <section id="overview-content" aria-label="Tổng quan khu vực quản lý">
+                    <div class="dashboard-toolbar">
+                        <div><div class="dashboard-filter"><label for="dashboard-days">Doanh thu &amp; đơn hàng</label><select id="dashboard-days" name="days"><option value="7">7 ngày gần nhất</option><option value="30" selected>30 ngày gần nhất</option><option value="90">90 ngày gần nhất</option></select></div><p id="dashboard-period" class="dashboard-period"></p></div>
+                        <button id="dashboard-refresh" class="button button-outline" type="button">Làm mới dữ liệu</button>
+                    </div>
+                    <section class="dashboard-metrics" aria-label="Các chỉ số tổng quan" data-dashboard-panel="summary">
+                        <article class="dashboard-metric"><h2>Tổng doanh thu</h2><strong id="kpi-revenue" class="dashboard-metric__value dashboard-metric__value--money">—</strong><p>Đơn hoàn thành, đã thanh toán</p></article>
+                        <article class="dashboard-metric"><h2>Tổng đơn hàng</h2><strong id="kpi-orders" class="dashboard-metric__value">—</strong><p>Trong khoảng đã chọn · Mọi trạng thái</p></article>
+                        <article class="dashboard-metric"><h2>Khách hàng</h2><strong id="kpi-customers" class="dashboard-metric__value">—</strong><p>Toàn bộ tài khoản khách hàng</p></article>
+                        <article class="dashboard-metric" data-dashboard-panel="products"><h2>Sản phẩm thuốc</h2><strong id="kpi-products" class="dashboard-metric__value">—</strong><p>Toàn bộ danh mục thuốc hiện có</p><div class="dashboard-status" data-panel-status="products" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="products" hidden>Thử lại</button></div></article>
+                    </section>
+                    <div class="dashboard-status" data-panel-status="summary" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="summary" hidden>Thử lại chỉ số</button></div>
+                    <div class="dashboard-body">
+                        <section class="dashboard-panel dashboard-revenue" data-dashboard-panel="revenue" aria-labelledby="revenue-title">
+                            <header class="dashboard-panel__header"><div><h2 id="revenue-title">Nhịp doanh thu</h2><p>Theo ngày đặt hàng · VND</p></div><span class="manager-badge">Giờ Việt Nam</span></header>
+                            <div class="dashboard-status" data-panel-status="revenue" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="revenue" hidden>Thử lại biểu đồ</button></div>
+                            <div id="revenue-chart" data-panel-content="revenue" hidden></div>
+                            <p class="dashboard-note">Chỉ ghi nhận đơn hoàn thành và đã thanh toán, sau giảm giá.</p>
+                        </section>
+                        <section class="dashboard-panel dashboard-orders" data-dashboard-panel="orders" aria-labelledby="orders-title">
+                            <header class="dashboard-panel__header"><div><h2 id="orders-title">Đơn hàng gần đây</h2><p>5 đơn gần nhất trong khoảng đã chọn</p></div></header>
+                            <div class="dashboard-status" data-panel-status="orders" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="orders" hidden>Thử lại đơn hàng</button></div>
+                            <div class="dashboard-table-scroll" data-panel-content="orders" role="region" aria-label="Bảng đơn hàng, cuộn ngang để xem đầy đủ khi màn hình hẹp" tabindex="0" hidden>
+                                <table><caption>Thời gian đặt theo giờ Việt Nam</caption><thead><tr><th scope="col">Mã đơn</th><th scope="col">Đặt lúc</th><th scope="col" class="dashboard-money">Phải thanh toán</th><th scope="col">Trạng thái</th></tr></thead><tbody id="recent-orders-body"></tbody></table>
+                            </div>
+                        </section>
+                        <aside class="dashboard-alerts" aria-label="Các cảnh báo hiện tại">
+                            <section class="dashboard-panel" data-dashboard-panel="low-stock" aria-labelledby="low-stock-title">
+                                <header class="dashboard-panel__header"><div><h2 id="low-stock-title">Thuốc tồn kho thấp</h2><p>Chạm hoặc dưới ngưỡng · Hiện tại</p></div><strong id="kpi-low-stock" class="dashboard-alert-count" aria-label="Số thuốc tồn kho thấp">—</strong></header>
+                                <div class="dashboard-status" data-panel-status="low-stock" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="low-stock" hidden>Thử lại cảnh báo</button></div>
+                                <ul id="low-stock-list" class="dashboard-alert-list" data-panel-content="low-stock" hidden></ul>
+                                <p id="low-stock-caption" class="dashboard-note"></p>
+                                <p class="dashboard-note">Số lượng theo đơn vị nhỏ nhất; gồm thuốc chưa có lô.</p>
+                            </section>
+                            <section class="dashboard-panel" data-dashboard-panel="expiring" aria-labelledby="expiring-title">
+                                <header class="dashboard-panel__header"><div><h2 id="expiring-title">Lô sắp hết hạn</h2><p>Còn tồn · Trong 30 ngày tới</p></div><strong id="kpi-expiring" class="dashboard-alert-count" aria-label="Số lô sắp hết hạn">—</strong></header>
+                                <div class="dashboard-status" data-panel-status="expiring" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="expiring" hidden>Thử lại cảnh báo</button></div>
+                                <ul id="expiring-list" class="dashboard-alert-list" data-panel-content="expiring" hidden></ul>
+                                <p id="expiring-caption" class="dashboard-note"></p>
+                                <p class="dashboard-note">Không bao gồm lô đã hết hạn hoặc không còn tồn.</p>
+                            </section>
+                        </aside>
+                    </div>
+                    <p id="dashboard-live" class="manager-sr-only" role="status" aria-live="polite"></p>
+                </section>
+                <section id="module-content" class="manager-placeholder" aria-labelledby="placeholder-title" hidden>
+                    <div id="placeholder-icon" class="manager-placeholder__mark" aria-hidden="true"></div>
+                    <div><span id="module-badge" class="manager-badge manager-badge--warning">Chưa triển khai</span><h2 id="placeholder-title"></h2><p id="placeholder-description"></p><a class="button button-outline" href="#overview"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-left"></use></svg>Về Tổng quan</a></div>
+                </section>
+                <footer class="manager-footer"><span>Lan Yến Pharmacy · Quản lý nhà thuốc</span><span>Chính xác trong từng thông tin.</span></footer>
+            </main>
+        </div>
+    </div>
+    <p id="manager-live-status" class="manager-sr-only" role="status" aria-live="polite"></p>
+    <div id="auth-backdrop" hidden aria-hidden="true"></div>
+    <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
+        <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
+        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
+        <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
+        <form id="phone-form" novalidate>
+            <label for="phone">Số điện thoại</label>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
+            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <p id="phone-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Gửi mã OTP</button>
+            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
+        </form>
+        <form id="otp-form" hidden novalidate>
+            <label for="otp">Mã OTP gồm 6 chữ số</label>
+            <input id="otp" name="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required spellcheck="false" aria-describedby="otp-help otp-error">
+            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã vào ô này.</p>
+            <p id="otp-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
+            <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>
+        </form>
+        <form id="profile-form" hidden novalidate>
+            <label for="full-name">Họ và tên</label>
+            <input id="full-name" name="ho_ten" type="text" autocomplete="name" maxlength="255" required aria-describedby="name-help name-error">
+            <p id="name-help" class="field-help">Tên này sẽ hiển thị trong tài khoản của bạn.</p>
+            <p id="name-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Hoàn tất và đăng nhập</button>
+        </form>
+    </dialog>
+</body>
+</html>
+

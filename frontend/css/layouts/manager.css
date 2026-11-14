@@ -1,0 +1,110 @@
+.manager-shell { min-height: 100dvh; }
+.manager-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 40; width: var(--manager-sidebar-width); display: flex; flex-direction: column; padding: 28px 16px 20px; background: var(--manager-surface); border-right: 1px solid var(--manager-border); }
+.manager-sidebar__brand { padding-inline: var(--manager-space-3); margin-bottom: var(--manager-space-12); }
+.manager-sidebar__group { margin: var(--manager-space-6) var(--manager-space-3) var(--manager-space-2); color: var(--manager-muted); font-size: .75rem; letter-spacing: .065em; font-weight: 500; text-transform: uppercase; }
+.manager-sidebar ul { list-style: none; display: grid; gap: var(--manager-space-1); }
+.manager-nav-item { position: relative; display: flex; align-items: center; gap: var(--manager-space-3); padding: 13px 12px; min-height: 48px; color: var(--manager-muted); border-radius: var(--manager-radius); font-size: var(--manager-label); line-height: 1.5; font-weight: 500; }
+.manager-nav-item:hover { color: var(--manager-text); background: var(--manager-hover); }
+.manager-nav-item[aria-current='page'] { background: var(--manager-active); color: var(--primary-dark); }
+.manager-nav-item[aria-current='page']::before { content: ''; position: absolute; left: 0; width: 3px; height: 20px; border-radius: 0 3px 3px 0; background: var(--primary-color); }
+.manager-sidebar__footer { margin-top: auto; padding-top: var(--manager-space-8); }
+.manager-sidebar__footer a { display: flex; align-items: center; gap: var(--manager-space-3); padding: 12px; font-size: var(--manager-small); color: var(--manager-muted); border-top: 1px solid var(--manager-border); }
+.manager-sidebar__footer p { padding: 16px 12px 0; margin: 0; font-size: .75rem; color: var(--manager-muted); }
+.manager-workspace { margin-left: var(--manager-sidebar-width); min-width: 0; }
+.manager-header { position: sticky; top: 0; z-index: 20; min-height: var(--manager-header-height); display: flex; align-items: center; justify-content: space-between; gap: var(--manager-space-4); padding: 12px var(--manager-content-padding); background: var(--manager-surface); border-bottom: 1px solid var(--manager-border); }
+.manager-breadcrumb ol { display: flex; align-items: center; flex-wrap: wrap; gap: var(--manager-space-3); list-style: none; color: var(--manager-muted); font-size: var(--manager-small); }
+.manager-breadcrumb li + li::before { content: '/'; margin-right: var(--manager-space-3); color: var(--manager-muted); }
+.manager-breadcrumb a { color: var(--manager-muted); }
+.manager-breadcrumb a:hover { color: var(--primary-dark); text-decoration: underline; }
+.manager-breadcrumb [aria-current] { color: var(--manager-text); font-weight: 500; }
+.manager-account { position: relative; flex-shrink: 0; }
+.manager-account summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--manager-space-3); min-height: 48px; border-radius: var(--manager-radius); padding: 4px 6px; }
+.manager-account summary::-webkit-details-marker { display: none; }
+.manager-account summary:hover { background: var(--manager-hover); }
+.manager-avatar { display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid var(--manager-border); border-radius: 50%; background: var(--manager-hover); color: var(--primary-dark); font-weight: 500; font-size: var(--manager-small); flex: none; }
+.manager-account__label { max-width: 160px; min-width: 0; }
+.manager-account__name { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--manager-small); font-weight: 500; line-height: 1.5; }
+.manager-account__role { display: block; color: var(--manager-muted); font-size: .75rem; line-height: 1.5; }
+.manager-account__panel { position: absolute; z-index: 50; top: calc(100% + 12px); right: 0; width: 264px; max-width: calc(100vw - 32px); padding: var(--manager-space-2); background: var(--manager-surface); border: 1px solid var(--manager-border); border-radius: var(--manager-radius-lg); box-shadow: var(--manager-shadow); }
+.manager-account__identity { padding: 10px 12px 14px; border-bottom: 1px solid var(--manager-border); overflow-wrap: anywhere; }
+.manager-account__identity strong { font-size: var(--manager-label); display: block; }
+.manager-account__identity span { font-size: var(--manager-small); color: var(--manager-muted); }
+.manager-account__panel a, .manager-account__panel button { width: 100%; display: flex; gap: var(--manager-space-3); align-items: center; text-align: left; padding: 12px; min-height: 44px; border-radius: 6px; color: var(--manager-text); font-size: var(--manager-label); }
+.manager-account__panel a:hover, .manager-account__panel button:hover { background: var(--manager-hover); }
+.manager-main { max-width: var(--manager-content-width); margin-inline: auto; padding: 36px var(--manager-content-padding) var(--manager-space-8); }
+.manager-page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--manager-space-6); margin-bottom: var(--manager-space-8); }
+.manager-page-header h1 { font-size: var(--manager-title); font-weight: 600; margin: var(--manager-space-2) 0; }
+.manager-page-header p:last-child { color: var(--manager-muted); margin: 0; max-width: 65ch; }
+.manager-page-actions { display: flex; align-items: center; gap: var(--manager-space-2); flex-wrap: wrap; }
+.manager-implementation-note { display: flex; align-items: center; gap: var(--manager-space-3); padding: 14px 18px; border-left: 3px solid var(--primary-color); background: var(--manager-active); border-radius: 0 6px 6px 0; margin-bottom: var(--manager-space-8); color: var(--primary-dark); font-size: var(--manager-label); }
+.manager-implementation-note p { margin: 0; }
+.manager-overview { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: var(--manager-space-8); align-items: start; }
+.manager-directory { background: var(--manager-surface); border: 1px solid var(--manager-border); border-radius: var(--manager-radius-lg); overflow: clip; }
+.manager-section-header { display: flex; align-items: center; justify-content: space-between; gap: var(--manager-space-4); padding: 22px 24px; border-bottom: 1px solid var(--manager-border); }
+.manager-section-header h2 { font-size: var(--manager-section); margin: 0; }
+.manager-section-header p { color: var(--manager-muted); font-size: var(--manager-small); margin: 4px 0 0; }
+.manager-directory ul { list-style: none; padding: 0 24px; }
+.manager-directory li + li { border-top: 1px solid var(--manager-border); }
+.manager-directory a { display: grid; grid-template-columns: 36px minmax(0, 1fr) 20px; gap: 14px; align-items: center; padding-block: 20px; color: var(--manager-text); }
+.manager-directory a:hover .manager-directory__title { color: var(--primary-dark); text-decoration: underline; text-underline-offset: 4px; }
+.manager-directory a:focus-visible { outline-offset: -2px; }
+.manager-directory__number { align-self: start; padding-top: 2px; font-size: var(--manager-small); color: var(--manager-muted); font-variant-numeric: tabular-nums; }
+.manager-directory__title { display: block; font-size: var(--manager-label); font-weight: 500; }
+.manager-directory__description { display: block; font-size: var(--manager-small); color: var(--manager-muted); margin-top: 4px; }
+.manager-directory__status { display: inline-block; color: var(--manager-muted); font-size: .75rem; margin-top: 7px; }
+.manager-side-note { padding-block: 4px; }
+.manager-side-note h2 { font-size: var(--manager-section); margin-bottom: var(--manager-space-6); }
+.manager-side-note dl { border-top: 1px solid var(--manager-border); }
+.manager-side-note dl > div { padding-block: var(--manager-space-4); border-bottom: 1px solid var(--manager-border); }
+.manager-side-note dt { color: var(--manager-muted); font-size: var(--manager-small); margin-bottom: 4px; }
+.manager-side-note dd { margin: 0; font-size: var(--manager-label); overflow-wrap: anywhere; }
+.manager-side-note__help { font-size: var(--manager-small); color: var(--manager-muted); margin-top: var(--manager-space-6); }
+.manager-side-note__help .manager-icon { margin-bottom: var(--manager-space-2); color: var(--primary-dark); }
+.manager-placeholder { min-height: 270px; padding: var(--manager-space-8); display: flex; gap: var(--manager-space-6); align-items: flex-start; border: 1px solid var(--manager-border); border-radius: var(--manager-radius-lg); background: var(--manager-surface); }
+.manager-placeholder__mark { width: 56px; height: 56px; display: grid; place-items: center; border: 1px solid var(--manager-border); border-radius: var(--manager-radius-lg); color: var(--primary-dark); background: var(--manager-hover); flex: none; }
+.manager-placeholder__mark .manager-icon { width: 26px; height: 26px; }
+.manager-placeholder h2 { font-size: var(--manager-section); margin: 18px 0 10px; }
+.manager-placeholder p { max-width: 60ch; color: var(--manager-muted); margin-bottom: var(--manager-space-6); }
+.manager-footer { display: flex; justify-content: space-between; gap: var(--manager-space-4); color: var(--manager-muted); font-size: .75rem; padding-top: var(--manager-space-8); margin-top: var(--manager-space-8); border-top: 1px solid var(--manager-border); }
+.manager-gate { width: min(520px, calc(100% - 40px)); margin: 10vh auto; }
+.manager-gate > .manager-brand { margin-bottom: var(--manager-space-12); }
+.manager-gate .manager-state { flex-direction: column; padding: var(--manager-space-8); }
+.manager-gate h1 { font-size: 1.5rem; margin-bottom: var(--manager-space-3); }
+.manager-gate__actions { display: flex; gap: var(--manager-space-3); flex-wrap: wrap; margin-top: var(--manager-space-6); }
+.manager-gate__back { display: inline-flex; align-items: center; gap: var(--manager-space-2); min-height: 44px; margin-top: var(--manager-space-6); font-size: var(--manager-label); color: var(--manager-muted); }
+.manager-mobile-toggle, .manager-drawer-close { display: none; }
+.manager-drawer-backdrop { position: fixed; inset: 0; background: rgb(20 40 30 / .4); z-index: 30; }
+.manager-app.drawer-open { overflow: hidden; }
+@media (max-width: 1279px) { .manager-app { --manager-content-padding: 28px; } .manager-overview { grid-template-columns: minmax(0, 1fr) 240px; gap: var(--manager-space-6); } }
+@media (max-width: 1023px) {
+    .manager-app { --manager-content-padding: 24px; --manager-header-height: 68px; }
+    .manager-sidebar { width: min(290px, calc(100% - 40px)); padding-top: 24px; box-shadow: var(--manager-shadow); overflow-y: auto; overscroll-behavior: contain; }
+    .manager-sidebar__brand { margin-bottom: var(--manager-space-8); padding-right: 32px; }
+    .manager-workspace { margin-left: 0; }
+    .manager-mobile-toggle { display: inline-grid; }
+    .manager-drawer-close { display: inline-grid; position: absolute; right: 8px; top: 24px; }
+    .manager-breadcrumb { margin-right: auto; }
+    .manager-header { gap: 8px; padding-left: 12px; }
+    .manager-overview { grid-template-columns: minmax(0, 1fr) 250px; }
+}
+@media (max-width: 767px) {
+    .manager-app { --manager-title: 1.5rem; --manager-content-padding: 20px; }
+    .manager-main { padding-top: var(--manager-space-6); }
+    .manager-overview { grid-template-columns: minmax(0, 1fr); }
+    .manager-side-note { padding: var(--manager-space-4) 4px 0; }
+    .manager-account__label { display: none; }
+    .manager-account summary { gap: 6px; }
+    .manager-account summary > .manager-icon { width: 16px; }
+    .manager-breadcrumb ol { font-size: .75rem; gap: 8px; }
+    .manager-breadcrumb li + li::before { margin-right: 8px; }
+    .manager-breadcrumb li:first-child { display: none; }
+    .manager-breadcrumb li + li::before { display: none; }
+    .manager-page-header { flex-direction: column; gap: var(--manager-space-4); }
+    .manager-page-header .manager-badge { align-self: flex-start; }
+    .manager-section-header { padding: 20px; }
+    .manager-directory ul { padding-inline: 20px; }
+    .manager-directory a { grid-template-columns: 26px minmax(0, 1fr) 18px; gap: 10px; }
+    .manager-implementation-note { align-items: flex-start; }
+    .manager-placeholder { flex-direction: column; padding: var(--manager-space-6); }
+    .manager-footer { flex-direction: column; gap: 4px; }
+}
