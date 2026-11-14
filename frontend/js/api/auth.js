@@ -23,6 +23,11 @@ async function request(path, body) {
     return data;
 }
 export function getSession() { return request("me"); }
+export async function getCsrfToken() {
+    await getSession();
+    if (!csrfToken) throw new ApiError('CSRF_FAILED', 403);
+    return csrfToken;
+}
 async function ensureCsrf() {
     if (!csrfToken) {
         try { await getSession(); }

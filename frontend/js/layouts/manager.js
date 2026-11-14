@@ -3,6 +3,7 @@ import { setupAuthDialog, authMessage } from '../components/auth-dialog.js';
 import { managerIcon, renderManagerState } from '../components/manager-state.js';
 import { MANAGER_VIEWS, resolveManagerView, managerAccess, accountInitials } from '../utils/manager-view.js';
 import { setupDashboard } from '../pages/manager-dashboard.js';
+import { setupCategories } from '../pages/manager-categories.js';
 
 const $ = id => document.getElementById(id);
 const gate = $('manager-gate');
@@ -12,11 +13,13 @@ const workspace = $('manager-workspace');
 const menu = $('account-menu');
 const mobile = matchMedia('(max-width: 1023px)');
 let user = null, checking = false, loggingOut = false, generation = 0;
-const dashboard = setupDashboard({ root: $('overview-content'), onAccessError(error) {
+function handleAccessError(error) {
     generation += 1;
     if (error.code === 'UNAUTHENTICATED') showGate('empty', 'Phiên đăng nhập đã hết hạn', 'Đăng nhập lại để tiếp tục sử dụng khu vực quản lý.', 'login');
     else showGate('error', error.code === 'ACCOUNT_LOCKED' ? 'Tài khoản đã bị khóa' : 'Tài khoản không có quyền quản lý', authMessage(error), 'login');
-} });
+}
+const dashboard = setupDashboard({ root: $('overview-content'), onAccessError: handleAccessError });
+const categories = setupCategories({ root: $('categories-content'), onAccessError: handleAccessError });
 
 function closeDrawer(restoreFocus = true) {
     const wasOpen = document.body.classList.contains('drawer-open');
@@ -46,6 +49,7 @@ function openDrawer() {
 function showGate(type, title, description, action = 'retry') {
     const wasVisible = !shell.hidden;
     dashboard.clear();
+    categories.clear();
     closeDrawer(false);
     menu.open = false;
     shell.hidden = true;
@@ -67,7 +71,9 @@ function renderView(focus = false) {
     const view = MANAGER_VIEWS[key];
     menu.open = false;
     $('overview-content').hidden = key !== 'overview';
-    $('module-content').hidden = key === 'overview';
+    $('categories-content').hidden = key !== 'categories';
+    $('category-add').hidden = key !== 'categories';
+    $('module-content').hidden = key === 'overview' || key === 'categories';
     document.querySelectorAll('[data-manager-view]').forEach(link => {
         if (link.dataset.managerView === key) link.setAttribute('aria-current', 'page');
         else link.removeAttribute('aria-current');
@@ -86,6 +92,8 @@ function renderView(focus = false) {
     closeDrawer(false);
     if (key === 'overview' && user) dashboard.activate();
     else dashboard.deactivate();
+    if (key === 'categories' && user) categories.activate();
+    else categories.deactivate();
     if (focus && user) $('page-title').focus();
 }
 

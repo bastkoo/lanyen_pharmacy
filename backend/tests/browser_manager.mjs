@@ -7,11 +7,13 @@ import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { categoryFixture, checkCategories } from './browser_categories.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
 let scenario = 'manager', logoutCount = 0, sessionCount = 0;
 const dashboardTest = process.argv.includes('--dashboard');
+const categoryTest = process.argv.includes('--categories');
 let dashboardMode = 'populated';
 const dashboardCalls = [];
 const fixtureToday = new Date('2026-11-14T00:00:00Z');
@@ -41,6 +43,7 @@ const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
+    if (categoryTest && pathname.startsWith('/api/manager/categories')) return categoryFixture(req, json);
     if (pathname === '/api/auth/me') {
         sessionCount++;
         if (scenario === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
@@ -137,7 +140,7 @@ try {
         await waitFor(`document.querySelector('#access-state')?.getAttribute('aria-busy')==='false' || document.querySelector('#manager-shell')?.hidden===false`);
     };
     const screenshot = async filename => {
-        if (!dashboardTest) return; // Preserve the historical Module 02.6.1 artifacts.
+        if (!dashboardTest || categoryTest) return; // Preserve earlier module artifacts during category tests.
         filename = filename.replace('MODULE_02_6_1_MANAGER', 'MODULE_02_6_2_DASHBOARD');
         const result = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
         await writeFile(path.join(root, 'docs', filename), Buffer.from(result.data, 'base64'));
@@ -162,7 +165,7 @@ try {
     for (const route of ['categories', 'products', 'units', 'batches', 'inventory']) {
         await evaluate(`document.querySelector('[data-manager-view="${route}"]').click()`);
         await waitFor(`location.hash==='#${route}' && document.activeElement.id==='page-title'`);
-        assert.equal(await evaluate(`document.querySelector('#module-content').hidden`), false);
+        assert.equal(await evaluate(`document.querySelector('${route === 'categories' ? '#categories-content' : '#module-content'}').hidden`), false);
         assert.equal(await evaluate(`document.querySelector('[data-manager-view="${route}"]').getAttribute('aria-current')`), 'page');
     }
     await evaluate(`location.hash='overview'`);
@@ -230,6 +233,10 @@ try {
         assert.equal(await evaluate(`document.querySelector('#recent-orders-body').childElementCount`), 0);
         dashboardMode = 'populated';
     }
+    if (categoryTest) {
+        await navigate('manager');
+        await checkCategories({ evaluate, waitFor, key, command, root });
+    }
     await navigate('forbidden');
     assert.equal(await evaluate(`document.querySelector('#manager-shell').hidden`), true);
     assert.equal(await evaluate(`document.querySelector('#manager-switch-account').hidden`), false);
@@ -272,7 +279,7 @@ try {
     assert.deepEqual(errors, []);
     console.log('PASS: manager navigation, real CSS/fonts, 1440/1280/1024/768/375/320 widths, no overflow, drawer/keyboard/focus, account Escape, long name, anonymous/forbidden/locked/network/retry/expired, OTP UI flow, CSRF logout, customer auth dialog regression.');
     console.log(`Auth responses mocked by isolated test server (${sessionCount} checks). No production API or database used.`);
-    if (dashboardTest) console.log('PASS: Dashboard amounts/counts, 7-day filter, isolated API failure/retry, empty data, API session expiry. Screenshots: docs/MODULE_02_6_2_DASHBOARD_{DESKTOP,MOBILE,DRAWER}.png');
+    if (dashboardTest) console.log('PASS: Dashboard amounts/counts, 7-day filter, isolated API failure/retry, empty data, API session expiry.' + (categoryTest ? ' Previous dashboard screenshots preserved.' : ' Screenshots: docs/MODULE_02_6_2_DASHBOARD_{DESKTOP,MOBILE,DRAWER}.png'));
     await call('Browser.close');
 } finally {
     socket?.close();

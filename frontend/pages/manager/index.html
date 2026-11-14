@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="../../css/components/manager.css">
     <link rel="stylesheet" href="../../css/layouts/manager.css">
     <link rel="stylesheet" href="../../css/pages/manager-dashboard.css">
+    <link rel="stylesheet" href="../../css/pages/manager-categories.css">
     <script type="module" src="../../js/layouts/manager.js"></script>
 </head>
 <body class="manager-app">
@@ -88,7 +89,7 @@
             <main id="manager-main" class="manager-main" tabindex="-1">
                 <div class="manager-page-header">
                     <div><p id="page-eyebrow" class="manager-eyebrow">Không gian quản lý</p><h1 id="page-title" tabindex="-1">Tổng quan</h1><p id="page-description">Một nơi làm việc thống nhất cho hoạt động nhà thuốc.</p></div>
-                    <div class="manager-page-actions"><span class="manager-badge manager-badge--success"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Khu vực quản lý</span></div>
+                    <div class="manager-page-actions"><button id="category-add" class="button button-primary" type="button" hidden>Thêm danh mục</button><span class="manager-badge manager-badge--success"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Khu vực quản lý</span></div>
                 </div>
                 <section id="overview-content" aria-label="Tổng quan khu vực quản lý">
                     <div class="dashboard-toolbar">
@@ -134,6 +135,35 @@
                         </aside>
                     </div>
                     <p id="dashboard-live" class="manager-sr-only" role="status" aria-live="polite"></p>
+                </section>
+                <section id="categories-content" aria-label="Quản lý danh mục thuốc" hidden>
+                    <div class="categories-toolbar">
+                        <form id="categories-search-form" class="categories-search" role="search">
+                            <div class="categories-field"><label for="categories-search-input">Tìm theo tên danh mục</label><input id="categories-search-input" class="categories-input" type="search" placeholder="Nhập tên danh mục…" aria-describedby="categories-search-error"></div>
+                            <button class="button button-primary" type="submit">Tìm kiếm</button><button id="categories-clear-search" class="button button-outline" type="button">Bỏ tìm kiếm</button>
+                            <p id="categories-search-error" class="categories-search-error" role="status"></p>
+                        </form>
+                        <div class="categories-page-size"><label for="categories-per-page">Số mục / trang</label><select id="categories-per-page"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
+                    </div>
+                    <p id="categories-feedback" class="categories-feedback" role="status" hidden></p>
+                    <section class="categories-surface" aria-labelledby="categories-list-title">
+                        <header class="categories-list-header"><div><h2 id="categories-list-title" tabindex="-1">Danh sách danh mục</h2><p id="categories-result-count" role="status"></p></div><button id="categories-reload" class="button button-outline" type="button">Làm mới</button></header>
+                        <div id="categories-state" class="categories-state" role="status"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#list-tree"></use></svg><h3 id="categories-state-title">Đang tải danh mục…</h3><p id="categories-state-description"></p><button id="categories-retry" class="button button-outline" type="button" hidden>Thử lại</button></div>
+                        <div id="categories-table-wrap" hidden><table class="categories-table"><caption class="manager-sr-only">Mã, tên và thao tác quản lý danh mục thuốc</caption><thead><tr><th scope="col">Mã danh mục</th><th scope="col">Tên danh mục</th><th scope="col">Thao tác</th></tr></thead><tbody id="categories-body"></tbody></table></div>
+                        <footer class="categories-pagination"><p id="categories-page-status" role="status"></p><nav aria-label="Phân trang danh mục"><button id="categories-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="categories-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer>
+                    </section>
+                    <dialog id="category-dialog" class="category-dialog" aria-labelledby="category-dialog-title">
+                        <header class="category-dialog__header"><div><p class="manager-eyebrow">Danh mục thuốc</p><h2 id="category-dialog-title">Thêm danh mục thuốc</h2></div><button id="category-close" class="manager-icon-button" type="button" aria-label="Đóng hộp thoại"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button></header>
+                        <form id="category-form" novalidate>
+                            <div class="category-dialog__body">
+                                <p id="category-detail-status" role="status" hidden></p>
+                                <div id="category-name-field"><label for="category-name">Tên danh mục <span aria-hidden="true">*</span></label><input id="category-name" class="categories-input" name="TenLoaiThuoc" type="text" autocomplete="off" required aria-describedby="category-name-help category-name-error"><p id="category-name-help" class="category-dialog__help">Từ 1 đến 255 ký tự. Các khoảng trắng liên tiếp sẽ được gộp lại.</p><p id="category-name-error" class="category-dialog__error" role="status"></p></div>
+                                <div id="category-delete-summary" hidden><p>Bạn đang yêu cầu xóa danh mục:</p><strong id="category-delete-name" class="category-dialog__name"></strong><p>Chỉ danh mục chưa được thuốc sử dụng mới có thể xóa. Thuốc liên quan sẽ không bị xóa.</p></div>
+                                <p id="category-form-error" class="category-dialog__error" role="alert"></p>
+                            </div>
+                            <footer class="category-dialog__footer"><button id="category-cancel" class="button button-outline" type="button">Hủy</button><button id="category-save" class="button button-primary" type="submit">Thêm danh mục</button></footer>
+                        </form>
+                    </dialog>
                 </section>
                 <section id="module-content" class="manager-placeholder" aria-labelledby="placeholder-title" hidden>
                     <div id="placeholder-icon" class="manager-placeholder__mark" aria-hidden="true"></div>
