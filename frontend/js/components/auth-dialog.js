@@ -22,7 +22,7 @@ export function setupAuthDialog(onAuthenticated) {
     const $ = id => document.getElementById(id);
     const dialog = $("auth-dialog");
     const closeButton = $("close-auth");
-    const background = document.querySelectorAll("body > header, body > main, body > footer, body > .skip-link");
+    const background = document.querySelectorAll("body > header, body > main, body > footer, body > .skip-link, body > [data-auth-background]");
     let step = "phone", phone = "", busy = false, generation = 0, resendAt = 0;
     let opener;
     const forms = { phone: $("phone-form"), otp: $("otp-form"), profile: $("profile-form") };

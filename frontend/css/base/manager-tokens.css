@@ -1,0 +1,56 @@
+@font-face { font-family: 'Be Vietnam Pro'; font-style: normal; font-weight: 400; font-display: swap; src: url('../../assets/fonts/be-vietnam-pro-400.ttf') format('truetype'); }
+@font-face { font-family: 'Be Vietnam Pro'; font-style: normal; font-weight: 500; font-display: swap; src: url('../../assets/fonts/be-vietnam-pro-500.ttf') format('truetype'); }
+@font-face { font-family: 'Be Vietnam Pro'; font-style: normal; font-weight: 600; font-display: swap; src: url('../../assets/fonts/be-vietnam-pro-600.ttf') format('truetype'); }
+
+.manager-app {
+    --font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
+    --manager-bg: var(--background-color);
+    --manager-surface: var(--surface-color);
+    --manager-text: #24362F;
+    --manager-muted: #586860;
+    --manager-border: #DDE5E0;
+    --manager-hover: #F0F4F1;
+    --manager-active: var(--primary-light);
+    --manager-focus: var(--primary-dark);
+    --manager-disabled-bg: #EDF0EE;
+    --manager-disabled-text: #64736B;
+    --manager-success: var(--primary-dark);
+    --manager-success-bg: var(--primary-light);
+    --manager-warning: #785313;
+    --manager-warning-bg: #FFF7E5;
+    --manager-error: #A52D35;
+    --manager-error-bg: #FFF1F1;
+    --manager-body: .9375rem;
+    --manager-small: .8125rem;
+    --manager-label: .875rem;
+    --manager-section: 1.125rem;
+    --manager-title: 1.75rem;
+    --manager-kpi: 2rem;
+    --manager-line-height: 1.65;
+    --manager-heading-line: 1.35;
+    --manager-weight-normal: 400;
+    --manager-weight-medium: 500;
+    --manager-weight-heading: 600;
+    --manager-tracking: -.025em;
+    --manager-space-1: 4px;
+    --manager-space-2: 8px;
+    --manager-space-3: 12px;
+    --manager-space-4: 16px;
+    --manager-space-6: 24px;
+    --manager-space-8: 32px;
+    --manager-space-12: 48px;
+    --manager-radius: 8px;
+    --manager-radius-lg: 12px;
+    --manager-border-width: 1px;
+    --manager-shadow: 0 8px 28px rgb(36 54 47 / .08);
+    --manager-sidebar-width: 248px;
+    --manager-header-height: 76px;
+    --manager-content-width: 1440px;
+    --manager-content-padding: 40px;
+    --text-color: var(--manager-text);
+    --text-secondary: var(--manager-muted);
+    color: var(--manager-text);
+    font-size: var(--manager-body);
+    line-height: var(--manager-line-height);
+    font-synthesis: none;
+}

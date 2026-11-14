@@ -1,7 +1,7 @@
 # LAN YEN PHARMACY
 # DESIGN SYSTEM
 
-**Version:** 1.1  
+**Version:** 1.2
 **Status:** Active  
 **Brand:** Lan Yến Pharmacy  
 **Design Direction:** Modern Healthcare – Clean – Trustworthy – Distinctive
@@ -173,6 +173,10 @@ Không sử dụng màu có độ tương phản thấp cho nội dung quan tr�
 Font mặc định:
 
 `Arial, sans-serif`
+
+**Manager Layout:** từ Module 02.6.1 sử dụng `Be Vietnam Pro`, fallback `Segoe UI, Arial, sans-serif`,
+theo hệ thống ở mục 18. Quyết định này thay thế Arial trong khu vực Manager theo
+yêu cầu được duyệt, không thay font trang khách hàng hiện có.
 
 Ưu tiên khả năng đọc, tính ổn định và sự tương thích trên nhiều thiết bị.
 
@@ -831,3 +835,169 @@ Prioritize usability.
 Respect the pharmacy business.
 
 Never design by template alone.
+
+---
+
+# 18. MANAGER WORKSPACE — MODULE 02.6.1
+
+Mục này là tiêu chuẩn được duyệt cho toàn bộ Manager Layout và các module quản
+lý tiếp theo. Không đổi Green 1.0; bổ sung hệ thống chữ và màu trung tính để làm
+việc lâu, không áp dụng lại bố cục của trang khách hàng. Không đổi giao diện
+khách hàng chỉ để đồng bộ font của Manager.
+
+## 18.1. Typography
+
+Font chính **Be Vietnam Pro**, tải cục bộ từ `frontend/assets/fonts/`, weights
+400/500/600; fallback `Segoe UI, Arial, sans-serif`. Giấy phép OFL đi kèm. Không
+load font từ CDN lúc chạy. Preload weight 400, font-display swap; ảnh logo có kích
+thước cố định để giảm layout shift. Không tuyên bố CLS bằng 0 khi chưa đo.
+
+Nguồn token duy nhất: `frontend/css/base/manager-tokens.css`, scoped `.manager-app`.
+
+| Vai trò | Token | Giá trị |
+| --- | --- | --- |
+| Font family | --font-family | Be Vietnam Pro, Segoe UI, Arial, sans-serif |
+| Body | --manager-body | .9375rem (15px) |
+| Navigation / buttons / labels / table | --manager-label | .875rem (14px), weight 500 |
+| Secondary | --manager-small | .8125rem (13px) |
+| Section heading | --manager-section | 1.125rem (18px), weight 600 |
+| Page heading | --manager-title | 1.75rem (28px), mobile 1.5rem (24px) |
+| KPI number, khi có module dữ liệu thật | --manager-kpi | 2rem; tabular-nums nếu cần so sánh |
+| Normal / medium / heading | --manager-weight-normal/medium/heading | 400 / 500 / 600 |
+| Body line-height | --manager-line-height | 1.65 |
+| Heading line-height | --manager-heading-line | 1.35 |
+| Heading tracking | --manager-tracking | -.025em |
+
+Không dùng 700/800; cỡ .75rem chỉ dành cho metadata phụ, không dùng cho nhãn
+điều hướng/nút/nội dung chính. Không áp English Title Case lên nội dung tiếng Việt.
+
+## 18.2. Semantic color tokens
+
+| Token | Giá trị / nguồn | Dùng cho |
+| --- | --- | --- |
+| --primary-color / --primary-dark / --primary-light | #16865B / #106B48 / #E8F5EE | Brand Green 1.0 giữ nguyên |
+| --manager-bg | --background-color (#F5F7F6) | Nền không gian làm việc |
+| --manager-surface | --surface-color (#FFFFFF) | Sidebar, header, vùng nội dung |
+| --manager-text | #24362F | Nội dung chính |
+| --manager-muted | #586860 | Nội dung phụ đủ tương phản trên nền trắng/trung tính |
+| --manager-border | #DDE5E0 | Ranh giới nhóm, không thay thế focus |
+| --manager-hover | #F0F4F1 | Hover trung tính |
+| --manager-active | --primary-light | Navigation hiện tại |
+| --manager-focus | --primary-dark | Outline focus-visible 2px, offset 4px |
+| --manager-disabled-bg / --manager-disabled-text | #EDF0EE / #64736B | Disabled có nhãn còn đọc được |
+| --manager-success / --manager-success-bg | --primary-dark / --primary-light | Thành công/xác thực có văn bản |
+| --manager-warning / --manager-warning-bg | #785313 / #FFF7E5 | Trạng thái cần chú ý/chưa triển khai |
+| --manager-error / --manager-error-bg | #A52D35 / #FFF1F1 | Lỗi có hướng xử lý |
+
+Màu trung tính và status là màu chức năng, không phải thương hiệu mới. Không dùng
+Text Secondary #767676 làm nội dung phụ trên nền #F5F7F6 của Manager; dùng token
+--manager-muted đã kiểm tra tương phản. Không hardcode lại bảng màu ở page CSS.
+
+## 18.3. Spacing, shape và bố cục
+
+- Spacing tokens --manager-space-1/2/3/4/6/8/12: 4/8/12/16/24/32/48px.
+- Border 1px, radius mặc định 8px, vùng nội dung 12px; không bo mọi hàng thành card.
+- Shadow chỉ dùng cho account dropdown và mobile drawer: --manager-shadow.
+- Sidebar 248px desktop; header tối thiểu 76px, tablet/mobile 68px.
+- Main max-width 1440px; padding desktop 40px, laptop 28px, tablet 24px, mobile 20px.
+- Các thành phần input/button/link tác vụ quan trọng có target tối thiểu 44px.
+- List/data pages sau này có thể dùng toàn bộ main width; biểu mẫu giới hạn chiều
+  rộng riêng theo tác vụ. Shell không ép mọi nội dung vào cùng một card grid.
+- Page header có eyebrow, h1, mô tả và vùng action; chỉ đặt hành động thật có
+  trong phạm vi module. Không thêm search/notification chưa có Backend.
+
+Sidebar/header phục vụ chuyển đổi sáu khu vực quản lý được yêu cầu. Module
+02.6.1 dùng chỉ mục khu vực và trạng thái triển khai. Từ Module 02.6.2, Tổng quan
+được thay bằng Dashboard kết nối API thật theo mục 19; các khu vực chưa triển
+khai vẫn phải ghi rõ trạng thái, không dùng số liệu giả.
+
+## 18.4. Icon và components
+
+Sử dụng SVG Lucide cục bộ trong `frontend/assets/icons/manager-icons.svg`, giấy
+phép đi kèm. Icon 20px, stroke 1.7, linecap/linejoin round; icon trang có thể 26px.
+Không dùng emoji, icon font hoặc tải toàn bộ Lucide JavaScript chỉ cho vài icon.
+Icon trang trí có aria-hidden; icon button có tên truy cập rõ ràng.
+
+- CSS components: `frontend/css/components/manager.css`.
+- CSS shell: `frontend/css/layouts/manager.css`.
+- JS shell: `frontend/js/layouts/manager.js`.
+- Routes/labels: `frontend/js/utils/manager-view.js`.
+- Loading/empty/error: `frontend/js/components/manager-state.js`, render qua
+  data-state-title/description/icon; textContent cho nội dung API.
+- Account dropdown dùng native details/summary, Tab, Escape và đóng khi click
+  ngoài. Không gán role=menu nếu chưa thực hiện đầy đủ menu keyboard pattern.
+- Navigation dùng a href, aria-current=page cho khu vực hiện tại, hover/focus rõ.
+- Chưa có trang dữ liệu: dùng trạng thái Chưa triển khai có chủ đích và điều hướng
+  về Tổng quan. Không tạo nút CRUD rỗng hoặc đường dẫn sang file chưa tồn tại.
+
+## 18.5. Responsive và accessibility
+
+Desktop từ 1024px: sidebar cố định, header sticky và main độc lập. Dưới 1024px:
+cùng sidebar chuyển thành drawer; đóng thì hidden, không còn focusable. Khi mở,
+drawer có role=dialog/aria-modal, workspace inert, trap Tab/Shift+Tab, Escape,
+nút đóng và backdrop; trả focus về nút mở. Chọn khu vực chuyển focus tới h1.
+Chọn lại mục hiện tại cũng đóng drawer. Resize không giữ lớp phủ/focus trap cũ.
+
+Mobile dưới 768px: nội dung xếp một cột, tài khoản thu về avatar có accessible
+name, tên đầy đủ vẫn xem được trong dropdown. Không ẩn trạng thái triển khai
+hoặc thu nhỏ chữ chính để ép bố cục. Không dùng overflow-x:hidden để che lỗi.
+
+Skip link chuyển focus tới main, không bị xử lý thành route. Focus không bị
+sticky header che. Mọi tên tài khoản dài được wrap/truncate trong phần hiển thị
+và có bản đầy đủ ở dropdown; không đưa dữ liệu API vào innerHTML.
+
+Phiên được kiểm tra qua auth/me khi mở và khi quay lại tab; shell hidden cho
+đến khi VaiTro=2 và TrangThai=false. Giữ riêng loading, anonymous, forbidden,
+locked, connection error và expired. Đăng xuất dùng auth API hiện có và CSRF,
+không lưu token vào localStorage/sessionStorage. Reuse OTP dialog Module 01.
+
+## 18.6. Anti-patterns và kiểm chứng
+
+Không thêm KPI/charts/sample số liệu chỉ để trang trí shell; Dashboard của Module
+02.6.2 chỉ hiển thị dữ liệu API thật. Không biến placeholder thành trang quản lý
+giả. Không dùng gradient xanh diện rộng, shadow đậm, header cồng
+kềnh, font weights thừa hoặc card lặp lại không có ý nghĩa.
+
+Kiểm tra thực tế ở desktop/tablet/mobile, bàn phím, focus, font tiếng Việt và
+auth states. Browser test mock phải nằm trong test harness độc lập và có nhãn
+AUTH MOCK trên ảnh; không thêm preview bypass hoặc tài khoản giả vào trang thật.
+Không đồng nhất kết quả kiểm thử mock với xác minh tài khoản/database thật.
+
+Nguồn đối chiếu review: [Web Interface Guidelines](https://github.com/vercel-labs/web-interface-guidelines/blob/main/command.md).
+Chỉ áp dụng quy tắc phù hợp HTML/CSS/Vanilla JS; không áp English Title Case,
+framework hoặc virtualization vào sáu liên kết điều hướng.
+
+---
+
+# 19. MANAGER DASHBOARD — MODULE 02.6.2
+
+Tái sử dụng shell mục 18, không tạo layout hay font/token cạnh tranh. Dashboard
+chỉ hiện sau xác minh VaiTro=2. CSS nội dung riêng ở
+`frontend/css/pages/manager-dashboard.css`; logic nội dung ở
+`frontend/js/pages/manager-dashboard.js`, API đọc dùng chung ở `js/api/manager.js`.
+
+KPI doanh thu/đơn/khách/thuốc nằm trong một dải phân cách, không phải bốn card
+trang trí. Hai KPI cảnh báo đặt cùng danh sách cần theo dõi để liên kết số lượng
+với thông tin có thể đọc được. Nhãn nêu rõ phạm vi: doanh thu/đơn theo ngày đã
+chọn, khách/thuốc là tổng hiện có, tồn kho theo hiện trạng, sắp hết hạn 30 ngày.
+
+Desktop: biểu đồ và đơn hàng bên trái, cảnh báo bên phải. Laptop/tablet giảm về
+một cột chính và hai panel cảnh báo cạnh nhau. Mobile đưa cảnh báo lên trước
+biểu đồ/đơn hàng, KPI thành hai cột; bảng đơn hàng cuộn ngang trong vùng có tên
+truy cập và focus riêng, không làm tràn trang.
+
+Biểu đồ đường SVG chỉ nhận chuỗi ngày/tiền thật từ API, không dùng thư viện lớn,
+gradient hoặc trend giả. Nhãn trục là HTML để không bị thu nhỏ khi SVG co giãn.
+Có bảng dữ liệu theo ngày qua details/summary. Tiền VND định dạng bằng Intl;
+giá trị BIGINT giữ dạng chuỗi/BigInt, không ép Number cho tiền hiển thị. Number
+chỉ dùng tính tọa độ biểu đồ, bảng giữ giá trị nguyên chính xác.
+
+Mỗi nguồn API có loading/empty/error/retry riêng; lỗi một nguồn không biến chỉ
+số khác thành 0. Khi chưa có phản hồi hoặc lỗi, hiển thị dấu —; số 0 chỉ đến từ
+Backend. CSDL không có đơn: doanh thu 0 theo công thức được duyệt, biểu đồ hiện
+empty state. Đổi kỳ hoặc đăng xuất hủy request cũ, không cho phản hồi muộn ghi
+đè trạng thái mới. Mất quyền/phiên thì đóng Dashboard và xóa dữ liệu khỏi DOM.
+
+Không thêm liên kết tới CRUD chưa có trang thật. Các mục quản lý còn placeholder
+không được coi là trang đích hoạt động cho cảnh báo. Bộ lọc 7/30/90 ngày chỉ áp
+dụng doanh thu và đơn hàng, không ngầm lọc khách hàng/thuốc/tồn kho hiện tại.
