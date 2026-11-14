@@ -8,12 +8,15 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { categoryFixture, checkCategories } from './browser_categories.mjs';
+import { productFixture, checkProducts } from './browser_products.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
 let scenario = 'manager', logoutCount = 0, sessionCount = 0;
 const dashboardTest = process.argv.includes('--dashboard');
 const categoryTest = process.argv.includes('--categories');
+const productTest = process.argv.includes('--products');
+let checkingProducts = false;
 let dashboardMode = 'populated';
 const dashboardCalls = [];
 const fixtureToday = new Date('2026-11-14T00:00:00Z');
@@ -43,6 +46,7 @@ const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
+    if (productTest && (pathname.startsWith('/api/manager/products') || pathname === '/api/manager/uploads/products' || ((!categoryTest || checkingProducts) && pathname === '/api/manager/categories'))) return productFixture(req, json);
     if (categoryTest && pathname.startsWith('/api/manager/categories')) return categoryFixture(req, json);
     if (pathname === '/api/auth/me') {
         sessionCount++;
@@ -108,6 +112,10 @@ try {
     const errors = [];
     socket.onmessage = event => {
         const data = JSON.parse(event.data);
+        if (data.method === 'Fetch.requestPaused') {
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#e8f5ee"/><rect x="170" y="70" width="140" height="80" rx="40" fill="#16865b"/><text x="240" y="220" text-anchor="middle" fill="#106b48" font-size="24">IMAGE QA FIXTURE</text></svg>';
+            call('Fetch.fulfillRequest', { requestId: data.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/svg+xml' }], body: Buffer.from(svg).toString('base64') }, data.sessionId).catch(error => errors.push(error.message));
+        }
         if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.text);
         if (data.id && pending.has(data.id)) {
             const { resolve, reject, timer } = pending.get(data.id);
@@ -140,13 +148,14 @@ try {
         await waitFor(`document.querySelector('#access-state')?.getAttribute('aria-busy')==='false' || document.querySelector('#manager-shell')?.hidden===false`);
     };
     const screenshot = async filename => {
-        if (!dashboardTest || categoryTest) return; // Preserve earlier module artifacts during category tests.
+        if (!dashboardTest || categoryTest || productTest) return; // Preserve earlier module artifacts during feature tests.
         filename = filename.replace('MODULE_02_6_1_MANAGER', 'MODULE_02_6_2_DASHBOARD');
         const result = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
         await writeFile(path.join(root, 'docs', filename), Buffer.from(result.data, 'base64'));
     };
     await command('Page.enable');
     await command('Runtime.enable');
+    if (productTest) await command('Fetch.enable', { patterns: [{ urlPattern: 'https://example.invalid/*' }] });
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await navigate('manager');
     await evaluate('document.fonts.ready');
@@ -154,7 +163,7 @@ try {
     assert.equal(await evaluate(`document.fonts.check('400 15px "Be Vietnam Pro"')`), true);
     assert.equal(await evaluate(`document.querySelector('#manager-shell').hidden`), false);
     if (dashboardTest) {
-        await waitFor(`document.querySelector('#kpi-products').textContent==='17' && document.querySelector('#revenue-chart svg')`);
+        await waitFor(`document.querySelector('#kpi-products').textContent==='${productTest ? 23 : 17}' && document.querySelector('#revenue-chart svg')`);
         assert.match(await evaluate(`document.querySelector('#kpi-revenue').textContent`), /250\.000/);
         assert.equal(await evaluate(`document.querySelector('#kpi-orders').textContent`), '3');
         assert.equal(await evaluate(`document.querySelector('#kpi-customers').textContent`), '9');
@@ -165,7 +174,7 @@ try {
     for (const route of ['categories', 'products', 'units', 'batches', 'inventory']) {
         await evaluate(`document.querySelector('[data-manager-view="${route}"]').click()`);
         await waitFor(`location.hash==='#${route}' && document.activeElement.id==='page-title'`);
-        assert.equal(await evaluate(`document.querySelector('${route === 'categories' ? '#categories-content' : '#module-content'}').hidden`), false);
+        assert.equal(await evaluate(`document.querySelector('${['categories', 'products'].includes(route) ? `#${route}-content` : '#module-content'}').hidden`), false);
         assert.equal(await evaluate(`document.querySelector('[data-manager-view="${route}"]').getAttribute('aria-current')`), 'page');
     }
     await evaluate(`location.hash='overview'`);
@@ -216,7 +225,7 @@ try {
         dashboardMode = 'partial-error';
         await evaluate(`document.querySelector('#dashboard-refresh').click()`);
         await waitFor(`document.querySelector('[data-panel-status="low-stock"]').dataset.state==='error' && !document.querySelector('#dashboard-refresh').disabled`);
-        assert.equal(await evaluate(`document.querySelector('#kpi-products').textContent`), '17');
+        assert.equal(await evaluate(`document.querySelector('#kpi-products').textContent`), productTest ? '23' : '17');
         assert.equal(await evaluate(`document.querySelector('#kpi-low-stock').textContent`), '—');
         dashboardMode = 'populated';
         await evaluate(`document.querySelector('[data-dashboard-retry="low-stock"]').click()`);
@@ -224,7 +233,7 @@ try {
         dashboardMode = 'empty';
         await evaluate(`document.querySelector('#dashboard-refresh').click()`);
         await waitFor(`document.querySelector('[data-panel-status="orders"]').dataset.state==='empty' && !document.querySelector('#dashboard-refresh').disabled`);
-        assert.equal(await evaluate(`document.querySelector('#kpi-products').textContent`), '0');
+        assert.equal(await evaluate(`document.querySelector('#kpi-products').textContent`), productTest ? '23' : '0');
         assert.match(await evaluate(`document.querySelector('#kpi-revenue').textContent`), /0/);
         assert.equal(await evaluate(`document.querySelector('[data-panel-status="revenue"]').dataset.state`), 'empty');
         dashboardMode = 'unauthorized';
@@ -236,6 +245,11 @@ try {
     if (categoryTest) {
         await navigate('manager');
         await checkCategories({ evaluate, waitFor, key, command, root });
+    }
+    if (productTest) {
+        checkingProducts = true;
+        await navigate('manager');
+        await checkProducts({ evaluate, waitFor, key, command, root });
     }
     await navigate('forbidden');
     assert.equal(await evaluate(`document.querySelector('#manager-shell').hidden`), true);

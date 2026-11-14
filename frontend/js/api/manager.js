@@ -2,20 +2,21 @@ import { APP_CONFIG } from '../config/app.js';
 import { ApiError, getCsrfToken } from './auth.js';
 
 
-export async function requestManager(path, { signal, method = 'GET', body } = {}) {
+export async function requestManager(path, { signal, method = 'GET', body, timeout = 20000 } = {}) {
     const controller = new AbortController();
     const abort = () => controller.abort();
     if (signal?.aborted) throw new ApiError('REQUEST_ABORTED');
     signal?.addEventListener('abort', abort, { once: true });
-    const timer = setTimeout(abort, 20000);
+    const timer = setTimeout(abort, timeout);
     try {
         const headers = {};
         if (method !== 'GET') headers['X-CSRF-Token'] = await getCsrfToken();
         if (signal?.aborted) throw new ApiError('REQUEST_ABORTED');
-        if (body !== undefined) headers['Content-Type'] = 'application/json';
+        const multipart = body instanceof FormData;
+        if (body !== undefined && !multipart) headers['Content-Type'] = 'application/json';
         const response = await fetch(`${APP_CONFIG.API_BASE_URL}/manager/${path}`, {
             method, credentials: 'include', cache: 'no-store', signal: controller.signal, headers,
-            ...(body === undefined ? {} : { body: JSON.stringify(body) })
+            ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) })
         });
         const data = await response.json();
         if (!data || typeof data !== 'object' || Array.isArray(data)) throw new ApiError('INVALID_RESPONSE');
