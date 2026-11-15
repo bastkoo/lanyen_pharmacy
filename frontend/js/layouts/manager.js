@@ -5,6 +5,9 @@ import { MANAGER_VIEWS, resolveManagerView, managerAccess, accountInitials } fro
 import { setupDashboard } from '../pages/manager-dashboard.js';
 import { setupCategories } from '../pages/manager-categories.js';
 import { setupProducts } from '../pages/manager-products.js';
+import { setupUnits } from '../pages/manager-units.js';
+import { setupBatches } from '../pages/manager-batches.js';
+import { setupInventory } from '../pages/manager-inventory.js';
 
 const $ = id => document.getElementById(id);
 const gate = $('manager-gate');
@@ -22,6 +25,10 @@ function handleAccessError(error) {
 const dashboard = setupDashboard({ root: $('overview-content'), onAccessError: handleAccessError });
 const categories = setupCategories({ root: $('categories-content'), onAccessError: handleAccessError });
 const products = setupProducts({ root: $('products-content'), onAccessError: handleAccessError });
+const units = setupUnits({ root: $('units-content'), onAccessError: handleAccessError });
+const batches = setupBatches({ root: $('batches-content'), onAccessError: handleAccessError });
+const inventory = setupInventory({ root: $('inventory-content'), onAccessError: handleAccessError,
+    onOpenBatches: id => { batches.openProduct(id); location.hash = 'batches'; } });
 
 function closeDrawer(restoreFocus = true) {
     const wasOpen = document.body.classList.contains('drawer-open');
@@ -53,6 +60,9 @@ function showGate(type, title, description, action = 'retry') {
     dashboard.clear();
     categories.clear();
     products.clear();
+    units.clear();
+    batches.clear();
+    inventory.clear();
     closeDrawer(false);
     menu.open = false;
     shell.hidden = true;
@@ -78,7 +88,10 @@ function renderView(focus = false) {
     $('category-add').hidden = key !== 'categories';
     $('products-content').hidden = key !== 'products';
     $('product-add').hidden = key !== 'products';
-    $('module-content').hidden = ['overview', 'categories', 'products'].includes(key);
+    $('units-content').hidden = key !== 'units';
+    $('batches-content').hidden = key !== 'batches';
+    $('inventory-content').hidden = key !== 'inventory';
+    $('module-content').hidden = ['overview', 'categories', 'products', 'units', 'batches', 'inventory'].includes(key);
     document.querySelectorAll('[data-manager-view]').forEach(link => {
         if (link.dataset.managerView === key) link.setAttribute('aria-current', 'page');
         else link.removeAttribute('aria-current');
@@ -101,6 +114,12 @@ function renderView(focus = false) {
     else categories.deactivate();
     if (key === 'products' && user) products.activate();
     else products.deactivate();
+    if (key === 'units' && user) units.activate();
+    else units.deactivate();
+    if (key === 'batches' && user) batches.activate();
+    else batches.deactivate();
+    if (key === 'inventory' && user) inventory.activate();
+    else inventory.deactivate();
     if (focus && user) $('page-title').focus();
 }
 

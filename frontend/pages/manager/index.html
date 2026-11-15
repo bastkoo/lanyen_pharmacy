@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="../../css/pages/manager-dashboard.css">
     <link rel="stylesheet" href="../../css/pages/manager-categories.css">
     <link rel="stylesheet" href="../../css/pages/manager-products.css">
+    <link rel="stylesheet" href="../../css/pages/manager-units.css">
+    <link rel="stylesheet" href="../../css/pages/manager-stock.css">
     <script type="module" src="../../js/layouts/manager.js"></script>
 </head>
 <body class="manager-app">
@@ -136,6 +138,80 @@
                         </aside>
                     </div>
                     <p id="dashboard-live" class="manager-sr-only" role="status" aria-live="polite"></p>
+                </section>
+                <section id="batches-content" aria-label="Quản lý lô thuốc" hidden>
+                    <section class="categories-surface stock-picker" aria-labelledby="batch-picker-title">
+                        <h2 id="batch-picker-title">Chọn thuốc để quản lý lô</h2>
+                        <form id="batch-product-search" class="stock-picker-form" role="search" novalidate>
+                            <div class="products-field"><label for="batch-search">Tìm tên thuốc, mã dược hoặc số đăng ký</label><input id="batch-search" class="categories-input" type="search" aria-describedby="batch-search-error"></div><button class="button button-outline" type="submit">Tìm thuốc</button>
+                        </form>
+                        <p id="batch-search-error" class="category-dialog__error" role="status"></p>
+                        <div class="stock-picker-form"><div class="products-field"><label for="batch-product-select">Thuốc trong trang kết quả</label><select id="batch-product-select" class="categories-input" disabled><option value="">Chọn thuốc…</option></select></div><button id="batch-products-prev" class="button button-outline" type="button" disabled>Trước</button><button id="batch-products-next" class="button button-outline" type="button" disabled>Sau</button><button id="batch-products-retry" class="categories-action" type="button">Tải lại thuốc</button></div>
+                        <p id="batch-picker-status" class="products-note" role="status"></p>
+                        <div id="batch-product-identity" class="stock-identity" hidden></div>
+                    </section>
+                    <div class="stock-actions"><p>Số lượng theo đơn vị nhỏ nhất của thuốc; không điều chỉnh tồn thủ công.</p><button id="batch-add" class="button button-primary" type="button" disabled>Thêm lô thuốc</button></div>
+                    <p id="batch-feedback" class="categories-feedback" role="status" hidden></p>
+                    <section id="batch-table" class="categories-surface"></section>
+                    <dialog id="batch-dialog" class="category-dialog stock-dialog" aria-labelledby="batch-dialog-title" aria-describedby="batch-dialog-context">
+                        <header class="category-dialog__header"><h2 id="batch-dialog-title">Thông tin lô thuốc</h2><button id="batch-close" class="categories-action" type="button">Đóng</button></header>
+                        <p id="batch-dialog-context" class="stock-dialog-note"></p><p id="batch-dialog-status" class="stock-dialog-note" role="status"></p>
+                        <form id="batch-form" novalidate><div id="batch-fields" class="category-dialog__body stock-fields"></div><p id="batch-edit-note" class="stock-dialog-note">Số lượng tồn do hệ thống quản lý. Khi sửa, lượng nhập và lượng tồn được giữ nguyên.</p><footer class="category-dialog__footer"><button id="batch-cancel" class="button button-outline" type="button">Hủy</button><button id="batch-save" class="button button-primary" type="submit">Lưu lô</button></footer></form>
+                        <div id="batch-detail-panel" class="category-dialog__body" hidden></div>
+                        <div id="batch-delete-panel" class="category-dialog__body" hidden><p>Xác nhận yêu cầu xóa lô:</p><strong id="batch-delete-name" class="category-dialog__name"></strong><p>Backend hiện chưa cho phép xóa lô vì không thể xác minh lịch sử xuất kho an toàn.</p><button id="batch-delete-confirm" class="button button-danger" type="button" disabled>Xác nhận yêu cầu xóa</button></div>
+                        <p id="batch-dialog-error" class="category-dialog__body category-dialog__error" role="alert" tabindex="-1"></p>
+                    </dialog>
+                </section>
+                <section id="inventory-content" aria-label="Theo dõi tồn kho và hạn sử dụng" hidden>
+                    <p class="stock-explanation">Tồn vật lý gồm tất cả lô, kể cả lô đã hết hạn; không phải số lượng có thể bán. Số lượng theo đơn vị nhỏ nhất của thuốc.</p>
+                    <nav class="stock-jump-links" aria-label="Các bảng tồn kho"><button type="button" class="categories-action" data-inventory-jump="summary">Tổng hợp tồn</button><button type="button" class="categories-action" data-inventory-jump="low">Tồn kho thấp</button><button type="button" class="categories-action" data-inventory-jump="expiry">Hạn sử dụng</button></nav>
+                    <section id="inventory-summary" class="categories-surface stock-section"></section>
+                    <section id="inventory-low" class="categories-surface stock-section"></section>
+                    <section class="stock-expiry-settings" aria-labelledby="inventory-expiry-settings-title"><h2 id="inventory-expiry-settings-title">Theo dõi hạn sử dụng</h2><form id="inventory-expiry-form" class="stock-picker-form" novalidate><div class="products-field"><label for="inventory-expiry-status">Trạng thái hạn</label><select id="inventory-expiry-status" class="categories-input"><option value="expiring">Sắp hết hạn</option><option value="expired">Đã hết hạn</option></select></div><div class="products-field"><label for="inventory-expiry-days">Khoảng theo dõi (ngày)</label><input id="inventory-expiry-days" class="categories-input" type="text" inputmode="numeric" value="30" aria-describedby="inventory-expiry-help inventory-expiry-error"></div><button class="button button-outline" type="submit">Áp dụng</button></form><p id="inventory-expiry-help" class="products-note">Mặc định Backend: 30 ngày; nhận 0–36500 ngày. Lô hết hạn hôm nay vẫn thuộc nhóm còn hạn. Chỉ liệt kê lô còn tồn.</p><p id="inventory-expiry-error" class="category-dialog__error" role="status"></p><p id="inventory-as-of" class="products-note" role="status"></p></section>
+                    <section id="inventory-expiry" class="categories-surface stock-section"></section>
+                </section>
+                <section id="units-content" aria-label="Đơn vị tính và giá bán" hidden>
+                    <p id="units-feedback" class="categories-feedback" role="status" hidden></p>
+                    <div class="units-layout">
+                        <section class="units-picker categories-surface" aria-labelledby="units-picker-title">
+                            <h2 id="units-picker-title">Chọn thuốc</h2>
+                            <form id="units-search-form" role="search">
+                                <label for="units-search">Tên thuốc, mã dược hoặc số đăng ký</label>
+                                <input id="units-search" class="categories-input" type="search" aria-describedby="units-search-error" placeholder="Tìm thuốc…">
+                                <button class="button button-outline" type="submit">Tìm kiếm</button>
+                                <p id="units-search-error" class="category-dialog__error" role="status"></p>
+                            </form>
+                            <p id="units-picker-status" role="status"></p>
+                            <button id="units-picker-retry" class="button button-outline" type="button" hidden>Thử tải thuốc lại</button>
+                            <ul id="units-products" class="units-products" aria-label="Kết quả tìm thuốc"></ul>
+                            <nav class="units-picker-pages" aria-label="Phân trang chọn thuốc"><button id="units-products-prev" class="categories-action" type="button" disabled>Trước</button><span id="units-products-page" role="status"></span><button id="units-products-next" class="categories-action" type="button" disabled>Sau</button></nav>
+                        </section>
+                        <section id="units-workspace" class="categories-surface" aria-labelledby="units-title">
+                            <header class="categories-list-header"><div><h2 id="units-title" tabindex="-1">Bảng đơn vị &amp; giá bán</h2><p>Mỗi đơn vị bán có giá và số lượng quy đổi riêng.</p></div><button id="units-add" class="button button-primary" type="button" disabled>Thêm đơn vị</button></header>
+                            <div id="units-product" class="units-product" hidden></div>
+                            <div class="units-toolbar"><p id="units-count" role="status"></p><button id="units-reload" class="categories-action" type="button" disabled>Làm mới bảng giá</button></div>
+                            <div id="units-state" class="categories-state" role="status"><h3 id="units-state-title">Chọn một thuốc để bắt đầu</h3><p id="units-state-description">Tìm và chọn thuốc ở danh sách để quản lý đơn vị bán.</p><button id="units-retry" class="button button-outline" type="button" hidden>Thử lại</button></div>
+                            <div id="units-table-wrap" class="units-table-scroll" role="region" tabindex="0" aria-label="Bảng giá, cuộn ngang để xem đầy đủ trên màn hình nhỏ" hidden>
+                                <table class="units-table"><caption>Số lượng quy đổi theo đơn vị nhỏ nhất; tên đơn vị cơ sở chưa được xác định.</caption><thead><tr><th scope="col">Đơn vị tính</th><th scope="col" class="units-number">SL quy đổi</th><th scope="col" class="units-number">Giá bán (VND)</th><th scope="col">Thao tác</th></tr></thead><tbody id="units-body"></tbody></table>
+                            </div>
+                            <footer class="categories-pagination"><p id="units-page" role="status"></p><nav aria-label="Phân trang đơn vị giá"><button id="units-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="units-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer>
+                        </section>
+                    </div>
+                    <dialog id="unit-dialog" class="category-dialog" aria-labelledby="unit-dialog-title" aria-describedby="unit-dialog-context">
+                        <header class="category-dialog__header"><h2 id="unit-dialog-title">Thêm đơn vị bán</h2><button id="unit-close" class="categories-action" type="button" aria-label="Đóng hộp thoại đơn vị giá">Đóng</button></header>
+                        <p id="unit-dialog-context" class="units-dialog-context"></p>
+                        <p id="unit-dialog-status" class="units-dialog-context" role="status"></p>
+                        <form id="unit-form" novalidate>
+                            <div class="category-dialog__body units-fields">
+                                <div><label for="unit-DonViTinh">Đơn vị tính *</label><input id="unit-DonViTinh" class="categories-input" type="text" required aria-describedby="unit-DonViTinh-error"><p id="unit-DonViTinh-error" class="category-dialog__error" role="status"></p></div>
+                                <div><label for="unit-GiaBan">Giá bán (VND) *</label><input id="unit-GiaBan" class="categories-input" type="text" inputmode="numeric" required aria-describedby="unit-GiaBan-error"><p id="unit-GiaBan-error" class="category-dialog__error" role="status"></p></div>
+                                <div><label for="unit-SoLuongQuyDoi">Số lượng quy đổi *</label><input id="unit-SoLuongQuyDoi" class="categories-input" type="text" inputmode="numeric" required aria-describedby="unit-conversion-help unit-SoLuongQuyDoi-error"><p id="unit-conversion-help" class="category-dialog__help">Số lượng đơn vị nhỏ nhất tương ứng với một đơn vị bán.</p><p id="unit-SoLuongQuyDoi-error" class="category-dialog__error" role="status"></p></div>
+                            </div>
+                            <footer class="category-dialog__footer"><button id="unit-cancel" class="button button-outline" type="button">Hủy</button><button id="unit-save" class="button button-primary" type="submit">Thêm đơn vị</button></footer>
+                        </form>
+                        <div id="unit-delete-panel" hidden><div class="category-dialog__body"><p>Xác nhận xóa đơn vị giá sau đây:</p><strong id="unit-delete-summary" class="category-dialog__name"></strong><p>Đơn vị đang được sử dụng trong giỏ thuốc hoặc đơn hàng sẽ không thể xóa.</p></div><footer class="category-dialog__footer"><button id="unit-delete-cancel" class="button button-outline" type="button">Hủy</button><button id="unit-delete-confirm" class="button button-danger" type="button" disabled>Xóa đơn vị</button></footer></div>
+                        <p id="unit-error" class="category-dialog__body category-dialog__error" role="alert" tabindex="-1"></p>
+                    </dialog>
                 </section>
                 <section id="categories-content" aria-label="Quản lý danh mục thuốc" hidden>
                     <div class="categories-toolbar">
