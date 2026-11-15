@@ -189,6 +189,37 @@ try {
         assert.equal(await evaluate(`document.querySelector('#kpi-expiring').textContent`), '1');
     }
     await screenshot('MODULE_02_6_1_MANAGER_DESKTOP.png');
+    // Every sidebar link must remain reachable on short screens and with enlarged text.
+    for (const [width, height, fontSize] of [[1440, 900, ''], [1366, 768, ''], [1024, 600, ''], [375, 600, ''], [844, 390, ''], [320, 568, '200%']]) {
+        await command('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
+        await evaluate(`document.documentElement.style.fontSize=${JSON.stringify(fontSize)}`);
+        await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
+        if (width < 1024) await evaluate(`document.querySelector('#open-sidebar').click()`);
+        const sidebarState = await evaluate(`(() => {
+            const sidebar = document.querySelector('#manager-sidebar');
+            const links = [...sidebar.querySelectorAll('a')];
+            const unreachable = links.filter(link => {
+                link.focus();
+                const rect = link.getBoundingClientRect();
+                return rect.top < 0 || rect.bottom > innerHeight;
+            }).map(link => link.textContent.trim());
+            const result = { overflow: getComputedStyle(sidebar).overflowY,
+                unreachable, horizontalOverflow: sidebar.scrollWidth > sidebar.clientWidth,
+                verticalOverflow: sidebar.scrollHeight > sidebar.clientHeight,
+                logoHeight: sidebar.querySelector('img').getBoundingClientRect().height };
+            sidebar.scrollTop = 0;
+            return result;
+        })()`);
+        assert.equal(sidebarState.overflow, 'auto', `Sidebar scrolling at ${width}x${height}`);
+        assert.deepEqual(sidebarState.unreachable, [], `Unreachable sidebar links at ${width}x${height} ${fontSize}`);
+        assert.equal(sidebarState.horizontalOverflow, false, `Sidebar horizontal overflow at ${width}x${height}`);
+        if (width === 1366 && height === 768) assert.equal(sidebarState.verticalOverflow, false, 'Sidebar should fit a standard laptop screen');
+        assert.equal(sidebarState.logoHeight, 42, 'Sidebar logo must not shrink');
+        if (width < 1024) await key('Escape', 27);
+    }
+    await evaluate(`document.documentElement.style.fontSize=''`);
+    await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
     for (const route of ['categories', 'products', 'units', 'batches', 'inventory', 'promotions', 'accounts']) {
         await evaluate(`document.querySelector('[data-manager-view="${route}"]').click()`);
         await waitFor(`location.hash==='#${route}' && document.activeElement.id==='page-title'`);
