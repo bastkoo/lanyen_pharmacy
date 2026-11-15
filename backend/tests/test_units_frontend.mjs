@@ -25,7 +25,7 @@ test('VND amounts and reference/conflict errors have explicit messages', () => {
 });
 test('five unit APIs scope product/unit IDs and reuse cookie + fresh CSRF client', async () => {
     const calls = [];
-    globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ csrf_token: 'fresh-unit-csrf' }) }; };
+    globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, text: async () => JSON.stringify({ csrf_token: 'fresh-unit-csrf' }) }; };
     await api.getUnits(3, { page: 2, per_page: 20 }); await api.getUnit(3, 7);
     const body = { DonViTinh: 'Hộp', GiaBan: 10000, SoLuongQuyDoi: 10 };
     await api.createUnit(3, body); await api.updateUnit(3, 7, body); await api.deleteUnit(3, 7);

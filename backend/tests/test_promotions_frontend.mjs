@@ -30,7 +30,7 @@ test('discount display uses real Decimal response and never computes a final sel
     assert.throws(() => formatPromotionDiscount({ LoaiGiamGia: true, GiaTriGiam: '1.50' }));
 });
 test('ten promotion APIs preserve exact composite paths and shared session/CSRF', async () => {
-    const calls = []; globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ csrf_token: 'promotions-csrf' }) }; };
+    const calls = []; globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, text: async () => JSON.stringify({ csrf_token: 'promotions-csrf' }) }; };
     await api.getPromotions({ page: 2, per_page: 100 }); await api.getPromotion(7);
     const program = { TenChuongTrinh: 'KM', NgayBatDau: '2026-01-01', NgayKetThuc: '2026-01-01' };
     await api.createPromotion(program); await api.updatePromotion(7, program); await api.deletePromotion(7);

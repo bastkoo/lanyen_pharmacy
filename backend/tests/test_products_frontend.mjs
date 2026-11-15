@@ -31,7 +31,7 @@ test('file validation accepts exact 5 MiB and rejects empty/large/unsupported fi
 
 test('product API query contracts, JSON payload and multipart CSRF use shared session client', async () => {
     const calls = [];
-    globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ csrf_token: 'fresh' }) }; };
+    globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, text: async () => JSON.stringify({ csrf_token: 'fresh' }) }; };
     await api.getProducts({ search: 'A & B', category_id: 1, phan_loai: 'false', page: 2, per_page: 10, sort_by: 'TenThuoc', sort_order: 'asc' });
     await api.getProduct(7); await api.createProduct(validateProduct(valid).data); await api.updateProduct(7, validateProduct(valid).data); await api.deleteProduct(7);
     const file = new File(['image'], 'test.png', { type: 'image/png' }); await api.uploadProductImage(file);
