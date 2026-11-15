@@ -1,5 +1,5 @@
 export const PRODUCT_GROUPS = [
-    { title: 'Thông tin cơ bản', fields: [['TenThuoc', 'Tên thuốc', 255], ['MaLoaiThuoc', 'Danh mục thuốc', 'category'], ['MaDuoc', 'Mã dược', 50], ['SoDangKy', 'Số đăng ký', 100], ['PhanLoai', 'Phân loại thuốc', 'boolean']] },
+    { title: 'Thông tin cơ bản', fields: [['TenThuoc', 'Tên thuốc', 255], ['MaLoaiThuoc', 'Danh mục thuốc', 'category'], ['MaDuoc', 'Mã dược', 50], ['MaVach', 'Mã vạch', 255], ['SoDangKy', 'Số đăng ký', 100], ['PhanLoai', 'Phân loại thuốc', 'boolean']] },
     { title: 'Thông tin sản xuất', fields: [['DangBaoChe', 'Dạng bào chế', 255], ['QuyCachDongGoi', 'Quy cách đóng gói', 255], ['NhaSanXuat', 'Nhà sản xuất', 255], ['NuocSanXuat', 'Nước sản xuất', 255]] },
     { title: 'Thông tin sử dụng', fields: [['MoTa', 'Mô tả', 'text'], ['CachDung', 'Cách dùng', 'text'], ['ChongChiDinh', 'Chống chỉ định', 'text'], ['BaoQuan', 'Bảo quản', 'text']] },
     { title: 'Quản lý tồn kho', fields: [['NguongTonKho', 'Ngưỡng tồn kho', 'integer']] }

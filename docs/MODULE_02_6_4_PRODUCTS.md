@@ -1,5 +1,7 @@
 # Module 02.6.4 — Frontend quản lý thuốc + Cloudinary
 
+**Bổ sung MaVach:** form thêm/sửa/chi tiết và danh sách thuốc hiển thị mã vạch. Tìm kiếm hỗ trợ mã vạch và có sắp xếp theo mã vạch; POST/PUT cần MaVach là chuỗi 1–255 ký tự, giữ nguyên số 0 đầu. Cột VARCHAR(255) NOT NULL đã được người dùng thêm trong PostgreSQL, không tạo/chạy migration để thêm lại. Xem [bàn giao mã vạch](MA_VACH_THUOC.md).
+
 ## Kết quả triển khai
 
 Trang `frontend/pages/manager/index.html#products` kết nối trực tiếp API Flask hiện có. Không có dữ liệu thuốc mẫu, URL giả, cơ chế đăng nhập giả hoặc secret Cloudinary trong mã frontend.
@@ -26,7 +28,7 @@ Mọi request dùng cookie session. Request ghi/upload dùng CSRF từ cơ chế
 | GET | `/api/manager/categories` | Lấy đủ các trang, mỗi trang 100 mục để tên danh mục/bộ chọn không thiếu dữ liệu |
 | POST | `/api/manager/uploads/products` | FormData field image; UPLOAD_SUCCESS + data.url/data.public_id |
 
-Giữ toàn bộ trường thực tế: MaLoaiThuoc, HinhAnh, TenThuoc, MoTa, MaDuoc, SoDangKy, DangBaoChe, QuyCachDongGoi, NhaSanXuat, NuocSanXuat, CachDung, ChongChiDinh, BaoQuan, NguongTonKho, PhanLoai. Không áp tính duy nhất cho MaDuoc/SoDangKy.
+Giữ toàn bộ trường thực tế: MaLoaiThuoc, HinhAnh, TenThuoc, MoTa, MaDuoc, MaVach, SoDangKy, DangBaoChe, QuyCachDongGoi, NhaSanXuat, NuocSanXuat, CachDung, ChongChiDinh, BaoQuan, NguongTonKho, PhanLoai. Không áp tính duy nhất cho MaDuoc/MaVach/SoDangKy.
 
 ## Quy trình ảnh
 

@@ -49,7 +49,7 @@ export function setupUnits({ root, onAccessError }) {
             for (const item of data.items) {
                 if (!integer(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
                 const li = node('li'), button = node('button'); button.type = 'button'; button.dataset.id = item.MaThuoc;
-                button.append(node('strong', item.TenThuoc), node('span', `#${item.MaThuoc} · ${item.MaDuoc || 'Chưa có mã dược'}`));
+                button.append(node('strong', item.TenThuoc), node('span', `#${item.MaThuoc} · ${item.MaDuoc || 'Chưa có mã dược'}`), node('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`));
                 li.append(button); $('units-products').append(li);
             }
             markSelection(); $('units-picker-status').textContent = data.total ? `${data.total} thuốc phù hợp` : 'Không tìm thấy thuốc. Thử từ khóa khác.';
@@ -103,7 +103,7 @@ export function setupUnits({ root, onAccessError }) {
             if (!active || attempt !== selectionVersion) return;
             if (data.code !== 'PRODUCT_FOUND' || data.product?.MaThuoc !== id || typeof data.product.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
             product = data.product;
-            const identity = node('div'); identity.append(node('h3', product.TenThuoc), node('p', `#${id} · Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`));
+            const identity = node('div'); identity.append(node('h3', product.TenThuoc), node('p', `#${id} · Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), node('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
             if (validHttps(product.HinhAnh)) {
                 const image = node('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.src = product.HinhAnh;
                 image.addEventListener('error', () => { image.hidden = true; }); $('units-product').append(image);

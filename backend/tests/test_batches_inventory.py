@@ -193,8 +193,8 @@ class BatchInventoryTests(unittest.TestCase):
         self.assertFalse(hasattr(lo_thuoc_repository, 'remove'))
 
     def test_summary_serializes_aggregate_and_zero_stock(self):
-        rows = [dict(MaThuoc=3, TenThuoc='A', TongSoLuongTon=150, NguongTonKho=10, TonKhoThap=False),
-                dict(MaThuoc=4, TenThuoc='B', TongSoLuongTon=0, NguongTonKho=0, TonKhoThap=True)]
+        rows = [dict(MaThuoc=3, TenThuoc='A', MaVach='0012345678901', TongSoLuongTon=150, NguongTonKho=10, TonKhoThap=False),
+                dict(MaThuoc=4, TenThuoc='B', MaVach='0012345678902', TongSoLuongTon=0, NguongTonKho=0, TonKhoThap=True)]
         self.summary.return_value = (rows, 2)
         response = self.send('GET', INVENTORY + '/summary')
         self.assertEqual(response.status_code, 200)
@@ -211,13 +211,14 @@ class BatchInventoryTests(unittest.TestCase):
 
     def expiry_row(self, expiry):
         return dict(loaded_data(), MaLo=7, MaThuoc=3, SoLuongTon=30,
-                    TenThuoc='A', HanSuDung=expiry)
+                    TenThuoc='A', MaVach='0012345678901', HanSuDung=expiry)
 
     def test_expiring_default_days(self):
         self.expiry.return_value = ([self.expiry_row(TODAY + timedelta(days=30))], 1)
         response = self.send('GET', INVENTORY + '/expiring')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json['items'][0]['TrangThaiHan'], 'EXPIRING')
+        self.assertEqual(response.json['items'][0]['MaVach'], '0012345678901')
         self.assertEqual(response.json['as_of'], TODAY.isoformat())
         self.expiry.assert_called_once_with(TODAY, TODAY + timedelta(days=30), 'expiring', 1, 20)
 

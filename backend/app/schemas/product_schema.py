@@ -25,6 +25,7 @@ class ProductSchema(Schema):
     TenThuoc = required_text(255)
     MoTa = required_text()
     MaDuoc = required_text(50)
+    MaVach = required_text(255)
     SoDangKy = required_text(100)
     DangBaoChe = required_text(255)
     QuyCachDongGoi = required_text(255)
@@ -63,5 +64,5 @@ class ProductQuerySchema(Schema):
     page = fields.Integer(load_default=1, validate=validate.Range(min=1, max=2147483647))
     per_page = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100))
     sort_by = fields.String(load_default='MaThuoc', validate=validate.OneOf(
-        ['MaThuoc', 'TenThuoc', 'MaDuoc', 'SoDangKy', 'MaLoaiThuoc', 'NguongTonKho', 'PhanLoai']))
+        ['MaThuoc', 'TenThuoc', 'MaDuoc', 'MaVach', 'SoDangKy', 'MaLoaiThuoc', 'NguongTonKho', 'PhanLoai']))
     sort_order = fields.String(load_default='asc', validate=validate.OneOf(['asc', 'desc']))

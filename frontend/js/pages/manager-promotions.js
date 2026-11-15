@@ -82,15 +82,15 @@ export function setupPromotions({ root, onAccessError }) {
     const itemRow = item => {
         const row = n('tr'), name = n('th'), identity = n('div', undefined, 'promotion-item-identity'), product = products.get(item.MaThuoc); name.scope = 'row';
         if (validHttps(product?.HinhAnh)) { const image = n('img'); image.src = product.HinhAnh; image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.addEventListener('error', () => { image.hidden = true; }); identity.append(image); }
-        const text = n('div'); text.append(n('strong', product.TenThuoc), n('span', `#${item.MaThuoc}`)); identity.append(text); name.append(identity);
+        const text = n('div'); text.append(n('strong', product.TenThuoc), n('span', `#${item.MaThuoc}`), n('span', `Mã vạch: ${product.MaVach || 'Chưa có'}`)); identity.append(text); name.append(identity);
         const actions = n('td');
         for (const [action, label] of [['edit', 'Sửa'], ['delete', 'Xóa']]) {
             const button = n('button', label, `categories-action${action === 'delete' ? ' categories-action--delete' : ''}`); button.type = 'button'; button.dataset.itemAction = action; button.dataset.id = item.MaThuoc; button.setAttribute('aria-label', `${label} khuyến mãi của ${product.TenThuoc}`); actions.append(button);
         }
         row.append(name, n('td', item.LoaiGiamGia ? 'Phần trăm' : 'Tiền trực tiếp'), n('td', formatPromotionDiscount(item), 'stock-number'), n('td', new Intl.NumberFormat('vi-VN').format(item.SoLuong), 'stock-number'), n('td', item.SoLuong ? 'Còn số lượng áp dụng' : 'Hết số lượng áp dụng'), actions); return row;
     };
-    itemRow.search = item => products.get(item.MaThuoc)?.TenThuoc || '';
-    const itemTable = setupStockTable({ root: $('promotion-items-table'), id: 'promotion-items', title: 'Thuốc trong chương trình', description: 'Chỉ cấu hình mức giảm và số lượng; chưa tính giá sau giảm.', columns: [['Thuốc'], ['Loại giảm'], ['Giá trị giảm', true], ['Số lượng còn áp dụng', true], ['Trạng thái số lượng'], ['Thao tác']], filterLabel: 'Lọc tên thuốc trong trang này', onLoad: next => loadItems(next), renderRow: itemRow });
+    itemRow.search = item => `${products.get(item.MaThuoc)?.TenThuoc || ''} ${products.get(item.MaThuoc)?.MaVach || ''}`;
+    const itemTable = setupStockTable({ root: $('promotion-items-table'), id: 'promotion-items', title: 'Thuốc trong chương trình', description: 'Chỉ cấu hình mức giảm và số lượng; chưa tính giá sau giảm.', columns: [['Thuốc'], ['Loại giảm'], ['Giá trị giảm', true], ['Số lượng còn áp dụng', true], ['Trạng thái số lượng'], ['Thao tác']], filterLabel: 'Lọc tên / mã vạch trong trang này', onLoad: next => loadItems(next), renderRow: itemRow });
     async function loadItems(next = itemPage) {
         if (!active || !current) return;
         const id = detailId, attempt = begin('items'); itemsReady = false; $('promotion-item-add').disabled = true; itemTable.loading(); itemPage = next;
@@ -161,7 +161,7 @@ export function setupPromotions({ root, onAccessError }) {
             const assigned = new Set(items.map(item => item.MaThuoc));
             for (const item of data.items) {
                 if (!Number.isInteger(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-                const option = new Option(`${item.TenThuoc} · #${item.MaThuoc}${assigned.has(item.MaThuoc) ? ' · Đã có trong chương trình' : ''}`, String(item.MaThuoc)); option.disabled = assigned.has(item.MaThuoc); $('promotion-MaThuoc').append(option); products.set(item.MaThuoc, item);
+                const option = new Option(`${item.TenThuoc} · #${item.MaThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}${assigned.has(item.MaThuoc) ? ' · Đã có trong chương trình' : ''}`, String(item.MaThuoc)); option.disabled = assigned.has(item.MaThuoc); $('promotion-MaThuoc').append(option); products.set(item.MaThuoc, item);
             }
             pickerReady = true; pickerPages = data.pages; $('promotion-MaThuoc').disabled = busy;
             $('promotion-picker-status').textContent = data.total ? `${data.total} thuốc · Trang ${data.page}/${data.pages}. Thuốc đã gán được vô hiệu hóa.` : 'Không có thuốc phù hợp.';
@@ -186,7 +186,7 @@ export function setupPromotions({ root, onAccessError }) {
             if (!alive('dialog', attempt) || !dialog.open) return;
             if (itemMode) {
                 checkItem(data.item, detailId); if (data.item.MaThuoc !== id) throw new ApiError('INVALID_RESPONSE');
-                $('promotion-selected-product').textContent = `${products.get(id)?.TenThuoc || `Thuốc #${id}`} · #${id}`;
+                $('promotion-selected-product').textContent = `${products.get(id)?.TenThuoc || `Thuốc #${id}`} · #${id} · Mã vạch: ${products.get(id)?.MaVach || 'Chưa có'}`;
                 for (const key of ['LoaiGiamGia', 'SoLuong']) $(`promotion-${key}`).value = String(data.item[key]);
                 $('promotion-GiaTriGiam').value = data.item.LoaiGiamGia ? String(Number(data.item.GiaTriGiam)) : data.item.GiaTriGiam;
                 $('promotion-delete-name').textContent = `${products.get(id)?.TenThuoc || `Thuốc #${id}`} · ${formatPromotionDiscount(data.item)} · Số lượng: ${data.item.SoLuong}`;

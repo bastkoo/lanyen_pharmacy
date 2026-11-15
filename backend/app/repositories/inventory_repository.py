@@ -18,7 +18,7 @@ def summary(page, per_page, low_stock=False):
         .group_by(LoThuoc.MaThuoc).subquery()
     total = func.coalesce(totals.c.total, 0)
     warning = total <= Thuoc.NguongTonKho
-    query = select(Thuoc.MaThuoc, Thuoc.TenThuoc, total.label('TongSoLuongTon'),
+    query = select(Thuoc.MaThuoc, Thuoc.TenThuoc, Thuoc.MaVach, total.label('TongSoLuongTon'),
                    Thuoc.NguongTonKho, warning.label('TonKhoThap')) \
         .outerjoin(totals, totals.c.MaThuoc == Thuoc.MaThuoc).order_by(Thuoc.MaThuoc)
     if low_stock:
@@ -27,7 +27,7 @@ def summary(page, per_page, low_stock=False):
 
 
 def expiring(today, until, status, page, per_page):
-    query = select(*LoThuoc.__table__.columns, Thuoc.TenThuoc) \
+    query = select(*LoThuoc.__table__.columns, Thuoc.TenThuoc, Thuoc.MaVach) \
         .join(Thuoc, Thuoc.MaThuoc == LoThuoc.MaThuoc).where(LoThuoc.SoLuongTon > 0)
     if status == 'expired':
         query = query.where(LoThuoc.HanSuDung < today)

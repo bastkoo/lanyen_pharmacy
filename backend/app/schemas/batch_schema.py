@@ -45,6 +45,7 @@ class BatchCreateSchema(BatchSchema):
 class InventorySummarySchema(Schema):
     MaThuoc = fields.Integer()
     TenThuoc = fields.String()
+    MaVach = fields.String()
     TongSoLuongTon = fields.Integer()
     NguongTonKho = fields.Integer()
     TonKhoThap = fields.Boolean()
@@ -52,6 +53,7 @@ class InventorySummarySchema(Schema):
 
 class ExpirySchema(BatchSchema):
     TenThuoc = fields.String(dump_only=True)
+    MaVach = fields.String(dump_only=True)
     TrangThaiHan = fields.String(dump_only=True)
 
 
