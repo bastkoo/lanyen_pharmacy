@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { spawn } from 'node:child_process';
-import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -11,6 +11,7 @@ import { categoryFixture, checkCategories } from './browser_categories.mjs';
 import { productFixture, checkProducts } from './browser_products.mjs';
 import { unitFixture, checkUnits } from './browser_units.mjs';
 import { stockFixture, checkStock } from './browser_stock.mjs';
+import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -20,6 +21,8 @@ const categoryTest = process.argv.includes('--categories');
 const productTest = process.argv.includes('--products');
 const unitTest = process.argv.includes('--units');
 const stockTest = process.argv.includes('--stock');
+const promotionTest = process.argv.includes('--promotions');
+let checkingPromotions = false;
 let checkingStock = false;
 let checkingUnits = false;
 let checkingProducts = false;
@@ -52,6 +55,7 @@ const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
+    if (checkingPromotions && (pathname.startsWith('/api/manager/promotions') || pathname.startsWith('/api/manager/products'))) return promotionFixture(req, json);
     if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory'))) return stockFixture(req, json);
     if (checkingUnits && pathname.startsWith('/api/manager/products')) return unitFixture(req, json);
     if (productTest && (pathname.startsWith('/api/manager/products') || pathname === '/api/manager/uploads/products' || ((!categoryTest || checkingProducts) && pathname === '/api/manager/categories'))) return productFixture(req, json);
@@ -100,6 +104,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const browserProfile = await mkdtemp(path.join(tmpdir(), 'lanyen-manager-ui-'));
+const regressionArtifacts = promotionTest ? await mkdtemp(path.join(tmpdir(), 'lanyen-promotion-regression-')) : root;
+if (promotionTest) await mkdir(path.join(regressionArtifacts, 'docs'));
 const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=0', `--user-data-dir=${browserProfile}`, 'about:blank'
@@ -156,7 +162,7 @@ try {
         await waitFor(`document.querySelector('#access-state')?.getAttribute('aria-busy')==='false' || document.querySelector('#manager-shell')?.hidden===false`);
     };
     const screenshot = async filename => {
-        if (!dashboardTest || categoryTest || productTest || unitTest || stockTest) return; // Preserve earlier module artifacts during feature tests.
+        if (!dashboardTest || categoryTest || productTest || unitTest || stockTest || promotionTest) return; // Preserve earlier module artifacts during feature tests.
         filename = filename.replace('MODULE_02_6_1_MANAGER', 'MODULE_02_6_2_DASHBOARD');
         const result = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
         await writeFile(path.join(root, 'docs', filename), Buffer.from(result.data, 'base64'));
@@ -179,7 +185,7 @@ try {
         assert.equal(await evaluate(`document.querySelector('#kpi-expiring').textContent`), '1');
     }
     await screenshot('MODULE_02_6_1_MANAGER_DESKTOP.png');
-    for (const route of ['categories', 'products', 'units', 'batches', 'inventory']) {
+    for (const route of ['categories', 'products', 'units', 'batches', 'inventory', 'promotions']) {
         await evaluate(`document.querySelector('[data-manager-view="${route}"]').click()`);
         await waitFor(`location.hash==='#${route}' && document.activeElement.id==='page-title'`);
         assert.equal(await evaluate(`document.querySelector('#${route}-content').hidden`), false);
@@ -252,24 +258,30 @@ try {
     }
     if (categoryTest) {
         await navigate('manager');
-        await checkCategories({ evaluate, waitFor, key, command, root });
+        await checkCategories({ evaluate, waitFor, key, command, root: regressionArtifacts });
     }
     if (productTest) {
         checkingProducts = true;
         await navigate('manager');
-        await checkProducts({ evaluate, waitFor, key, command, root });
+        await checkProducts({ evaluate, waitFor, key, command, root: regressionArtifacts });
     }
     if (unitTest) {
         checkingUnits = true;
         await navigate('manager');
-        await checkUnits({ evaluate, waitFor, key, command, root });
+        await checkUnits({ evaluate, waitFor, key, command, root: regressionArtifacts });
         checkingUnits = false;
     }
     if (stockTest) {
         checkingStock = true;
         await navigate('manager');
-        await checkStock({ evaluate, waitFor, key, command, root });
+        await checkStock({ evaluate, waitFor, key, command, root: regressionArtifacts });
         checkingStock = false;
+    }
+    if (promotionTest) {
+        checkingPromotions = true;
+        await navigate('manager');
+        await checkPromotions({ evaluate, waitFor, key, command, root });
+        checkingPromotions = false;
     }
     await navigate('forbidden');
     assert.equal(await evaluate(`document.querySelector('#manager-shell').hidden`), true);

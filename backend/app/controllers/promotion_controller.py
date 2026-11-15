@@ -6,26 +6,30 @@ from app.schemas.unit_schema import UnitQuerySchema
 from app.services import promotion_service as service
 
 
-def payload():
+def payload(schema=PromotionSchema):
     if not request.is_json:
         raise service.PromotionError('JSON_REQUIRED', 415)
     body = request.get_json(silent=True)
     if not isinstance(body, dict):
         raise service.PromotionError('INVALID_REQUEST', 400)
     try:
-        return PromotionSchema().load(body)
+        return schema().load(body)
     except ValidationError:
         raise service.PromotionError('INVALID_REQUEST', 400) from None
 
 
-def list_promotions():
+def query_payload():
     try:
         if any(len(values) != 1 for _, values in request.args.lists()):
             raise ValidationError('Repeated parameters')
         query = UnitQuerySchema().load(request.args.to_dict())
     except ValidationError:
         raise service.PromotionError('INVALID_REQUEST', 400) from None
-    return jsonify(code='PROMOTIONS_LISTED', **service.list_promotions(**query))
+    return query
+
+
+def list_promotions():
+    return jsonify(code='PROMOTIONS_LISTED', **service.list_promotions(**query_payload()))
 
 
 def get_promotion(promotion_id):
