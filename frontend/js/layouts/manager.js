@@ -4,6 +4,7 @@ import { managerIcon, renderManagerState } from '../components/manager-state.js'
 import { MANAGER_VIEWS, resolveManagerView, managerAccess, accountInitials } from '../utils/manager-view.js';
 import { setupDashboard } from '../pages/manager-dashboard.js';
 import { setupCategories } from '../pages/manager-categories.js';
+import { setupProducts } from '../pages/manager-products.js';
 
 const $ = id => document.getElementById(id);
 const gate = $('manager-gate');
@@ -20,6 +21,7 @@ function handleAccessError(error) {
 }
 const dashboard = setupDashboard({ root: $('overview-content'), onAccessError: handleAccessError });
 const categories = setupCategories({ root: $('categories-content'), onAccessError: handleAccessError });
+const products = setupProducts({ root: $('products-content'), onAccessError: handleAccessError });
 
 function closeDrawer(restoreFocus = true) {
     const wasOpen = document.body.classList.contains('drawer-open');
@@ -50,6 +52,7 @@ function showGate(type, title, description, action = 'retry') {
     const wasVisible = !shell.hidden;
     dashboard.clear();
     categories.clear();
+    products.clear();
     closeDrawer(false);
     menu.open = false;
     shell.hidden = true;
@@ -73,7 +76,9 @@ function renderView(focus = false) {
     $('overview-content').hidden = key !== 'overview';
     $('categories-content').hidden = key !== 'categories';
     $('category-add').hidden = key !== 'categories';
-    $('module-content').hidden = key === 'overview' || key === 'categories';
+    $('products-content').hidden = key !== 'products';
+    $('product-add').hidden = key !== 'products';
+    $('module-content').hidden = ['overview', 'categories', 'products'].includes(key);
     document.querySelectorAll('[data-manager-view]').forEach(link => {
         if (link.dataset.managerView === key) link.setAttribute('aria-current', 'page');
         else link.removeAttribute('aria-current');
@@ -94,6 +99,8 @@ function renderView(focus = false) {
     else dashboard.deactivate();
     if (key === 'categories' && user) categories.activate();
     else categories.deactivate();
+    if (key === 'products' && user) products.activate();
+    else products.deactivate();
     if (focus && user) $('page-title').focus();
 }
 
