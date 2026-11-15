@@ -15,7 +15,7 @@ BASE = '/api/manager/products'
 
 def valid_data():
     return dict(MaLoaiThuoc=2, HinhAnh='https://example.com/medicine.jpg',
-                TenThuoc='Thuoc A', MoTa='Mo ta', MaDuoc='MD01', SoDangKy='SDK01',
+                TenThuoc='Thuoc A', MoTa='Mo ta', MaDuoc='MD01', MaVach='0012345678901', SoDangKy='SDK01',
                 DangBaoChe='Vien', QuyCachDongGoi='Hop', NhaSanXuat='NSX',
                 NuocSanXuat='Viet Nam', CachDung='Theo huong dan',
                 ChongChiDinh='Theo huong dan', BaoQuan='Noi kho', NguongTonKho=0)
@@ -79,6 +79,21 @@ class ProductTests(unittest.TestCase):
         self.assertIs(response.json['product']['PhanLoai'], True)
         self.assertEqual(response.json['product']['TenThuoc'], 'Thuoc A')
 
+    def test_barcode_roundtrip_preserves_leading_zeros_and_is_not_unique(self):
+        for _ in range(2):
+            response = self.send(json=dict(valid_data(), MaVach='  0012345678901  '))
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.json['product']['MaVach'], '0012345678901')
+        self.assertEqual(self.send('GET', BASE + '/3').json['product']['MaVach'], '0012345678901')
+
+    def test_barcode_schema_matches_existing_database_column(self):
+        from app.models.thuoc import Thuoc
+        column = Thuoc.__table__.c.MaVach
+        self.assertEqual(column.type.length, 255)
+        self.assertFalse(column.nullable)
+        self.assertIsNone(column.default)
+        self.assertFalse(column.unique)
+
     def test_missing_each_required_field(self):
         for field in valid_data():
             body = valid_data()
@@ -98,7 +113,7 @@ class ProductTests(unittest.TestCase):
                     self.assertEqual(self.send(json=dict(valid_data(), **{field: value})).status_code, 400)
 
     def test_string_length_limits(self):
-        limits = dict(TenThuoc=255, MaDuoc=50, SoDangKy=100, DangBaoChe=255,
+        limits = dict(TenThuoc=255, MaDuoc=50, MaVach=255, SoDangKy=100, DangBaoChe=255,
                       QuyCachDongGoi=255, NhaSanXuat=255, NuocSanXuat=255)
         for field, limit in limits.items():
             with self.subTest(field=field):
@@ -303,7 +318,7 @@ class ProductRepositoryTests(unittest.TestCase):
             compiled = self.compile(execute.call_args.args[0])
             sql = str(compiled)
             where = sql.split('WHERE')[1].split('ORDER BY')[0]
-            for field in ('TenThuoc', 'MaDuoc', 'SoDangKy', 'MaLoaiThuoc', 'PhanLoai'):
+            for field in ('TenThuoc', 'MaDuoc', 'MaVach', 'SoDangKy', 'MaLoaiThuoc', 'PhanLoai'):
                 self.assertIn('"' + field + '"', where)
             self.assertIn('/%/_', compiled.params.values())
             self.assertIn('"TenThuoc" DESC, "Thuoc"."MaThuoc" ASC', sql)

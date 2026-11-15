@@ -4,8 +4,8 @@ import path from 'node:path';
 import { PRODUCT_FIELDS } from '../../frontend/js/utils/product-validation.js';
 
 const data = Object.fromEntries(PRODUCT_FIELDS.map(([key, , type]) => [key, type === 'category' ? 1 : type === 'integer' ? 0 : type === 'boolean' ? false : 'Thông tin kiểm thử']));
-Object.assign(data, { HinhAnh: 'https://example.invalid/image.png', TenThuoc: 'Thuốc kiểm thử', MaDuoc: 'TEST', SoDangKy: 'TEST-REG' });
-let items = Array.from({ length: 23 }, (_, index) => ({ ...data, MaThuoc: index + 1, TenThuoc: `Thuốc kiểm thử ${index + 1}`, MaLoaiThuoc: index % 2 + 1, PhanLoai: index % 2 === 1 }));
+Object.assign(data, { HinhAnh: 'https://example.invalid/image.png', TenThuoc: 'Thuốc kiểm thử', MaDuoc: 'TEST', MaVach: '0012345678901', SoDangKy: 'TEST-REG' });
+let items = Array.from({ length: 23 }, (_, index) => ({ ...data, MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc kiểm thử ${index + 1}`, MaLoaiThuoc: index % 2 + 1, PhanLoai: index % 2 === 1 }));
 let mode = 'normal', nextId = 30;
 const calls = [];
 export async function productFixture(req, json) {
@@ -28,7 +28,7 @@ export async function productFixture(req, json) {
     }
     const item = items.find(value => value.MaThuoc === id);
     if (req.method === 'GET' && !id) {
-        let found = items.filter(value => [value.TenThuoc, value.MaDuoc, value.SoDangKy].some(text => text.includes(url.searchParams.get('search') || '')));
+        let found = items.filter(value => [value.TenThuoc, value.MaDuoc, value.MaVach, value.SoDangKy].some(text => text.includes(url.searchParams.get('search') || '')));
         if (url.searchParams.has('category_id')) found = found.filter(value => value.MaLoaiThuoc === Number(url.searchParams.get('category_id')));
         if (url.searchParams.has('phan_loai')) found = found.filter(value => String(value.PhanLoai) === url.searchParams.get('phan_loai'));
         const page = Number(url.searchParams.get('page') || 1), per_page = Number(url.searchParams.get('per_page') || 20);
@@ -57,6 +57,11 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     };
     await run(`location.hash='products'`);
     await waitFor(`!document.querySelector('#products-table-wrap').hidden && document.querySelector('#products-body').children.length===20`);
+    assert.match(await run(`document.querySelector('#products-body').textContent`), /Mã vạch: 0000000000001/);
+    await run(`document.querySelector('#products-search').value='0000000000001';document.querySelector('#products-filters').requestSubmit()`);
+    await waitFor(`document.querySelector('#products-body').children.length===1`);
+    await run(`document.querySelector('#products-reset').click()`);
+    await waitFor(`document.querySelector('#products-body').children.length===20`);
     await run(`document.querySelector('#products-next').click()`);
     await waitFor(`document.querySelector('#products-page-status').textContent.includes('Trang 2')`);
     await run(`document.querySelector('#products-search').value='TEST';document.querySelector('#products-category').value='2';document.querySelector('#products-classification').value='true';document.querySelector('#products-filters').requestSubmit()`);
@@ -67,6 +72,7 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     await run(`document.querySelector('[data-product-action="view"]').click()`);
     await waitFor(`!document.querySelector('#product-details').hidden`);
     assert.match(await run(`document.querySelector('#product-details').textContent`), /Thông tin sử dụng/);
+    assert.match(await run(`document.querySelector('#product-details').textContent`), /Mã vạch.*0000000000001/);
     await run(`document.querySelector('#product-back').click();document.querySelector('#product-add').click();document.querySelector('#product-form').requestSubmit()`);
     assert.equal(await run(`document.querySelector('#product-TenThuoc').getAttribute('aria-invalid')`), 'true');
     assert.equal(calls.filter(call => call.method === 'POST' && call.path === '/api/manager/products').length, 0);

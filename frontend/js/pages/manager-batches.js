@@ -55,7 +55,7 @@ export function setupBatches({ root, onAccessError }) {
             if (data.code !== 'PRODUCTS_LISTED' || !Array.isArray(data.items)) throw new ApiError('INVALID_RESPONSE');
             for (const item of data.items) {
                 if (!Number.isInteger(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-                $('batch-product-select').append(new Option(`${item.TenThuoc} · #${item.MaThuoc}`, String(item.MaThuoc)));
+                $('batch-product-select').append(new Option(`${item.TenThuoc} · #${item.MaThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}`, String(item.MaThuoc)));
             }
             $('batch-product-select').value = String(productId || ''); $('batch-product-select').disabled = !data.items.length;
             $('batch-picker-status').textContent = data.total ? `${data.total} thuốc · Trang ${data.page} / ${data.pages}` : 'Không tìm thấy thuốc phù hợp.';
@@ -75,7 +75,7 @@ export function setupBatches({ root, onAccessError }) {
             const data = await getProduct(id, { signal: selectionController.signal });
             if (!active || attempt !== selectionVersion) return;
             if (data.code !== 'PRODUCT_FOUND' || data.product?.MaThuoc !== id || typeof data.product.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-            product = data.product; const identity = n('div'); identity.append(n('h3', product.TenThuoc), n('p', `#${id} · Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`));
+            product = data.product; const identity = n('div'); identity.append(n('h3', product.TenThuoc), n('p', `#${id} · Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), n('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
             if (validHttps(product.HinhAnh)) { const image = n('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.src = product.HinhAnh; image.addEventListener('error', () => { image.hidden = true; }); $('batch-product-identity').append(image); }
             $('batch-product-identity').append(identity); $('batch-product-identity').hidden = false; $('batch-add').disabled = false;
             $('batch-product-select').value = String(id); loadList(1);

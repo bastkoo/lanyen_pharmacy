@@ -64,6 +64,7 @@ export function setupDashboard({ root, onAccessError }) {
         const list = $(key === 'low-stock' ? 'low-stock-list' : 'expiring-list'); list.replaceChildren();
         for (const item of data.items) {
             const row = el('li'); row.append(el('strong', item.TenThuoc));
+            row.append(el('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`, 'dashboard-alert-meta'));
             if (key === 'low-stock') {
                 row.append(el('span', `Tồn ${formatCount(item.TongSoLuongTon)} · Ngưỡng ${formatCount(item.NguongTonKho)}`));
             } else row.append(el('span', `Lô ${item.SoLoSanXuat} · HSD ${formatStoredDate(item.HanSuDung)}`),

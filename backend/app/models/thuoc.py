@@ -43,6 +43,12 @@ class Thuoc(db.Model):
         nullable=False
     )
 
+    # Khớp cột VARCHAR(255) NOT NULL đã được thêm trong PostgreSQL.
+    MaVach = db.Column(
+        db.String(255),
+        nullable=False
+    )
+
     # Số đăng ký lưu hành
     SoDangKy = db.Column(
         db.String(100),

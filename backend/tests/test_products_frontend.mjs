@@ -5,6 +5,7 @@ globalThis.location = { protocol: 'http:', hostname: 'localhost' };
 const api = await import('../../frontend/js/api/products.js');
 const valid = Object.fromEntries(PRODUCT_FIELDS.map(([key, , type]) => [key, type === 'category' ? '1' : type === 'integer' ? '0' : type === 'boolean' ? false : 'Thông tin']));
 valid.HinhAnh = 'https://example.com/image.png';
+valid.MaVach = '0012345678901';
 
 test('full product schema validates required fields, lengths, integers and booleans', () => {
     const result = validateProduct(valid);
@@ -19,6 +20,8 @@ test('full product schema validates required fields, lengths, integers and boole
     assert.ok(validateProduct({ ...valid, PhanLoai: 'true' }).errors.PhanLoai);
     for (const value of ['http://example.com/a', 'javascript:alert(1)', 'https://a.com/\n', 'https://a.com:99999/a']) assert.ok(validateProduct({ ...valid, HinhAnh: value }).errors.HinhAnh);
     assert.deepEqual(Object.keys(result.data).sort(), [...PRODUCT_FIELDS.map(x => x[0]), 'HinhAnh'].sort());
+    assert.equal(result.data.MaVach, '0012345678901');
+    for (const value of [123, true, null, '', 'a\0b', 'a'.repeat(256)]) assert.ok(validateProduct({ ...valid, MaVach: value }).errors.MaVach);
 });
 
 test('file validation accepts exact 5 MiB and rejects empty/large/unsupported files', () => {

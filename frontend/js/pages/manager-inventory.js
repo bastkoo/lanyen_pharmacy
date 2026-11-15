@@ -16,24 +16,26 @@ export function setupInventory({ root, onAccessError, onOpenBatches }) {
     const summaryRow = item => {
         if (typeof item.TonKhoThap !== 'boolean') throw new ApiError('INVALID_RESPONSE');
         const tr = n('tr'), name = n('th', `${item.TenThuoc} · #${item.MaThuoc}`); name.scope = 'row';
+        name.append(n('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`, 'product-row-meta'));
         const state = n('span', item.TonKhoThap ? 'Chạm / dưới ngưỡng' : 'Trên ngưỡng', `manager-badge${item.TonKhoThap ? ' manager-badge--warning' : ''}`), td = n('td'); td.append(state);
         tr.append(name, n('td', number(item.TongSoLuongTon), 'stock-number'), n('td', number(item.NguongTonKho), 'stock-number'), td, actionCell(item)); return tr;
     };
-    summaryRow.search = item => item.TenThuoc;
+    summaryRow.search = item => `${item.TenThuoc} ${item.MaVach || ''}`;
     const expiryRow = item => {
         const data = sections.get('expiry').data;
         if (!['EXPIRING', 'EXPIRED'].includes(item.TrangThaiHan) || item.TrangThaiHan !== (data.status === 'expired' ? 'EXPIRED' : 'EXPIRING') || dateValue(item.HanSuDung) === null || typeof item.SoLoSanXuat !== 'string' || !Number.isInteger(item.MaLo)) throw new ApiError('INVALID_RESPONSE');
         const tr = n('tr'), name = n('th', item.TenThuoc); name.scope = 'row';
+        name.append(n('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`, 'product-row-meta'));
         tr.append(name, n('td', `${item.SoLoSanXuat} · #${item.MaLo}`), n('td', formatBatchDate(item.HanSuDung), 'stock-date'), n('td', number(item.SoLuongTon), 'stock-number'), n('td', item.TrangThaiHan === 'EXPIRED' ? 'Đã hết hạn' : 'Sắp hết hạn'), n('td', expiryText(item.HanSuDung, data.as_of)), actionCell(item)); return tr;
     };
-    expiryRow.search = item => `${item.TenThuoc} ${item.SoLoSanXuat}`;
+    expiryRow.search = item => `${item.TenThuoc} ${item.MaVach || ''} ${item.SoLoSanXuat}`;
     const stockColumns = [['Thuốc'], ['Tổng SL tồn', true], ['Ngưỡng tồn', true], ['Trạng thái tồn'], ['Thao tác']];
     for (const [key, title, description, columns, renderRow, api, code] of [
         ['summary', 'Tổng hợp tồn theo thuốc', 'Tất cả thuốc, bao gồm thuốc chưa có lô. Tồn vật lý gồm cả lô đã hết hạn.', stockColumns, summaryRow, getInventorySummary, 'INVENTORY_SUMMARY'],
         ['low', 'Thuốc tồn kho thấp', 'Tổng tồn nhỏ hơn hoặc bằng ngưỡng của thuốc, theo kết quả Backend.', stockColumns, summaryRow, getLowStock, 'LOW_STOCK_LISTED'],
         ['expiry', 'Các lô cần theo dõi hạn', 'Chỉ lô còn số lượng tồn. Số ngày được tính từ mốc as_of của Backend.', [['Thuốc'], ['Số lô'], ['Hạn sử dụng'], ['SL tồn', true], ['Trạng thái hạn'], ['Thời gian còn lại'], ['Thao tác']], expiryRow, getExpiry, null]
     ]) {
-        const table = setupStockTable({ root: $(`inventory-${key}`), id: `inventory-${key}`, title, description, columns, filterLabel: key === 'expiry' ? 'Lọc tên thuốc / số lô trong trang này' : 'Lọc tên thuốc trong trang này', onLoad: page => load(key, page), renderRow });
+        const table = setupStockTable({ root: $(`inventory-${key}`), id: `inventory-${key}`, title, description, columns, filterLabel: key === 'expiry' ? 'Lọc tên / mã vạch / số lô trong trang này' : 'Lọc tên / mã vạch trong trang này', onLoad: page => load(key, page), renderRow });
         sections.set(key, { table, api, code, page: 1, version: 0, controller: undefined, data: undefined });
     }
     async function load(key, page = sections.get(key).page) {

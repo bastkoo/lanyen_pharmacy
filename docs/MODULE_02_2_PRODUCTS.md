@@ -1,7 +1,8 @@
 # Module 02.2 — Backend quản lý thuốc
 
-Triển khai theo model `backend/app/models/thuoc.py` và migration hiện có. Không
-có `GhiChu`. Không sửa model, schema PostgreSQL, migration hoặc Frontend.
+Triển khai theo model `backend/app/models/thuoc.py`. Bổ sung `MaVach` theo cột
+VARCHAR(255) NOT NULL đã được người dùng thêm trực tiếp vào PostgreSQL; không
+chạy DDL/migration để thêm lại cột. Migration gốc chưa có cột mới này. Không có `GhiChu`.
 Không triển khai upload Cloudinary, CRUD đơn vị giá hoặc lô thuốc.
 
 ## API và bảo mật
@@ -32,6 +33,7 @@ thì mặc định false; khi PUT bỏ qua thì giữ nguyên giá trị hiện 
   "TenThuoc": "Thuốc kiểm thử Module 02.2",
   "MoTa": "Dữ liệu giả lập dùng kiểm thử API",
   "MaDuoc": "TEST-MD-022",
+  "MaVach": "0012345678901",
   "SoDangKy": "TEST-SDK-022",
   "DangBaoChe": "Dữ liệu kiểm thử",
   "QuyCachDongGoi": "Dữ liệu kiểm thử",
@@ -53,7 +55,7 @@ không tải URL hoặc xác minh nội dung ảnh trên server bên ngoài.
 
 - Chuỗi được trim đầu/cuối; không chấp nhận chuỗi rỗng, toàn khoảng trắng, null,
   kiểu dữ liệu khác hoặc ký tự NUL. Giữ nguyên nội dung/khoảng trắng bên trong.
-- TenThuoc tối đa 255; MaDuoc 50; SoDangKy 100; DangBaoChe, QuyCachDongGoi,
+- TenThuoc và MaVach tối đa 255; MaDuoc 50; SoDangKy 100; DangBaoChe, QuyCachDongGoi,
   NhaSanXuat, NuocSanXuat tối đa 255. Text không đặt giới hạn độ dài tùy ý.
 - HinhAnh là URL HTTPS hợp lệ; từ chối URL thiếu host, cổng sai, dấu gạch chéo
   ngược hoặc khoảng trắng trong URL. Không gọi mạng để kiểm tra URL.
@@ -62,7 +64,8 @@ không tải URL hoặc xác minh nội dung ảnh trên server bên ngoài.
   boolean, float hoặc chuỗi số.
 - PhanLoai chỉ nhận boolean JSON true/false, không nhận 0/1 hoặc chuỗi.
 - Từ chối trường ngoài schema, kể cả MaThuoc, GhiChu hoặc VaiTro.
-- Không kiểm tra duy nhất MaDuoc/SoDangKy hoặc tên thuốc vì chưa có yêu cầu này.
+- MaVach là chuỗi bắt buộc trên POST/PUT, giữ số 0 ở đầu, không tự ép thành số.
+- Không kiểm tra duy nhất MaDuoc/MaVach/SoDangKy hoặc tên thuốc vì CSDL/yêu cầu chưa có ràng buộc này.
 
 ## Tìm kiếm, lọc và sắp xếp
 
@@ -72,12 +75,12 @@ GET /api/manager/products?search=TEST&category_id=2&phan_loai=false&page=1&per_p
 
 | Tham số | Quy tắc |
 | --- | --- |
-| search | Chuỗi con không phân biệt hoa thường trên TenThuoc OR MaDuoc OR SoDangKy; mặc định rỗng, tối đa 255 ký tự |
+| search | Chuỗi con không phân biệt hoa thường trên TenThuoc OR MaDuoc OR MaVach OR SoDangKy; mặc định rỗng, tối đa 255 ký tự |
 | category_id | ID danh mục integer dương; không truyền để lấy tất cả danh mục |
 | phan_loai | Chỉ `true` hoặc `false` chữ thường; không truyền để lấy cả hai |
 | page | Mặc định 1; phạm vi 1–2147483647 |
 | per_page | Mặc định 20; phạm vi 1–100 |
-| sort_by | MaThuoc (mặc định), TenThuoc, MaDuoc, SoDangKy, MaLoaiThuoc, NguongTonKho, PhanLoai |
+| sort_by | MaThuoc (mặc định), TenThuoc, MaDuoc, MaVach, SoDangKy, MaLoaiThuoc, NguongTonKho, PhanLoai |
 | sort_order | asc (mặc định) hoặc desc |
 
 Các điều kiện lọc được kết hợp AND với tìm kiếm. `%` và `_` trong search được

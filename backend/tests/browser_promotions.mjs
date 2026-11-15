@@ -5,7 +5,7 @@ import path from 'node:path';
 let mode = 'normal', nextId = 200, writeGate, releaseWrite;
 const calls = [];
 let programs = Array.from({ length: 103 }, (_, i) => ({ MaChuongTrinh: i + 1, TenChuongTrinh: i === 0 ? '<b>Chương trình 1</b>' : `Chương trình ${i + 1}`, NgayBatDau: i === 1 ? '9998-01-01' : '2000-01-01', NgayKetThuc: i === 2 ? '2000-01-01' : '9999-12-31' }));
-const products = Array.from({ length: 25 }, (_, i) => ({ MaThuoc: i + 1, TenThuoc: `Thuốc ${i + 1}`, MaDuoc: `MD-${i + 1}`, SoDangKy: `SDK-${i + 1}`, HinhAnh: '' }));
+const products = Array.from({ length: 25 }, (_, i) => ({ MaThuoc: i + 1, MaVach: `00${String(i + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${i + 1}`, MaDuoc: `MD-${i + 1}`, SoDangKy: `SDK-${i + 1}`, HinhAnh: '' }));
 let items = Array.from({ length: 23 }, (_, i) => ({ MaChuongTrinh: 1, MaThuoc: i + 1, LoaiGiamGia: i % 2 === 0, GiaTriGiam: i % 2 === 0 ? '10.00' : '1500.25', SoLuong: i === 0 ? 0 : 100 }));
 const paged = (values, url, code) => {
     const page = Number(url.searchParams.get('page') || 1), per_page = Number(url.searchParams.get('per_page') || 20);
@@ -103,6 +103,7 @@ export async function checkPromotions({ evaluate: run, waitFor, key, command, ro
     await run(`document.querySelector('[data-promotion-action="delete"]').click()`); await waitFor(`!document.querySelector('#promotion-delete-confirm').disabled`); await click('promotion-delete-confirm'); await waitFor(`!document.querySelector('#promotion-dialog').open`); await waitFor(`document.querySelector('#promotions-list-view').getAttribute('aria-busy')==='false'`);
     await filter(); await run(`document.querySelector('[data-promotion-action="delete"][data-id="1"]').click()`); await waitFor(`!document.querySelector('#promotion-delete-confirm').disabled`); await click('promotion-delete-confirm'); await waitFor(`document.querySelector('#promotion-dialog-error').textContent.includes('Không thể xóa')`); await click('promotion-dialog-close');
     await openProgram(1); await itemReady(); assert.equal(await run(`document.querySelector('#promotion-items-body').children.length`), 20);
+    assert.match(await run(`document.querySelector('#promotion-items-body').textContent`), /Mã vạch: 0000000000001/);
     assert.match(await run(`document.querySelector('#promotion-items-body').textContent`), /Hết số lượng áp dụng/); assert.match(await run(`document.querySelector('#promotion-items-body').textContent`), /1\.500,25/);
     await screenshot('DETAIL_DESKTOP');
     await click('promotion-items-next'); await waitFor(`document.querySelector('#promotion-items-body').children.length===3`); await click('promotion-items-prev'); await waitFor(`document.querySelector('#promotion-items-body').children.length===20`);

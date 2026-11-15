@@ -6,7 +6,7 @@ import path from 'node:path';
 let mode = 'normal', nextId = 40;
 let writeGate, releaseWrite;
 let units = Array.from({ length: 23 }, (_, index) => ({ MaDonGia: index + 1, MaThuoc: 1, DonViTinh: index === 0 ? '<b>Viên</b>' : `Hộp ${index}`, GiaBan: index * 10000, SoLuongQuyDoi: index + 1 }));
-const products = Array.from({ length: 13 }, (_, index) => ({ MaThuoc: index + 1, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
+const products = Array.from({ length: 13 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
 const calls = [];
 export async function unitFixture(req, json) {
     const url = new URL(req.url, 'http://fixture.local'), parts = url.pathname.split('/');
@@ -74,6 +74,7 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     await run(`document.querySelector('#units-search').value='';document.querySelector('#units-search-form').requestSubmit()`);
     await waitFor(`document.querySelector('#units-products').children.length===10`);
     await choose(1); await ready();
+    assert.match(await run(`document.querySelector('#units-product').textContent`), /Mã vạch: 0000000000001/);
     assert.equal(await run(`document.querySelector('#units-body').children.length`), 20);
     assert.equal(await run(`document.querySelector('#units-body b')`), null, 'API names are text, never HTML');
     assert.match(await run(`document.querySelector('#units-body').textContent`), /0\s*₫/);

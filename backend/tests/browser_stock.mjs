@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 let mode = 'normal', nextId = 50, writeGate, releaseWrite;
 const calls = [], asOf = '2026-11-15';
-const products = Array.from({ length: 23 }, (_, index) => ({ MaThuoc: index + 1, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
+const products = Array.from({ length: 23 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
 let batches = Array.from({ length: 23 }, (_, index) => ({ MaLo: index + 1, MaThuoc: 1, SoLoSanXuat: index ? `LOT-${index + 1}` : '<b>LOT-1</b>', NgaySanXuat: '2025-01-01', HanSuDung: index ? '2027-01-01' : '2026-11-14', SoLuongNhap: 100, SoLuongTon: index ? 100 : 1, GiaNhap: 1000 }));
 const pageResult = (items, url, code, extra = {}) => {
     const page = Number(url.searchParams.get('page') || 1), per_page = Number(url.searchParams.get('per_page') || 20);
@@ -21,11 +21,11 @@ export async function stockFixture(req, json) {
     if (parts[3] === 'inventory') {
         if (url.pathname.endsWith('/expiring')) {
             const status = url.searchParams.get('status') || 'expiring', days = Number(url.searchParams.get('days') || 0);
-            const item = { ...batches[0], HanSuDung: status === 'expired' ? '2026-11-14' : days === 0 ? asOf : '2026-11-20', TenThuoc: 'Thuốc 1', TrangThaiHan: status === 'expired' ? 'EXPIRED' : 'EXPIRING' };
+            const item = { ...batches[0], MaVach: products[0].MaVach, HanSuDung: status === 'expired' ? '2026-11-14' : days === 0 ? asOf : '2026-11-20', TenThuoc: 'Thuốc 1', TrangThaiHan: status === 'expired' ? 'EXPIRED' : 'EXPIRING' };
             return json(200, pageResult(mode === 'empty' ? [] : [item], url, status === 'expired' ? 'EXPIRED_BATCHES_LISTED' : 'EXPIRING_BATCHES_LISTED', { as_of: asOf, status, days }));
         }
         const low = url.pathname.endsWith('/low-stock');
-        const items = products.map(product => ({ MaThuoc: product.MaThuoc, TenThuoc: product.TenThuoc, TongSoLuongTon: product.MaThuoc === 1 ? 2201 : 0, NguongTonKho: product.MaThuoc === 1 ? 2201 : 0, TonKhoThap: true }));
+        const items = products.map(product => ({ MaThuoc: product.MaThuoc, TenThuoc: product.TenThuoc, MaVach: product.MaVach, TongSoLuongTon: product.MaThuoc === 1 ? 2201 : 0, NguongTonKho: product.MaThuoc === 1 ? 2201 : 0, TonKhoThap: true }));
         return json(200, pageResult(mode === 'empty' ? [] : low ? items.slice(0, 2) : items, url, low ? 'LOW_STOCK_LISTED' : 'INVENTORY_SUMMARY'));
     }
     const productId = Number(parts[4]), batchId = Number(parts[6]);
@@ -73,6 +73,7 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     assert.ok(calls.some(call => call.params.get('search') === 'Thuốc 23'));
     await run(`document.querySelector('#batch-search').value='';document.querySelector('#batch-product-search').requestSubmit()`); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
     await select(1); await ready(); assert.equal(await run(`document.querySelector('#batches-body').children.length`), 20);
+    assert.match(await run(`document.querySelector('#batch-product-identity').textContent`), /Mã vạch: 0000000000001/);
     assert.equal(await run(`document.querySelector('#batches-body b')`), null);
     await screenshot('BATCHES_DESKTOP');
     await click('batches-next'); await waitFor(`document.querySelector('#batches-body').children.length===3`);
@@ -134,6 +135,8 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await run(`location.hash='inventory'`); await waitFor(`document.querySelector('#inventory-summary-body').children.length===20 && document.querySelector('#inventory-low-body').children.length===2 && document.querySelector('#inventory-expiry-body').children.length===1`);
     assert.match(await run(`document.querySelector('#inventory-summary-body').textContent`), /2\.201/); // Physical stock includes expired batch.
+    assert.match(await run(`document.querySelector('#inventory-summary-body').textContent`), /Mã vạch: 0000000000001/);
+    assert.match(await run(`document.querySelector('#inventory-expiry-body').textContent`), /Mã vạch: 0000000000001/);
     assert.match(await run(`document.querySelector('#inventory-low-body').textContent`), /Thuốc 2.*0/); // Product without batches.
     assert.match(await run(`document.querySelector('#inventory-expiry-body').textContent`), /Còn 5 ngày/);
     await screenshot('INVENTORY_DESKTOP');

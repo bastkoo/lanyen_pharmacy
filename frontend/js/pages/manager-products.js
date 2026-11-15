@@ -167,7 +167,7 @@ export function setupProducts({ root, onAccessError }) {
                 image.addEventListener('error', () => { image.hidden = true; });
                 const text = node('div'); text.append(node('strong', product.TenThuoc), node('span', `#${product.MaThuoc}`, 'product-row-meta'));
                 identityWrap.append(image, text); identity.append(identityWrap);
-                const identifiers = node('td'); identifiers.append(node('span', product.MaDuoc), node('span', `SĐK: ${product.SoDangKy}`, 'product-row-meta'));
+                const identifiers = node('td'); identifiers.append(node('span', product.MaDuoc), node('span', `Mã vạch: ${product.MaVach || 'Chưa có'}`, 'product-row-meta'), node('span', `SĐK: ${product.SoDangKy}`, 'product-row-meta'));
                 const actions = node('td'), actionWrap = node('div', undefined, 'product-row-actions');
                 for (const [action, label] of [['view', 'Xem'], ['edit', 'Sửa'], ['delete', 'Xóa']]) {
                     const button = node('button', label, `categories-action${action === 'delete' ? ' categories-action--delete' : ''}`);

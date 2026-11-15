@@ -10,7 +10,7 @@ from app.models.lo_thuoc import LoThuoc
 
 
 SORT_COLUMNS = {name: getattr(Thuoc, name) for name in (
-    'MaThuoc', 'TenThuoc', 'MaDuoc', 'SoDangKy', 'MaLoaiThuoc', 'NguongTonKho', 'PhanLoai')}
+    'MaThuoc', 'TenThuoc', 'MaDuoc', 'MaVach', 'SoDangKy', 'MaLoaiThuoc', 'NguongTonKho', 'PhanLoai')}
 REFERENCE_MODELS = (ChiTietDonHang, ChiTietKhuyenMai, DonViGiaThuoc, GioThuoc, LoThuoc)
 
 
@@ -26,7 +26,7 @@ def list_products(search='', category_id=None, phan_loai=None, page=1, per_page=
     query = select(Thuoc)
     if search:
         query = query.where(or_(*(column.icontains(search, autoescape=True) for column in
-                                 (Thuoc.TenThuoc, Thuoc.MaDuoc, Thuoc.SoDangKy))))
+                                 (Thuoc.TenThuoc, Thuoc.MaDuoc, Thuoc.MaVach, Thuoc.SoDangKy))))
     if category_id is not None:
         query = query.where(Thuoc.MaLoaiThuoc == category_id)
     if phan_loai is not None:

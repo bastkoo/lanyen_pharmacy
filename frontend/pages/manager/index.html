@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="vi">
 <head>
     <meta charset="utf-8">
@@ -161,7 +161,7 @@
                         <form id="promotion-form" novalidate>
                             <div id="promotion-program-fields" class="category-dialog__body promotion-fields"></div>
                             <div id="promotion-item-fields" class="category-dialog__body promotion-fields" hidden>
-                                <div id="promotion-product-picker"><label for="promotion-product-search">Tìm thuốc theo tên, mã dược, số đăng ký</label><div class="promotion-product-search"><input id="promotion-product-search" class="categories-input" type="search"><button id="promotion-product-find" class="button button-outline" type="button">Tìm thuốc</button></div><label for="promotion-MaThuoc">Chọn thuốc *</label><select id="promotion-MaThuoc" class="categories-input" aria-describedby="promotion-MaThuoc-error" disabled><option value="">Chọn thuốc…</option></select><p id="promotion-MaThuoc-error" class="category-dialog__error" role="status"></p><p id="promotion-picker-status" class="products-note" role="status"></p><div class="categories-actions"><button id="promotion-picker-prev" class="categories-action" type="button" disabled>Trang thuốc trước</button><button id="promotion-picker-next" class="categories-action" type="button" disabled>Trang thuốc sau</button></div></div>
+                                <div id="promotion-product-picker"><label for="promotion-product-search">Tìm thuốc theo tên, mã vạch, mã dược, số đăng ký</label><div class="promotion-product-search"><input id="promotion-product-search" class="categories-input" type="search"><button id="promotion-product-find" class="button button-outline" type="button">Tìm thuốc</button></div><label for="promotion-MaThuoc">Chọn thuốc *</label><select id="promotion-MaThuoc" class="categories-input" aria-describedby="promotion-MaThuoc-error" disabled><option value="">Chọn thuốc…</option></select><p id="promotion-MaThuoc-error" class="category-dialog__error" role="status"></p><p id="promotion-picker-status" class="products-note" role="status"></p><div class="categories-actions"><button id="promotion-picker-prev" class="categories-action" type="button" disabled>Trang thuốc trước</button><button id="promotion-picker-next" class="categories-action" type="button" disabled>Trang thuốc sau</button></div></div>
                                 <p id="promotion-selected-product" class="products-note" hidden></p>
                                 <div><label for="promotion-LoaiGiamGia">Loại giảm giá *</label><select id="promotion-LoaiGiamGia" class="categories-input" aria-describedby="promotion-LoaiGiamGia-error"><option value="true">Theo phần trăm</option><option value="false">Giảm tiền trực tiếp</option></select><p id="promotion-LoaiGiamGia-error" class="category-dialog__error" role="status"></p></div>
                                 <div><label id="promotion-discount-label" for="promotion-GiaTriGiam">Giá trị giảm (%) *</label><input id="promotion-GiaTriGiam" class="categories-input" type="text" inputmode="decimal" required aria-describedby="promotion-discount-help promotion-GiaTriGiam-error"><p id="promotion-discount-help" class="category-dialog__help"></p><p id="promotion-GiaTriGiam-error" class="category-dialog__error" role="status"></p></div>
@@ -176,7 +176,7 @@
                     <section class="categories-surface stock-picker" aria-labelledby="batch-picker-title">
                         <h2 id="batch-picker-title">Chọn thuốc để quản lý lô</h2>
                         <form id="batch-product-search" class="stock-picker-form" role="search" novalidate>
-                            <div class="products-field"><label for="batch-search">Tìm tên thuốc, mã dược hoặc số đăng ký</label><input id="batch-search" class="categories-input" type="search" aria-describedby="batch-search-error"></div><button class="button button-outline" type="submit">Tìm thuốc</button>
+                            <div class="products-field"><label for="batch-search">Tìm tên thuốc, mã vạch, mã dược hoặc số đăng ký</label><input id="batch-search" class="categories-input" type="search" aria-describedby="batch-search-error"></div><button class="button button-outline" type="submit">Tìm thuốc</button>
                         </form>
                         <p id="batch-search-error" class="category-dialog__error" role="status"></p>
                         <div class="stock-picker-form"><div class="products-field"><label for="batch-product-select">Thuốc trong trang kết quả</label><select id="batch-product-select" class="categories-input" disabled><option value="">Chọn thuốc…</option></select></div><button id="batch-products-prev" class="button button-outline" type="button" disabled>Trước</button><button id="batch-products-next" class="button button-outline" type="button" disabled>Sau</button><button id="batch-products-retry" class="categories-action" type="button">Tải lại thuốc</button></div>
@@ -209,7 +209,7 @@
                         <section class="units-picker categories-surface" aria-labelledby="units-picker-title">
                             <h2 id="units-picker-title">Chọn thuốc</h2>
                             <form id="units-search-form" role="search">
-                                <label for="units-search">Tên thuốc, mã dược hoặc số đăng ký</label>
+                                <label for="units-search">Tên thuốc, mã vạch, mã dược hoặc số đăng ký</label>
                                 <input id="units-search" class="categories-input" type="search" aria-describedby="units-search-error" placeholder="Tìm thuốc…">
                                 <button class="button button-outline" type="submit">Tìm kiếm</button>
                                 <p id="units-search-error" class="category-dialog__error" role="status"></p>
@@ -279,10 +279,10 @@
                     <p id="products-feedback" class="categories-feedback" role="status" hidden></p>
                     <div id="products-list">
                         <form id="products-filters" class="products-filters" role="search">
-                            <div class="products-field products-filters__search"><label for="products-search">Tìm thuốc</label><input id="products-search" class="categories-input" type="search" placeholder="Tên thuốc, mã dược, số đăng ký" aria-describedby="products-filter-error"></div>
+                            <div class="products-field products-filters__search"><label for="products-search">Tìm thuốc</label><input id="products-search" class="categories-input" type="search" placeholder="Tên thuốc, mã vạch, mã dược, số đăng ký" aria-describedby="products-filter-error"></div>
                             <div class="products-field"><label for="products-category">Danh mục</label><select id="products-category" class="categories-input"><option value="">Tất cả danh mục</option></select></div>
                             <div class="products-field"><label for="products-classification">Phân loại</label><select id="products-classification" class="categories-input"><option value="">Tất cả phân loại</option><option value="true">Cần dược sĩ tư vấn</option><option value="false">Không cần tư vấn</option></select></div>
-                            <div class="products-field"><label for="products-sort">Sắp xếp</label><select id="products-sort" class="categories-input"><option value="MaThuoc:desc">Mã mới nhất</option><option value="MaThuoc:asc">Mã tăng dần</option><option value="TenThuoc:asc">Tên A → Z</option><option value="TenThuoc:desc">Tên Z → A</option><option value="MaDuoc:asc">Mã dược tăng dần</option><option value="NguongTonKho:asc">Ngưỡng tồn tăng dần</option></select></div>
+                            <div class="products-field"><label for="products-sort">Sắp xếp</label><select id="products-sort" class="categories-input"><option value="MaThuoc:desc">Mã mới nhất</option><option value="MaThuoc:asc">Mã tăng dần</option><option value="TenThuoc:asc">Tên A → Z</option><option value="TenThuoc:desc">Tên Z → A</option><option value="MaDuoc:asc">Mã dược tăng dần</option><option value="MaVach:asc">Mã vạch tăng dần</option><option value="NguongTonKho:asc">Ngưỡng tồn tăng dần</option></select></div>
                             <div class="products-filters__actions"><button class="button button-primary" type="submit">Áp dụng</button><button id="products-reset" class="button button-outline" type="button">Bỏ bộ lọc</button></div>
                             <p id="products-filter-error" class="category-dialog__error" role="status"></p>
                         </form>
