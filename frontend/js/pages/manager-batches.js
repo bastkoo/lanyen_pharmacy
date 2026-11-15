@@ -30,11 +30,11 @@ export function setupBatches({ root, onAccessError }) {
             button.setAttribute('aria-label', `${label} lô ${batch.SoLoSanXuat}`); actions.append(button);
         }
         const name = n('th', batch.SoLoSanXuat); name.scope = 'row';
-        tr.append(n('td', `#${batch.MaLo}`), name, n('td', formatBatchDate(batch.NgaySanXuat), 'stock-date'), n('td', formatBatchDate(batch.HanSuDung), 'stock-date'), n('td', count(batch.SoLuongNhap), 'stock-number'), n('td', count(batch.SoLuongTon), 'stock-number'), n('td', formatUnitPrice(batch.GiaNhap), 'stock-number'), n('td', expiryText(batch.HanSuDung, vietnamToday())), actions);
+        tr.append(name, n('td', formatBatchDate(batch.NgaySanXuat), 'stock-date'), n('td', formatBatchDate(batch.HanSuDung), 'stock-date'), n('td', count(batch.SoLuongNhap), 'stock-number'), n('td', count(batch.SoLuongTon), 'stock-number'), n('td', formatUnitPrice(batch.GiaNhap), 'stock-number'), n('td', expiryText(batch.HanSuDung, vietnamToday())), actions);
         return tr;
     };
     row.search = batch => batch.SoLoSanXuat;
-    const table = setupStockTable({ root: $('batch-table'), id: 'batches', title: 'Các lô của thuốc đang chọn', description: 'Trạng thái hạn theo ngày Việt Nam trên thiết bị. Backend hiện không cho phép xóa lô.', columns: [['Mã lô'], ['Số lô sản xuất'], ['Ngày sản xuất'], ['Hạn sử dụng'], ['SL nhập', true], ['SL tồn', true], ['Giá nhập (VND)', true], ['Trạng thái hạn'], ['Thao tác']], filterLabel: 'Lọc số lô trong trang này', onLoad: loadList, renderRow: row });
+    const table = setupStockTable({ root: $('batch-table'), id: 'batches', title: 'Các lô của thuốc đang chọn', description: 'Trạng thái hạn theo ngày Việt Nam trên thiết bị. Backend hiện không cho phép xóa lô.', columns: [['Số lô sản xuất'], ['Ngày sản xuất'], ['Hạn sử dụng'], ['SL nhập', true], ['SL tồn', true], ['Giá nhập (VND)', true], ['Trạng thái hạn'], ['Thao tác']], filterLabel: 'Lọc số lô trong trang này', onLoad: loadList, renderRow: row });
     table.clear('Chọn một thuốc để tải danh sách lô.');
     for (const [name, label, type] of BATCH_FIELDS) {
         const wrap = n('div'), caption = n('label', `${label} *`), input = n('input', undefined, 'categories-input'), error = n('p', '', 'category-dialog__error');
@@ -55,7 +55,7 @@ export function setupBatches({ root, onAccessError }) {
             if (data.code !== 'PRODUCTS_LISTED' || !Array.isArray(data.items)) throw new ApiError('INVALID_RESPONSE');
             for (const item of data.items) {
                 if (!Number.isInteger(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-                $('batch-product-select').append(new Option(`${item.TenThuoc} · #${item.MaThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}`, String(item.MaThuoc)));
+                $('batch-product-select').append(new Option(`${item.TenThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}`, String(item.MaThuoc)));
             }
             $('batch-product-select').value = String(productId || ''); $('batch-product-select').disabled = !data.items.length;
             $('batch-picker-status').textContent = data.total ? `${data.total} thuốc · Trang ${data.page} / ${data.pages}` : 'Không tìm thấy thuốc phù hợp.';
@@ -75,7 +75,7 @@ export function setupBatches({ root, onAccessError }) {
             const data = await getProduct(id, { signal: selectionController.signal });
             if (!active || attempt !== selectionVersion) return;
             if (data.code !== 'PRODUCT_FOUND' || data.product?.MaThuoc !== id || typeof data.product.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-            product = data.product; const identity = n('div'); identity.append(n('h3', product.TenThuoc), n('p', `#${id} · Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), n('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
+            product = data.product; const identity = n('div'); identity.append(n('h3', product.TenThuoc), n('p', `Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), n('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
             if (validHttps(product.HinhAnh)) { const image = n('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.src = product.HinhAnh; image.addEventListener('error', () => { image.hidden = true; }); $('batch-product-identity').append(image); }
             $('batch-product-identity').append(identity); $('batch-product-identity').hidden = false; $('batch-add').disabled = false;
             $('batch-product-select').value = String(id); loadList(1);
@@ -119,7 +119,7 @@ export function setupBatches({ root, onAccessError }) {
         dialogController?.abort(); dialogController = new AbortController(); const attempt = ++dialogVersion, selectedId = productId;
         mode = action; batchId = id; opener = source; ready = action === 'create'; clearErrors(); $('batch-form').reset();
         $('batch-dialog-title').textContent = ({ create: 'Thêm lô thuốc', edit: 'Sửa thông tin lô', view: 'Chi tiết lô thuốc', delete: 'Yêu cầu xóa lô' })[action];
-        $('batch-dialog-context').textContent = `${product.TenThuoc} · #${productId}`;
+        $('batch-dialog-context').textContent = product.TenThuoc;
         $('batch-dialog-status').textContent = ready ? '' : 'Đang lấy dữ liệu hiện tại…';
         $('batch-form').hidden = !ready; $('batch-detail-panel').hidden = true; $('batch-delete-panel').hidden = action !== 'delete';
         $('batch-detail-panel').replaceChildren(); $('batch-delete-name').textContent = '';
@@ -133,13 +133,13 @@ export function setupBatches({ root, onAccessError }) {
             if (action === 'edit') { for (const [name] of BATCH_FIELDS) $(`batch-${name}`).value = batch[name]; $('batch-form').hidden = false; }
             if (action === 'view') {
                 const dl = n('dl');
-                for (const [name, label] of [...BATCH_FIELDS, ['MaLo', 'Mã lô'], ['SoLuongTon', 'Số lượng tồn']]) {
+                for (const [name, label] of [...BATCH_FIELDS, ['SoLuongTon', 'Số lượng tồn']]) {
                     const value = ['NgaySanXuat', 'HanSuDung'].includes(name) ? formatBatchDate(batch[name]) : name === 'GiaNhap' ? formatUnitPrice(batch[name]) : String(batch[name]);
                     dl.append(n('dt', label), n('dd', value));
                 }
                 dl.append(n('dt', 'Trạng thái hạn theo ngày Việt Nam'), n('dd', expiryText(batch.HanSuDung, vietnamToday()))); $('batch-detail-panel').append(dl); $('batch-detail-panel').hidden = false;
             }
-            if (action === 'delete') $('batch-delete-name').textContent = `${batch.SoLoSanXuat} · #${id} · ${product.TenThuoc}`;
+            if (action === 'delete') $('batch-delete-name').textContent = `${batch.SoLoSanXuat} · ${product.TenThuoc}`;
             setBusy(false); (action === 'edit' ? $('batch-SoLoSanXuat') : $('batch-close')).focus();
         } catch (error) {
             if (!active || attempt !== dialogVersion || error.code === 'REQUEST_ABORTED') return;

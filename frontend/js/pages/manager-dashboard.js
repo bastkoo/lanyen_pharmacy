@@ -45,9 +45,9 @@ export function setupDashboard({ root, onAccessError }) {
     function renderOrders(data) {
         if (!Array.isArray(data.items)) throw new Error('INVALID_RESPONSE');
         const body = $('recent-orders-body'); body.replaceChildren();
-        for (const order of data.items) {
+        for (const [index, order] of data.items.entries()) {
             const row = el('tr');
-            row.append(el('th', `#${order.MaDonHang}`), el('td', formatStoredDate(order.NgayDat, true)), el('td', formatVnd(order.TongThanhToan), 'dashboard-money'));
+            row.append(el('th', String(index + 1)), el('td', formatStoredDate(order.NgayDat, true)), el('td', formatVnd(order.TongThanhToan), 'dashboard-money'));
             row.firstChild.scope = 'row';
             const status = el('td');
             const className = order.TrangThaiDonHang === 3 ? 'manager-badge--success' :

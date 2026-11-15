@@ -15,7 +15,7 @@ export function setupInventory({ root, onAccessError, onOpenBatches }) {
     }
     const summaryRow = item => {
         if (typeof item.TonKhoThap !== 'boolean') throw new ApiError('INVALID_RESPONSE');
-        const tr = n('tr'), name = n('th', `${item.TenThuoc} · #${item.MaThuoc}`); name.scope = 'row';
+        const tr = n('tr'), name = n('th', item.TenThuoc); name.scope = 'row';
         name.append(n('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`, 'product-row-meta'));
         const state = n('span', item.TonKhoThap ? 'Chạm / dưới ngưỡng' : 'Trên ngưỡng', `manager-badge${item.TonKhoThap ? ' manager-badge--warning' : ''}`), td = n('td'); td.append(state);
         tr.append(name, n('td', number(item.TongSoLuongTon), 'stock-number'), n('td', number(item.NguongTonKho), 'stock-number'), td, actionCell(item)); return tr;
@@ -26,7 +26,7 @@ export function setupInventory({ root, onAccessError, onOpenBatches }) {
         if (!['EXPIRING', 'EXPIRED'].includes(item.TrangThaiHan) || item.TrangThaiHan !== (data.status === 'expired' ? 'EXPIRED' : 'EXPIRING') || dateValue(item.HanSuDung) === null || typeof item.SoLoSanXuat !== 'string' || !Number.isInteger(item.MaLo)) throw new ApiError('INVALID_RESPONSE');
         const tr = n('tr'), name = n('th', item.TenThuoc); name.scope = 'row';
         name.append(n('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`, 'product-row-meta'));
-        tr.append(name, n('td', `${item.SoLoSanXuat} · #${item.MaLo}`), n('td', formatBatchDate(item.HanSuDung), 'stock-date'), n('td', number(item.SoLuongTon), 'stock-number'), n('td', item.TrangThaiHan === 'EXPIRED' ? 'Đã hết hạn' : 'Sắp hết hạn'), n('td', expiryText(item.HanSuDung, data.as_of)), actionCell(item)); return tr;
+        tr.append(name, n('td', item.SoLoSanXuat), n('td', formatBatchDate(item.HanSuDung), 'stock-date'), n('td', number(item.SoLuongTon), 'stock-number'), n('td', item.TrangThaiHan === 'EXPIRED' ? 'Đã hết hạn' : 'Sắp hết hạn'), n('td', expiryText(item.HanSuDung, data.as_of)), actionCell(item)); return tr;
     };
     expiryRow.search = item => `${item.TenThuoc} ${item.MaVach || ''} ${item.SoLoSanXuat}`;
     const stockColumns = [['Thuốc'], ['Tổng SL tồn', true], ['Ngưỡng tồn', true], ['Trạng thái tồn'], ['Thao tác']];

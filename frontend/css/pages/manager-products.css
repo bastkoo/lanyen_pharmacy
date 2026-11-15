@@ -8,7 +8,8 @@
 .products-table th, .products-table td { padding: 18px 16px; border-bottom: 1px solid var(--manager-border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
 .products-table thead { background: var(--manager-bg); color: var(--manager-muted); font-size: var(--manager-small); }
 .products-table th { font-weight: 500; }
-.products-table th:first-child { width: 30%; }
+.products-table th:first-child { width: 64px; }
+.products-table th:nth-child(2) { width: 28%; }
 .products-table th:last-child { width: 150px; }
 .product-row-identity { display: flex; align-items: start; gap: 12px; }
 .product-row-identity img { width: 56px; height: 64px; object-fit: contain; flex: none; border: 1px solid var(--manager-border); border-radius: var(--manager-radius); background: var(--manager-surface); }

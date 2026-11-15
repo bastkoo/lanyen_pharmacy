@@ -17,6 +17,7 @@
 .units-product p { color: var(--manager-muted); font-size: var(--manager-small); }
 .units-table-scroll { overflow-x: auto; }
 .units-table { width: 100%; min-width: 580px; font-size: var(--manager-label); }
+.units-table tr > :first-child { width: 64px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .units-table caption { padding: var(--manager-space-4) var(--manager-space-6); text-align: left; color: var(--manager-muted); font-size: var(--manager-small); }
 .units-table th, .units-table td { text-align: left; padding: var(--manager-space-4); border-bottom: 1px solid var(--manager-border); overflow-wrap: anywhere; max-width: 220px; }
 .units-table thead { background: var(--manager-bg); color: var(--manager-muted); }

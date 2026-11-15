@@ -64,6 +64,8 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     await waitFor(`document.querySelector('#products-body').children.length===20`);
     await run(`document.querySelector('#products-next').click()`);
     await waitFor(`document.querySelector('#products-page-status').textContent.includes('Trang 2')`);
+    assert.equal(await run(`document.querySelector('#products-body tr > :first-child').textContent`), '21', 'STT continues across pages');
+    assert.doesNotMatch(await run(`document.querySelector('#products-body').textContent`), /#\d+/, 'No database identity is displayed');
     await run(`document.querySelector('#products-search').value='TEST';document.querySelector('#products-category').value='2';document.querySelector('#products-classification').value='true';document.querySelector('#products-filters').requestSubmit()`);
     await waitFor(`document.querySelector('#products-result-count').textContent.includes('11 thuốc')`);
     assert.ok(calls.some(call => call.query.get('category_id') === '2' && call.query.get('phan_loai') === 'true' && call.query.get('search') === 'TEST'));

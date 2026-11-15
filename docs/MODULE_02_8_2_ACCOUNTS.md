@@ -19,9 +19,9 @@ Thống kê toàn hệ thống lấy `total` qua bốn GET riêng với page=1/p
 
 Không lấy số dòng trang hiện tại làm tổng. Thống kê không bị giới hạn bởi search/filter của danh sách. Nếu thống kê lỗi, hiển thị dấu — và nút thử lại, không hiển thị số 0 giả; danh sách vẫn tải độc lập.
 
-Bộ lọc tên/SDT, role và status dùng đúng query Backend; phân trang 20 tài khoản. Có reset/làm mới và loading skeleton tĩnh, empty/error/retry/success. Bảng gồm avatar HTTPS hoặc initials, tên/ID, SDT, email, badge vai trò, trạng thái và Xem/Sửa/Khóa/Mở khóa. Ảnh lỗi tự về initials; ảnh không gửi referrer. Không coi URL tùy ý là HTML.
+Bộ lọc tên/SDT, role và status dùng đúng query Backend; phân trang 20 tài khoản. Có reset/làm mới và loading skeleton tĩnh, empty/error/retry/success. Bảng gồm avatar HTTPS hoặc initials, tên, SDT, email, badge vai trò, trạng thái và Xem/Sửa/Khóa/Mở khóa. Tài khoản đang đăng nhập có nhãn “Bạn”. Mã định danh chỉ dùng nội bộ, không hiển thị. Ảnh lỗi tự về initials; ảnh không gửi referrer. Không coi URL tùy ý là HTML.
 
-Dialog chi tiết tải GET mới, hiển thị đủ bảy trường thực tế và hành động sửa/trạng thái. Không tạo lịch sử, ngày tạo hoặc lần đăng nhập.
+Dialog chi tiết tải GET mới, hiển thị thông tin tài khoản cùng hành động sửa/trạng thái và ẩn mã định danh. Không tạo lịch sử, ngày tạo hoặc lần đăng nhập.
 
 Form tạo/sửa gồm HoTen, SDT, VaiTro (chỉ 1/2), Email và URL AnhDaiDien tùy chọn. Không upload ảnh mới vì Backend chỉ hỗ trợ URL trong module này. Form nhắc rõ đăng nhập bằng SDT + OTP, không tạo mật khẩu. SDT chuẩn hóa theo Module 01; optional rỗng gửi null. Khi sửa, hiển thị vai trò hiện tại và vai trò sau lưu. MaNguoiDung/TrangThai không được gửi trong body tạo/sửa.
 
