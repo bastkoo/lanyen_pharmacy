@@ -9,6 +9,7 @@ import { setupUnits } from '../pages/manager-units.js';
 import { setupBatches } from '../pages/manager-batches.js';
 import { setupInventory } from '../pages/manager-inventory.js';
 import { setupPromotions } from '../pages/manager-promotions.js';
+import { setupAccounts } from '../pages/manager-accounts.js';
 
 const $ = id => document.getElementById(id);
 const gate = $('manager-gate');
@@ -28,6 +29,8 @@ const categories = setupCategories({ root: $('categories-content'), onAccessErro
 const products = setupProducts({ root: $('products-content'), onAccessError: handleAccessError });
 const units = setupUnits({ root: $('units-content'), onAccessError: handleAccessError });
 const promotions = setupPromotions({ root: $('promotions-content'), onAccessError: handleAccessError });
+const accounts = setupAccounts({ root: $('accounts-content'), getActorId: () => user?.MaNguoiDung,
+    onAccessError: handleAccessError, onSelfUpdated: () => checkSession() });
 const batches = setupBatches({ root: $('batches-content'), onAccessError: handleAccessError });
 const inventory = setupInventory({ root: $('inventory-content'), onAccessError: handleAccessError,
     onOpenBatches: id => { batches.openProduct(id); location.hash = 'batches'; } });
@@ -64,6 +67,7 @@ function showGate(type, title, description, action = 'retry') {
     products.clear();
     units.clear();
     promotions.clear();
+    accounts.clear();
     batches.clear();
     inventory.clear();
     closeDrawer(false);
@@ -95,7 +99,8 @@ function renderView(focus = false) {
     $('batches-content').hidden = key !== 'batches';
     $('inventory-content').hidden = key !== 'inventory';
     $('promotions-content').hidden = key !== 'promotions';
-    $('module-content').hidden = ['overview', 'categories', 'products', 'units', 'batches', 'inventory', 'promotions'].includes(key);
+    $('accounts-content').hidden = key !== 'accounts';
+    $('module-content').hidden = ['overview', 'categories', 'products', 'units', 'batches', 'inventory', 'promotions', 'accounts'].includes(key);
     document.querySelectorAll('[data-manager-view]').forEach(link => {
         if (link.dataset.managerView === key) link.setAttribute('aria-current', 'page');
         else link.removeAttribute('aria-current');
@@ -126,6 +131,8 @@ function renderView(focus = false) {
     else inventory.deactivate();
     if (key === 'promotions' && user) promotions.activate();
     else promotions.deactivate();
+    if (key === 'accounts' && user) accounts.activate();
+    else accounts.deactivate();
     if (focus && user) $('page-title').focus();
 }
 

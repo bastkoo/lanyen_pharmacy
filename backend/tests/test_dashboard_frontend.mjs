@@ -7,7 +7,7 @@ const { formatCount, formatVnd, formatStoredDate } = await import('../../fronten
 
 test('manager GET client keeps session cookies and real endpoint/query contracts', async () => {
     const calls = [];
-    globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ total: 0 }) }; };
+    globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, text: async () => JSON.stringify({ total: 0 }) }; };
     await api.getDashboardSummary(7);
     await api.getRecentOrders(30);
     await api.getRevenue(90);
@@ -25,7 +25,7 @@ test('manager GET client keeps session cookies and real endpoint/query contracts
 
 test('API propagates authentication and independent service failures', async () => {
     for (const [status, code] of [[401, 'UNAUTHENTICATED'], [403, 'FORBIDDEN'], [503, 'DATABASE_UNAVAILABLE']]) {
-        globalThis.fetch = async () => ({ ok: false, status, json: async () => ({ code }) });
+        globalThis.fetch = async () => ({ ok: false, status, text: async () => JSON.stringify({ code }) });
         await assert.rejects(api.getDashboardSummary(30), error => error.code === code && error.status === status);
     }
     globalThis.fetch = async () => { throw new Error('offline'); };

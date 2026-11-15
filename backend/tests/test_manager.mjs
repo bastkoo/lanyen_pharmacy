@@ -16,8 +16,8 @@ test('manager access requires exact current role and unlocked status', () => {
     for (const user of [null, {}, { VaiTro: '2', TrangThai: false }, { VaiTro: 2 }]) assert.equal(managerAccess(user), 'invalid');
 });
 
-test('navigation has seven valid destinations and rejects inherited keys', () => {
-    assert.equal(Object.keys(MANAGER_VIEWS).length, 7);
+test('navigation has eight valid destinations and rejects inherited keys', () => {
+    assert.equal(Object.keys(MANAGER_VIEWS).length, 8);
     assert.equal(resolveManagerView(''), 'overview');
     for (const key of Object.keys(MANAGER_VIEWS)) {
         assert.equal(resolveManagerView(`#${key}`), key);

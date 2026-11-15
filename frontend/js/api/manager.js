@@ -1,5 +1,6 @@
 import { APP_CONFIG } from '../config/app.js';
 import { ApiError, getCsrfToken } from './auth.js';
+import { parseJsonIntegers } from '../utils/json-integers.js';
 
 
 export async function requestManager(path, { signal, method = 'GET', body, timeout = 20000 } = {}) {
@@ -18,7 +19,7 @@ export async function requestManager(path, { signal, method = 'GET', body, timeo
             method, credentials: 'include', cache: 'no-store', signal: controller.signal, headers,
             ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) })
         });
-        const data = await response.json();
+        const data = parseJsonIntegers(await response.text());
         if (!data || typeof data !== 'object' || Array.isArray(data)) throw new ApiError('INVALID_RESPONSE');
         if (!response.ok) throw new ApiError(data.code || 'REQUEST_FAILED', response.status);
         return data;

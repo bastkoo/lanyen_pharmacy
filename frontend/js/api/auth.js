@@ -1,4 +1,5 @@
 import { APP_CONFIG } from "../config/app.js";
+import { parseJsonIntegers } from '../utils/json-integers.js';
 
 let csrfToken = "";
 export class ApiError extends Error {
@@ -15,7 +16,7 @@ async function request(path, body) {
             headers: body === undefined ? {} : { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
             ...(body === undefined ? {} : { body: JSON.stringify(body) })
         });
-        data = await response.json();
+        data = parseJsonIntegers(await response.text());
     } catch { throw new ApiError("CONNECTION_FAILED"); }
     finally { clearTimeout(timer); }
     if (typeof data.csrf_token === "string") csrfToken = data.csrf_token;

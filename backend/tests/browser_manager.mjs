@@ -12,6 +12,7 @@ import { productFixture, checkProducts } from './browser_products.mjs';
 import { unitFixture, checkUnits } from './browser_units.mjs';
 import { stockFixture, checkStock } from './browser_stock.mjs';
 import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
+import { accountFixture, accountActor, checkAccounts } from './browser_accounts.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -22,6 +23,8 @@ const productTest = process.argv.includes('--products');
 const unitTest = process.argv.includes('--units');
 const stockTest = process.argv.includes('--stock');
 const promotionTest = process.argv.includes('--promotions');
+const accountTest = process.argv.includes('--accounts');
+let checkingAccounts = false;
 let checkingPromotions = false;
 let checkingStock = false;
 let checkingUnits = false;
@@ -54,7 +57,8 @@ function dashboardFixture(pathname, params) {
 const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900000000', VaiTro: 2, TrangThai: false };
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
-    const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
+    const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (checkingAccounts && pathname.startsWith('/api/manager/accounts')) return accountFixture(req, json);
     if (checkingPromotions && (pathname.startsWith('/api/manager/promotions') || pathname.startsWith('/api/manager/products'))) return promotionFixture(req, json);
     if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory'))) return stockFixture(req, json);
     if (checkingUnits && pathname.startsWith('/api/manager/products')) return unitFixture(req, json);
@@ -65,7 +69,7 @@ const server = createServer(async (req, res) => {
         if (scenario === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
         if (scenario === 'anonymous') return json(401, { code: 'UNAUTHENTICATED', csrf_token: 'fixture-csrf' });
         if (scenario === 'locked') return json(403, { code: 'ACCOUNT_LOCKED', csrf_token: 'fixture-csrf' });
-        return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...fixtureUser, VaiTro: scenario === 'forbidden' ? 1 : 2 } });
+        return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...(checkingAccounts ? accountActor() : fixtureUser), VaiTro: scenario === 'forbidden' ? 1 : 2 } });
     }
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
@@ -104,8 +108,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const browserProfile = await mkdtemp(path.join(tmpdir(), 'lanyen-manager-ui-'));
-const regressionArtifacts = promotionTest ? await mkdtemp(path.join(tmpdir(), 'lanyen-promotion-regression-')) : root;
-if (promotionTest) await mkdir(path.join(regressionArtifacts, 'docs'));
+const regressionArtifacts = promotionTest || accountTest ? await mkdtemp(path.join(tmpdir(), 'lanyen-manager-regression-')) : root;
+if (promotionTest || accountTest) await mkdir(path.join(regressionArtifacts, 'docs'));
 const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=0', `--user-data-dir=${browserProfile}`, 'about:blank'
@@ -162,7 +166,7 @@ try {
         await waitFor(`document.querySelector('#access-state')?.getAttribute('aria-busy')==='false' || document.querySelector('#manager-shell')?.hidden===false`);
     };
     const screenshot = async filename => {
-        if (!dashboardTest || categoryTest || productTest || unitTest || stockTest || promotionTest) return; // Preserve earlier module artifacts during feature tests.
+        if (!dashboardTest || categoryTest || productTest || unitTest || stockTest || promotionTest || accountTest) return; // Preserve earlier module artifacts during feature tests.
         filename = filename.replace('MODULE_02_6_1_MANAGER', 'MODULE_02_6_2_DASHBOARD');
         const result = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
         await writeFile(path.join(root, 'docs', filename), Buffer.from(result.data, 'base64'));
@@ -185,7 +189,7 @@ try {
         assert.equal(await evaluate(`document.querySelector('#kpi-expiring').textContent`), '1');
     }
     await screenshot('MODULE_02_6_1_MANAGER_DESKTOP.png');
-    for (const route of ['categories', 'products', 'units', 'batches', 'inventory', 'promotions']) {
+    for (const route of ['categories', 'products', 'units', 'batches', 'inventory', 'promotions', 'accounts']) {
         await evaluate(`document.querySelector('[data-manager-view="${route}"]').click()`);
         await waitFor(`location.hash==='#${route}' && document.activeElement.id==='page-title'`);
         assert.equal(await evaluate(`document.querySelector('#${route}-content').hidden`), false);
@@ -280,8 +284,14 @@ try {
     if (promotionTest) {
         checkingPromotions = true;
         await navigate('manager');
-        await checkPromotions({ evaluate, waitFor, key, command, root });
+        await checkPromotions({ evaluate, waitFor, key, command, root: accountTest ? regressionArtifacts : root });
         checkingPromotions = false;
+    }
+    if (accountTest) {
+        checkingAccounts = true;
+        await navigate('manager');
+        await checkAccounts({ evaluate, waitFor, key, command, root });
+        checkingAccounts = false;
     }
     await navigate('forbidden');
     assert.equal(await evaluate(`document.querySelector('#manager-shell').hidden`), true);

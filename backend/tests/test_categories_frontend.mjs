@@ -17,7 +17,7 @@ test('category API uses exact paths, only name body, cookies and fresh CSRF for 
     let token = 0;
     globalThis.fetch = async (url, options) => {
         calls.push({ url, options });
-        return { ok: true, json: async () => url.endsWith('/auth/me') ? { csrf_token: `token-${++token}` } : { code: 'OK' } };
+        return { ok: true, text: async () => JSON.stringify(url.endsWith('/auth/me') ? { csrf_token: `token-${++token}` } : { code: 'OK' }) };
     };
     await api.getCategories({ search: 'Giảm & đau', page: 2, per_page: 10 });
     await api.getCategory(7);
@@ -35,11 +35,11 @@ test('category API uses exact paths, only name body, cookies and fresh CSRF for 
 
 test('expired session prevents mutation; conflicts, CSRF and offline errors propagate without retry', async () => {
     let count = 0;
-    globalThis.fetch = async () => { count++; return { ok: false, status: 401, json: async () => ({ code: 'UNAUTHENTICATED' }) }; };
+    globalThis.fetch = async () => { count++; return { ok: false, status: 401, text: async () => JSON.stringify({ code: 'UNAUTHENTICATED' }) }; };
     await assert.rejects(api.createCategory('A'), e => e.code === 'UNAUTHENTICATED');
     assert.equal(count, 1);
     for (const [status, code] of [[409, 'CATEGORY_IN_USE'], [409, 'CATEGORY_NAME_EXISTS'], [403, 'CSRF_FAILED'], [503, 'DATABASE_UNAVAILABLE']]) {
-        globalThis.fetch = async url => ({ ok: url.endsWith('/auth/me'), status, json: async () => url.endsWith('/auth/me') ? { csrf_token: 'new' } : { code } });
+        globalThis.fetch = async url => ({ ok: url.endsWith('/auth/me'), status, text: async () => JSON.stringify(url.endsWith('/auth/me') ? { csrf_token: 'new' } : { code }) });
         await assert.rejects(api.deleteCategory(1), e => e.code === code && e.status === status);
         assert.ok(categoryErrorMessage({ code }).length > 20);
     }

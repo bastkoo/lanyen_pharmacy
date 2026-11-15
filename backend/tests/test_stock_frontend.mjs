@@ -37,7 +37,7 @@ test('existing safety restrictions have specific messages', () => {
     assert.match(stockError({ code: 'BATCH_STOCK_INCONSISTENT' }), /không nhất quán/);
 });
 test('eight APIs use actual query whitelist, cookie session and CSRF', async () => {
-    const calls = []; globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ csrf_token: 'stock-csrf' }) }; };
+    const calls = []; globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, text: async () => JSON.stringify({ csrf_token: 'stock-csrf' }) }; };
     await batches.getBatches(3, { page: 2, per_page: 20 }); await batches.getBatch(3, 7);
     await batches.createBatch(3, validateBatch(values).data); await batches.updateBatch(3, 7, validateBatch(values, false).data); await batches.deleteBatch(3, 7);
     await inventory.getInventorySummary({ page: 1, per_page: 20 }); await inventory.getLowStock({ page: 2, per_page: 20 }); await inventory.getExpiry({ status: 'expired', days: 30, page: 1, per_page: 20 });

@@ -8,7 +8,7 @@ globalThis.location = { protocol: 'http:', hostname: 'localhost' };
 const validation = await import('../../frontend/js/utils/auth-validation.js');
 const api = await import('../../frontend/js/api/auth.js');
 const reply = (code, status = 200, extra = {}) => ({ ok: status < 400, status,
-    json: async () => ({ code, ...extra }) });
+    text: async () => JSON.stringify({ code, ...extra }) });
 
 test('phone validation accepts local/international and rejects malformed input', () => {
     assert.equal(validation.normalizePhone(' 090 123 4567 '), '+84901234567');
