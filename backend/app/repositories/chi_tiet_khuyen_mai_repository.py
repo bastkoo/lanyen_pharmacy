@@ -33,8 +33,9 @@ def create(promotion_id, data):
 
 
 def update(item, data):
-    for key in ('LoaiGiamGia', 'GiaTriGiam'):
-        setattr(item, key, data[key])
+    for key in ('LoaiGiamGia', 'GiaTriGiam', 'SoLuong'):
+        if key in data:
+            setattr(item, key, data[key])
     db.session.flush()
     return item
 

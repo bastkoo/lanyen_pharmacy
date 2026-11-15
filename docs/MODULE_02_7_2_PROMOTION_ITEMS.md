@@ -1,5 +1,7 @@
 # Module 02.7.2 — Backend chi tiết khuyến mãi
 
+**Cập nhật được duyệt trong Module 02.7.3:** PUT được nhận thêm SoLuong tùy chọn (integer không âm). Không gửi thì giữ nguyên; có gửi thì cập nhật dưới khóa dòng hiện có. Không đổi model/schema PostgreSQL hoặc tồn kho.
+
 ## Model và quyết định đã làm rõ
 
 Model thực tế `ChiTietKhuyenMai` có đúng năm trường:
@@ -14,7 +16,7 @@ Model thực tế `ChiTietKhuyenMai` có đúng năm trường:
 
 Khóa chính kép `(MaChuongTrinh, MaThuoc)` đã bảo vệ tính duy nhất. Không có `MaCTKM`, `PhanTramGiam` hoặc `DieuKien`. Không thêm các trường này, không lưu điều kiện văn bản vào cột khác.
 
-Người dùng đã làm rõ: hỗ trợ cả giảm tiền và phần trăm; số lượng là phần còn áp dụng, khi bán sẽ giảm đến 0 rồi ngừng áp dụng/hiển thị hết số lượng khuyến mãi. Trong bước Backend CRUD hiện tại, quản lý khởi tạo SoLuong khi gán thuốc. PUT chỉ sửa loại/mức giảm, không thay khóa hoặc nạp lại số lượng còn lại. GET dành cho quản lý vẫn trả bản ghi SoLuong=0 để theo dõi.
+Người dùng đã làm rõ: hỗ trợ cả giảm tiền và phần trăm; số lượng là phần còn áp dụng, khi bán sẽ giảm đến 0 rồi ngừng áp dụng/hiển thị hết số lượng khuyến mãi. Quản lý khởi tạo SoLuong khi gán thuốc; từ cập nhật được duyệt ở Module 02.7.3 có thể sửa SoLuong qua PUT. Khóa kép không đổi. GET dành cho quản lý vẫn trả bản ghi SoLuong=0 để theo dõi.
 
 **Tự trừ SoLuong khi mua, ngừng áp dụng trong luồng mua hàng và hiển thị hết số lượng chưa được triển khai** vì bước này không làm giỏ hàng/đơn hàng/Frontend. Không giảm tồn kho vật lý, tự tạo giao dịch, cộng dồn hoặc chọn chương trình tốt nhất.
 
@@ -113,7 +115,7 @@ DELETE `/api/manager/promotions/7/items/3` trả `{"code":"PROMOTION_ITEM_DELETE
 - Giảm tiền trực tiếp: số không âm, tối đa 9999999999.99 theo Numeric(12,2); không nhận giá trị có phần lẻ vượt độ chính xác hai chữ số. Kiểm tra trước bước Decimal quantize để không âm thầm làm tròn 1.005 thành 1.00/1.01.
 - GiaTriGiam response là chuỗi Decimal với hai chữ số lẻ, tránh chuyển số tiền sang float khi serialize. Đây là kiểu output của trường Numeric, không phải field mới.
 - POST: MaThuoc integer 1–2147483647; SoLuong integer 0–2147483647. Không nhận float, boolean hoặc chuỗi số. Cho phép 0 để thể hiện không còn số lượng áp dụng.
-- PUT yêu cầu đủ LoaiGiamGia và GiaTriGiam; từ chối MaThuoc, MaChuongTrinh, SoLuong và tất cả trường ngoài schema. Thay mức giảm không làm số lượng đã về 0 tăng lại.
+- PUT yêu cầu đủ LoaiGiamGia và GiaTriGiam; nhận tùy chọn SoLuong integer 0–2147483647. Nếu bỏ SoLuong thì giữ nguyên, kể cả khi đã về 0. Từ chối MaThuoc, MaChuongTrinh và tất cả trường ngoài schema.
 - Không nhận điều kiện văn bản vì model không có cột tương ứng.
 
 ## Transaction, quyền và bảo vệ dữ liệu
@@ -122,7 +124,7 @@ Dùng promotion blueprint/error handler/cache headers hiện có, `PromotionErro
 
 Mọi thao tác kiểm tra chương trình tồn tại; POST kiểm tra thuốc tồn tại và kiểm tra cặp khóa trùng. PostgreSQL PK tiếp tục bảo vệ tranh chấp tạo đồng thời, SQLSTATE 23505 trả PROMOTION_ITEM_EXISTS. Thuốc có thể thuộc nhiều chương trình, không áp quy tắc trùng tên/khoảng thời gian hoặc cộng dồn giảm giá.
 
-GET/PUT/DELETE đều scope bằng cả hai khóa. PUT/DELETE khóa dòng chi tiết; repository update chỉ gán LoaiGiamGia và GiaTriGiam. DELETE là SQLAlchemy Core DELETE trên ChiTietKhuyenMai theo cả hai khóa, không cascade. Commit sau thành công; rollback khi lỗi nghiệp vụ, FK/unique, lỗi database hoặc commit. Không có truy vấn ghi vào Thuoc, DonVi_GiaThuoc, ChuongTrinhKhuyenMai, GioThuoc hoặc DonHang.
+GET/PUT/DELETE đều scope bằng cả hai khóa. PUT/DELETE khóa dòng chi tiết; repository update chỉ gán LoaiGiamGia, GiaTriGiam và SoLuong nếu được gửi. DELETE là SQLAlchemy Core DELETE trên ChiTietKhuyenMai theo cả hai khóa, không cascade. Commit sau thành công; rollback khi lỗi nghiệp vụ, FK/unique, lỗi database hoặc commit. Không có truy vấn ghi vào Thuoc, DonVi_GiaThuoc, ChuongTrinhKhuyenMai, GioThuoc hoặc DonHang.
 
 Tài khoản khách/nhân viên bị từ chối; mỗi request đọc lại vai trò và trạng thái từ database qua guard hiện có. POST/PUT/DELETE yêu cầu X-CSRF-Token và Origin hợp lệ nếu gửi Origin. Không thêm bypass hoặc token flow mới.
 
@@ -164,7 +166,7 @@ Từ backend:
 .venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py'
 ```
 
-30/30 bài riêng và hồi quy toàn Backend 249/249 bài đã đạt: list/detail/create/update/delete, hai loại giảm, phần trăm nguyên và biên 0/100/101, tiền thập phân và giới hạn Numeric, từ chối làm tròn/dữ liệu sai kiểu, SoLuong=0/giới hạn/readonly khi PUT, chương trình/thuốc không tồn tại, trùng cặp, một thuốc ở nhiều chương trình, scope cặp khóa/khóa dòng, DELETE không cascade, whitelist update, PK/FK metadata, 401/403/khóa tài khoản/CSRF, rollback và che lỗi database. Không có trường ngày trong chi tiết; các validation ngày chương trình tiếp tục do Module 02.7.1 xử lý.
+Tại Module 02.7.2: 30/30 bài riêng và hồi quy 249/249 đạt. Sau cập nhật SoLuong được duyệt ở Module 02.7.3: 31/31 bài riêng và hồi quy 250/250 đạt. Kiểm tra list/detail/create/update/delete, hai loại giảm, phần trăm nguyên và biên 0/100/101, tiền thập phân và giới hạn Numeric, từ chối làm tròn/dữ liệu sai kiểu, SoLuong=0/giới hạn/type và giữ nguyên khi không gửi trên PUT, chương trình/thuốc không tồn tại, trùng cặp, một thuốc ở nhiều chương trình, scope cặp khóa/khóa dòng, DELETE không cascade, whitelist update, PK/FK metadata, 401/403/khóa tài khoản/CSRF, rollback và che lỗi database. Không có trường ngày trong chi tiết; các validation ngày chương trình tiếp tục do Module 02.7.1 xử lý.
 
 Tests API/service mock repositories và chặn Engine.connect; tests repository mock session và biên dịch SQL PostgreSQL. Không thực thi SQL trên database thật. Chưa kiểm thử CRUD/Postman hoặc tranh chấp đồng thời PostgreSQL thật. Không kiểm thử mua hàng, tự trừ số lượng, giá thanh toán hoặc hiển thị hết số lượng vì các chức năng này nằm ngoài bước hiện tại.
 

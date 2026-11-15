@@ -9,7 +9,7 @@ MAX_DISCOUNT = Decimal('9999999999.99')
 class PromotionItemSchema(Schema):
     MaChuongTrinh = fields.Integer(dump_only=True)
     MaThuoc = fields.Integer(dump_only=True)
-    SoLuong = fields.Integer(dump_only=True)
+    SoLuong = fields.Integer(strict=True, validate=validate.Range(min=0, max=2147483647))
     LoaiGiamGia = fields.Boolean(required=True)
     GiaTriGiam = fields.Decimal(required=True, as_string=True, places=2, allow_nan=False,
                                validate=validate.Range(min=Decimal('0'), max=MAX_DISCOUNT))

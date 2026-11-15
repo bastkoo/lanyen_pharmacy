@@ -38,8 +38,8 @@ class PromotionItemTests(unittest.TestCase):
         self.repo['find_by_id'].return_value = None
         self.repo['list_items'].return_value = ([self.item], 1)
         self.repo['create'].side_effect = lambda promotion_id, data: SimpleNamespace(MaChuongTrinh=promotion_id, **data)
-        self.repo['update'].side_effect = lambda item, data: SimpleNamespace(
-            MaChuongTrinh=item.MaChuongTrinh, MaThuoc=item.MaThuoc, SoLuong=item.SoLuong, **data)
+        self.repo['update'].side_effect = lambda item, data: SimpleNamespace(**dict(
+            dict(MaChuongTrinh=item.MaChuongTrinh, MaThuoc=item.MaThuoc, SoLuong=item.SoLuong), **data))
         self.parent = self.start_patch('app.repositories.chuong_trinh_khuyen_mai_repository.find_by_id', return_value=SimpleNamespace(MaChuongTrinh=7))
         self.product = self.start_patch('app.repositories.thuoc_repository.find_by_id', return_value=SimpleNamespace(MaThuoc=3))
         self.commit = self.start_patch('app.repositories.chuong_trinh_khuyen_mai_repository.commit')
@@ -139,7 +139,7 @@ class PromotionItemTests(unittest.TestCase):
         for key in ('MaCTKM', 'MaChuongTrinh', 'PhanTramGiam', 'DieuKien', 'TrangThai'):
             self.assertEqual(self.send(json=create_data(**{key: 1})).status_code, 400)
         self.existing()
-        for key in ('MaThuoc', 'MaChuongTrinh', 'SoLuong', 'MaCTKM', 'DieuKien'):
+        for key in ('MaThuoc', 'MaChuongTrinh', 'MaCTKM', 'DieuKien'):
             self.assertEqual(self.send('PUT', BASE + '/3', json=edit_data(**{key: 3})).status_code, 400)
 
     def test_missing_product(self):
@@ -187,6 +187,14 @@ class PromotionItemTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.json['item']['SoLuong'], 0)
         self.assertEqual(self.send('GET', BASE + '/3').json['item']['SoLuong'], 0)
+
+    def test_update_remaining_quantity_optional_and_strict(self):
+        self.existing()
+        for value in (0, 20, 2147483647):
+            self.assertEqual(self.send('PUT', BASE + '/3', json=edit_data(SoLuong=value)).status_code, 200)
+            self.assertEqual(self.repo['update'].call_args.args[1]['SoLuong'], value)
+        for value in (-1, 1.0, 1.5, True, '1', None, 2147483648):
+            self.assertEqual(self.send('PUT', BASE + '/3', json=edit_data(SoLuong=value)).status_code, 400)
 
     def test_delete_only_scoped_item(self):
         self.existing()
@@ -334,11 +342,13 @@ class PromotionItemRepositoryTests(unittest.TestCase):
                 patch.object(repository.db.session, 'commit') as commit:
             item = repository.create(7, create_data(GiaTriGiam=Decimal('10.00')))
             add.assert_called_once_with(item)
-            repository.update(item, dict(edit_data(LoaiGiamGia=False, GiaTriGiam=Decimal('1000.00')), MaThuoc=9, MaChuongTrinh=9, SoLuong=0))
+            repository.update(item, dict(edit_data(LoaiGiamGia=False, GiaTriGiam=Decimal('1000.00')), MaThuoc=9, MaChuongTrinh=9))
             self.assertEqual((item.MaChuongTrinh, item.MaThuoc, item.SoLuong), (7, 3, 100))
             self.assertEqual((item.LoaiGiamGia, item.GiaTriGiam), (False, Decimal('1000.00')))
             self.assertEqual(flush.call_count, 2)
             commit.assert_not_called()
+            repository.update(item, dict(edit_data(), SoLuong=0))
+            self.assertEqual((item.MaChuongTrinh, item.MaThuoc, item.SoLuong), (7, 3, 0))
 
     def test_composite_primary_key_and_foreign_keys_unchanged(self):
         self.assertEqual({column.name for column in ChiTietKhuyenMai.__table__.primary_key}, {'MaChuongTrinh', 'MaThuoc'})

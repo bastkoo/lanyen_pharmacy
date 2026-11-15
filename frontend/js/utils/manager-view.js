@@ -3,6 +3,7 @@ export const MANAGER_VIEWS = Object.freeze({
     categories: { title: 'Danh mục thuốc', section: 'Dữ liệu thuốc', description: 'Tổ chức các nhóm thuốc trong danh mục của nhà thuốc.', icon: 'list-tree' },
     products: { title: 'Quản lý thuốc', section: 'Dữ liệu thuốc', description: 'Thông tin thuốc và hồ sơ sản phẩm.', icon: 'pill' },
     units: { title: 'Đơn vị tính & giá bán', section: 'Dữ liệu thuốc', description: 'Đơn vị tính, giá bán và số lượng quy đổi theo từng thuốc.', icon: 'boxes' },
+    promotions: { title: 'Chương trình khuyến mãi', section: 'Hoạt động kinh doanh', description: 'Lịch chương trình, thuốc áp dụng và mức giảm giá.', icon: 'boxes' },
     batches: { title: 'Lô thuốc', section: 'Kho nhà thuốc', description: 'Thông tin lô, ngày sản xuất và hạn sử dụng.', icon: 'package-open' },
     inventory: { title: 'Tồn kho', section: 'Kho nhà thuốc', description: 'Theo dõi số lượng tồn, hạn dùng và ngưỡng cảnh báo.', icon: 'warehouse' }
 });

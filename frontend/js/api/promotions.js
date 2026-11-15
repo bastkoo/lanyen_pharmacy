@@ -1,0 +1,13 @@
+import { getManagerData, requestManager } from './manager.js';
+const path = id => `promotions${id === undefined ? '' : `/${encodeURIComponent(id)}`}`;
+const itemPath = (id, product) => `${path(id)}/items${product === undefined ? '' : `/${encodeURIComponent(product)}`}`;
+export const getPromotions = (query, options) => getManagerData(`${path()}?${new URLSearchParams(query)}`, options);
+export const getPromotion = (id, options) => getManagerData(path(id), options);
+export const createPromotion = body => requestManager(path(), { method: 'POST', body });
+export const updatePromotion = (id, body) => requestManager(path(id), { method: 'PUT', body });
+export const deletePromotion = id => requestManager(path(id), { method: 'DELETE' });
+export const getPromotionItems = (id, query, options) => getManagerData(`${itemPath(id)}?${new URLSearchParams(query)}`, options);
+export const getPromotionItem = (id, product, options) => getManagerData(itemPath(id, product), options);
+export const createPromotionItem = (id, body) => requestManager(itemPath(id), { method: 'POST', body });
+export const updatePromotionItem = (id, product, body) => requestManager(itemPath(id, product), { method: 'PUT', body });
+export const deletePromotionItem = (id, product) => requestManager(itemPath(id, product), { method: 'DELETE' });
