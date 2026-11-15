@@ -9,6 +9,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { categoryFixture, checkCategories } from './browser_categories.mjs';
 import { productFixture, checkProducts } from './browser_products.mjs';
+import { unitFixture, checkUnits } from './browser_units.mjs';
+import { stockFixture, checkStock } from './browser_stock.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -16,6 +18,10 @@ let scenario = 'manager', logoutCount = 0, sessionCount = 0;
 const dashboardTest = process.argv.includes('--dashboard');
 const categoryTest = process.argv.includes('--categories');
 const productTest = process.argv.includes('--products');
+const unitTest = process.argv.includes('--units');
+const stockTest = process.argv.includes('--stock');
+let checkingStock = false;
+let checkingUnits = false;
 let checkingProducts = false;
 let dashboardMode = 'populated';
 const dashboardCalls = [];
@@ -46,6 +52,8 @@ const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(data)); };
+    if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory'))) return stockFixture(req, json);
+    if (checkingUnits && pathname.startsWith('/api/manager/products')) return unitFixture(req, json);
     if (productTest && (pathname.startsWith('/api/manager/products') || pathname === '/api/manager/uploads/products' || ((!categoryTest || checkingProducts) && pathname === '/api/manager/categories'))) return productFixture(req, json);
     if (categoryTest && pathname.startsWith('/api/manager/categories')) return categoryFixture(req, json);
     if (pathname === '/api/auth/me') {
@@ -148,7 +156,7 @@ try {
         await waitFor(`document.querySelector('#access-state')?.getAttribute('aria-busy')==='false' || document.querySelector('#manager-shell')?.hidden===false`);
     };
     const screenshot = async filename => {
-        if (!dashboardTest || categoryTest || productTest) return; // Preserve earlier module artifacts during feature tests.
+        if (!dashboardTest || categoryTest || productTest || unitTest || stockTest) return; // Preserve earlier module artifacts during feature tests.
         filename = filename.replace('MODULE_02_6_1_MANAGER', 'MODULE_02_6_2_DASHBOARD');
         const result = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
         await writeFile(path.join(root, 'docs', filename), Buffer.from(result.data, 'base64'));
@@ -174,7 +182,7 @@ try {
     for (const route of ['categories', 'products', 'units', 'batches', 'inventory']) {
         await evaluate(`document.querySelector('[data-manager-view="${route}"]').click()`);
         await waitFor(`location.hash==='#${route}' && document.activeElement.id==='page-title'`);
-        assert.equal(await evaluate(`document.querySelector('${['categories', 'products'].includes(route) ? `#${route}-content` : '#module-content'}').hidden`), false);
+        assert.equal(await evaluate(`document.querySelector('#${route}-content').hidden`), false);
         assert.equal(await evaluate(`document.querySelector('[data-manager-view="${route}"]').getAttribute('aria-current')`), 'page');
     }
     await evaluate(`location.hash='overview'`);
@@ -250,6 +258,18 @@ try {
         checkingProducts = true;
         await navigate('manager');
         await checkProducts({ evaluate, waitFor, key, command, root });
+    }
+    if (unitTest) {
+        checkingUnits = true;
+        await navigate('manager');
+        await checkUnits({ evaluate, waitFor, key, command, root });
+        checkingUnits = false;
+    }
+    if (stockTest) {
+        checkingStock = true;
+        await navigate('manager');
+        await checkStock({ evaluate, waitFor, key, command, root });
+        checkingStock = false;
     }
     await navigate('forbidden');
     assert.equal(await evaluate(`document.querySelector('#manager-shell').hidden`), true);
