@@ -13,6 +13,7 @@
 #batch-table .stock-table { min-width: 1200px; }
 .stock-table th, .stock-table td { padding: var(--manager-space-4); border-bottom: 1px solid var(--manager-border); text-align: left; vertical-align: top; max-width: 260px; overflow-wrap: anywhere; }
 .stock-table th { font-weight: 500; }
+.stock-table tr > :first-child { width: 64px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .stock-table thead { color: var(--manager-muted); background: var(--manager-bg); font-size: var(--manager-small); }
 .stock-table caption { text-align: left; color: var(--manager-muted); font-size: var(--manager-small); padding: var(--manager-space-4); }
 .stock-table .stock-number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

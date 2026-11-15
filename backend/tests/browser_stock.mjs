@@ -77,6 +77,8 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     assert.equal(await run(`document.querySelector('#batches-body b')`), null);
     await screenshot('BATCHES_DESKTOP');
     await click('batches-next'); await waitFor(`document.querySelector('#batches-body').children.length===3`);
+    assert.equal(await run(`document.querySelector('#batches-body tr > :first-child').textContent`), '21', 'STT continues across pages');
+    assert.doesNotMatch(await run(`document.querySelector('#batches-body').textContent`), /#\d+/, 'No database identity is displayed');
     await click('batches-prev'); await waitFor(`document.querySelector('#batches-body').children.length===20`);
     await run(`document.querySelector('#batches-filter').value='LOT-2';document.querySelector('#batches-filter').dispatchEvent(new Event('input'))`);
     assert.match(await run(`document.querySelector('#batches-count').textContent`), /trong trang này/);

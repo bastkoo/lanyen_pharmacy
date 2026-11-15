@@ -106,7 +106,7 @@ export function setupProducts({ root, onAccessError }) {
         $('products-retry').hidden = type !== 'error';
         if (type !== 'ready') { $('products-prev').disabled = true; $('products-next').disabled = true; }
     }
-    function categoryName(id) { return categories.get(id) || `Danh mục #${id}`; }
+    function categoryName(id) { return categories.get(id) || 'Chưa tải được tên danh mục'; }
     function fillCategories() {
         for (const id of ['products-category', 'product-MaLoaiThuoc']) {
             const select = $(id), previous = select.value;
@@ -115,7 +115,7 @@ export function setupProducts({ root, onAccessError }) {
             for (const [value, text] of categories) { const option = node('option', text); option.value = value; select.append(option); }
             const selected = previous || (id === 'product-MaLoaiThuoc' && currentProduct ? String(currentProduct.MaLoaiThuoc) : '');
             if (selected && !categories.has(Number(selected))) {
-                const option = node('option', `Danh mục #${selected} — cần kiểm tra lại`); option.value = selected; select.append(option);
+                const option = node('option', 'Danh mục hiện tại — cần kiểm tra lại'); option.value = selected; select.append(option);
             }
             select.value = selected;
         }
@@ -142,7 +142,7 @@ export function setupProducts({ root, onAccessError }) {
         } catch (error) {
             if (!active || attempt !== categoryVersion || error.code === 'REQUEST_ABORTED') return;
             if (!access(error)) {
-                $('products-categories-status').textContent = 'Chưa tải được danh mục. Mã danh mục vẫn được hiển thị khi có dữ liệu thuốc.';
+                $('products-categories-status').textContent = 'Chưa tải được tên danh mục. Vui lòng thử tải lại danh mục.';
                 $('products-categories-retry').hidden = false;
             }
         }
@@ -158,14 +158,14 @@ export function setupProducts({ root, onAccessError }) {
             if (!Array.isArray(data.items) || !['page', 'pages', 'total', 'per_page'].every(key => Number.isSafeInteger(data[key]) && data[key] >= 0)) throw new ApiError('INVALID_RESPONSE');
             if (page > Math.max(1, data.pages)) { page = Math.max(1, data.pages); return loadList(); }
             const body = $('products-body'); body.replaceChildren();
-            for (const product of data.items) {
+            for (const [index, product] of data.items.entries()) {
                 if (!Number.isSafeInteger(product.MaThuoc) || typeof product.TenThuoc !== 'string' || typeof product.PhanLoai !== 'boolean') throw new ApiError('INVALID_RESPONSE');
                 const row = node('tr'), identity = node('th'); identity.scope = 'row';
                 const identityWrap = node('div', undefined, 'product-row-identity');
                 const image = node('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
                 if (validHttps(product.HinhAnh)) image.src = product.HinhAnh;
                 image.addEventListener('error', () => { image.hidden = true; });
-                const text = node('div'); text.append(node('strong', product.TenThuoc), node('span', `#${product.MaThuoc}`, 'product-row-meta'));
+                const text = node('div'); text.append(node('strong', product.TenThuoc));
                 identityWrap.append(image, text); identity.append(identityWrap);
                 const identifiers = node('td'); identifiers.append(node('span', product.MaDuoc), node('span', `Mã vạch: ${product.MaVach || 'Chưa có'}`, 'product-row-meta'), node('span', `SĐK: ${product.SoDangKy}`, 'product-row-meta'));
                 const actions = node('td'), actionWrap = node('div', undefined, 'product-row-actions');
@@ -174,7 +174,7 @@ export function setupProducts({ root, onAccessError }) {
                     button.type = 'button'; button.dataset.productAction = action; button.dataset.productId = product.MaThuoc;
                     button.setAttribute('aria-label', `${label} thuốc ${product.TenThuoc}`); actionWrap.append(button);
                 }
-                actions.append(actionWrap); row.append(identity, identifiers, node('td', categoryName(product.MaLoaiThuoc)), node('td', classifications(product.PhanLoai)), actions); body.append(row);
+                actions.append(actionWrap); row.append(node('td', String((page - 1) * perPage + index + 1)), identity, identifiers, node('td', categoryName(product.MaLoaiThuoc)), node('td', classifications(product.PhanLoai)), actions); body.append(row);
             }
             $('products-result-count').textContent = `${new Intl.NumberFormat('vi-VN').format(data.total)} thuốc${[filters.search, filters.category_id, filters.phan_loai].some(value => value !== undefined && value !== '') ? ' theo bộ lọc' : ' trong danh sách'}`;
             $('products-page-status').textContent = data.total ? `Trang ${data.page} / ${data.pages}` : 'Chưa có kết quả';
@@ -202,7 +202,7 @@ export function setupProducts({ root, onAccessError }) {
         image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer';
         if (validHttps(product.HinhAnh)) image.src = product.HinhAnh;
         image.addEventListener('error', () => { image.hidden = true; });
-        const text = node('div'); text.append(node('p', `HỒ SƠ THUỐC #${product.MaThuoc}`, 'manager-eyebrow'), node('h3', product.TenThuoc), node('p', categoryName(product.MaLoaiThuoc), 'products-note'));
+        const text = node('div'); text.append(node('p', 'HỒ SƠ THUỐC', 'manager-eyebrow'), node('h3', product.TenThuoc), node('p', categoryName(product.MaLoaiThuoc), 'products-note'));
         intro.append(image, text); target.append(intro);
         const layout = node('div', undefined, 'product-details-layout');
         for (const group of PRODUCT_GROUPS) {
@@ -285,7 +285,7 @@ export function setupProducts({ root, onAccessError }) {
             const result = action === 'create' ? await createProduct(data) : await updateProduct(currentId, data);
             if (!active || attempt !== detailVersion) return;
             if (result.code !== (action === 'create' ? 'PRODUCT_CREATED' : 'PRODUCT_UPDATED') || !Number.isSafeInteger(result.product?.MaThuoc)) throw new ApiError('INVALID_RESPONSE');
-            setBusy(false); showList(); feedback(`Đã ${action === 'create' ? 'thêm' : 'cập nhật'} thuốc “${result.product.TenThuoc}” (#${result.product.MaThuoc}). Danh sách đã được tải lại theo bộ lọc hiện tại.`);
+            setBusy(false); showList(); feedback(`Đã ${action === 'create' ? 'thêm' : 'cập nhật'} thuốc “${result.product.TenThuoc}”. Danh sách đã được tải lại theo bộ lọc hiện tại.`);
         } catch (error) {
             if (!active || attempt !== detailVersion) return;
             if (!access(error)) {

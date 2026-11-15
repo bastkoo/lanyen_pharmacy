@@ -22,17 +22,19 @@ export function setupAccounts({ root, getActorId, onAccessError, onSelfUpdated }
             if (data.code !== 'ACCOUNTS_LISTED' || !Array.isArray(data.items) || !Number.isSafeInteger(data.total) || !Number.isInteger(data.pages) || data.page !== page) throw new Error('INVALID_RESPONSE');
             if (!data.items.length && page > 1) { page = Math.max(1, data.pages); return loadList(); }
             const records = data.items.map(normalizeAccount), actorId = accountId(getActorId());
-            for (const account of records) {
+            for (const [index, account] of records.entries()) {
                 const row = n('tr'), name = n('th'), identity = n('div', undefined, 'accounts-identity'), text = n('div'); name.scope = 'row';
                 const own = account.MaNguoiDung === actorId;
-                text.append(n('strong', account.HoTen), n('span', `#${account.MaNguoiDung}${own ? ' · Bạn' : ''}`, 'product-row-meta')); identity.append(renderAccountAvatar(account), text); name.append(identity);
+                text.append(n('strong', account.HoTen));
+                if (own) text.append(n('span', 'Bạn', 'product-row-meta'));
+                identity.append(renderAccountAvatar(account), text); name.append(identity);
                 const role = n('td'), status = n('td'); role.append(n('span', accountRole(account.VaiTro), `manager-badge${account.VaiTro === 2 ? ' manager-badge--success' : ''}`)); status.append(n('span', account.TrangThai ? 'Đã khóa' : 'Đang hoạt động', `manager-badge ${account.TrangThai ? 'manager-badge--warning' : 'manager-badge--success'}`));
                 const actions = n('td'), wrap = n('div', undefined, 'accounts-actions');
                 for (const [action, label] of [['view', 'Xem'], ['edit', 'Sửa'], ['status', account.TrangThai ? 'Mở khóa' : 'Khóa']]) {
                     const button = n('button', label, `categories-action${action === 'status' && !account.TrangThai ? ' categories-action--delete' : ''}`); button.type = 'button'; button.dataset.accountAction = action; button.dataset.accountId = account.MaNguoiDung; button.setAttribute('aria-label', `${label} tài khoản ${account.HoTen}`);
                     if (action === 'status' && own) { button.disabled = true; button.title = 'Không thể tự khóa tài khoản đang đăng nhập.'; } wrap.append(button);
                 }
-                actions.append(wrap); row.append(name, n('td', account.SDT), n('td', account.Email || 'Chưa có'), role, status, actions); $('accounts-body').append(row);
+                actions.append(wrap); row.append(n('td', String((page - 1) * 20 + index + 1)), name, n('td', account.SDT), n('td', account.Email || 'Chưa có'), role, status, actions); $('accounts-body').append(row);
             }
             state(records.length ? '' : 'Không có tài khoản phù hợp. Thử bỏ bộ lọc hoặc tạo tài khoản.', records.length ? 'ready' : 'empty');
             $('accounts-count').textContent = `${data.total} tài khoản theo bộ lọc · Thống kê phía trên luôn là toàn bộ nội bộ`;

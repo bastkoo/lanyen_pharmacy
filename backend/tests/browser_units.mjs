@@ -80,6 +80,8 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     assert.match(await run(`document.querySelector('#units-body').textContent`), /0\s*₫/);
     await screenshot('DESKTOP');
     await click('units-next'); await waitFor(`document.querySelector('#units-body').children.length===3`);
+    assert.equal(await run(`document.querySelector('#units-body tr > :first-child').textContent`), '21', 'STT continues across pages');
+    assert.doesNotMatch(await run(`document.querySelector('#units-body').textContent`), /#\d+/, 'No database identity is displayed');
     await click('units-prev'); await waitFor(`document.querySelector('#units-body').children.length===20`);
     await choose(2); await waitFor(`document.querySelector('#units-state-title').textContent==='Thuốc chưa có đơn vị bán'`);
     await click('units-add'); await dialogReady(); await submit();

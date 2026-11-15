@@ -22,7 +22,7 @@ export function setupStockTable({ root, id, title, description, columns, filterL
     scroll.setAttribute('role', 'region'); scroll.setAttribute('aria-label', `${title}, cuộn ngang khi màn hình hẹp`);
     const table = n('table', undefined, 'stock-table'), caption = n('caption', 'Bộ lọc tại đây chỉ áp dụng cho trang đang tải; dùng phân trang để xem các bản ghi khác.');
     const thead = n('thead'), tr = n('tr'), body = n('tbody'); body.id = `${id}-body`;
-    for (const [text, numeric] of columns) { const th = n('th', text, numeric ? 'stock-number' : ''); th.scope = 'col'; tr.append(th); }
+    for (const [text, numeric] of [['STT', true], ...columns]) { const th = n('th', text, numeric ? 'stock-number' : ''); th.scope = 'col'; tr.append(th); }
     thead.append(tr); table.append(caption, thead, body); scroll.append(table);
     const footer = n('footer', undefined, 'categories-pagination'), pageText = n('p'), nav = n('nav'); pageText.id = `${id}-page`; pageText.setAttribute('role', 'status'); nav.setAttribute('aria-label', `Phân trang ${title.toLocaleLowerCase('vi')}`);
     const prev = n('button', 'Trang trước', 'button button-outline'), next = n('button', 'Trang sau', 'button button-outline');
@@ -32,7 +32,11 @@ export function setupStockTable({ root, id, title, description, columns, filterL
     function draw() {
         body.replaceChildren(); const term = search.value.trim().toLocaleLowerCase('vi');
         const visible = items.filter(item => !term || renderRow.search(item).toLocaleLowerCase('vi').includes(term));
-        for (const item of visible) body.append(renderRow(item));
+        for (const item of visible) {
+            const row = renderRow(item);
+            row.prepend(n('td', String((page - 1) * (metadata.per_page || 20) + items.indexOf(item) + 1), 'stock-number'));
+            body.append(row);
+        }
         count.textContent = metadata ? `${metadata.total} bản ghi · Hiển thị ${visible.length}/${items.length} bản ghi trong trang này` : '';
         state.hidden = visible.length > 0; scroll.hidden = !visible.length;
         message.textContent = items.length ? 'Không có kết quả trong trang này. Xóa bộ lọc hoặc chuyển trang.' : 'Chưa có dữ liệu phù hợp.';

@@ -49,7 +49,7 @@ export function setupUnits({ root, onAccessError }) {
             for (const item of data.items) {
                 if (!integer(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
                 const li = node('li'), button = node('button'); button.type = 'button'; button.dataset.id = item.MaThuoc;
-                button.append(node('strong', item.TenThuoc), node('span', `#${item.MaThuoc} · ${item.MaDuoc || 'Chưa có mã dược'}`), node('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`));
+                button.append(node('strong', item.TenThuoc), node('span', item.MaDuoc || 'Chưa có mã dược'), node('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`));
                 li.append(button); $('units-products').append(li);
             }
             markSelection(); $('units-picker-status').textContent = data.total ? `${data.total} thuốc phù hợp` : 'Không tìm thấy thuốc. Thử từ khóa khác.';
@@ -70,7 +70,7 @@ export function setupUnits({ root, onAccessError }) {
             if (!active || attempt !== listVersion || id !== productId) return;
             if (data.code !== 'UNITS_LISTED' || !Array.isArray(data.items) || !data.items.every(item => validUnit(item, id))) throw new ApiError('INVALID_RESPONSE');
             if (!data.items.length && page > 1) { page = Math.max(1, data.pages); return loadList(); }
-            for (const item of data.items) {
+            for (const [index, item] of data.items.entries()) {
                 const row = node('tr'), actions = node('td');
                 const name = node('th', item.DonViTinh); name.scope = 'row';
                 for (const [action, label] of [['edit', 'Sửa'], ['delete', 'Xóa']]) {
@@ -78,7 +78,7 @@ export function setupUnits({ root, onAccessError }) {
                     button.type = 'button'; button.dataset.action = action; button.dataset.id = item.MaDonGia;
                     button.setAttribute('aria-label', `${label} đơn vị ${item.DonViTinh}`); actions.append(button);
                 }
-                row.append(name, node('td', new Intl.NumberFormat('vi-VN').format(item.SoLuongQuyDoi), 'units-number'), node('td', formatUnitPrice(item.GiaBan), 'units-number'), actions);
+                row.append(node('td', String((page - 1) * 20 + index + 1)), name, node('td', new Intl.NumberFormat('vi-VN').format(item.SoLuongQuyDoi), 'units-number'), node('td', formatUnitPrice(item.GiaBan), 'units-number'), actions);
                 $('units-body').append(row);
             }
             state(data.items.length ? 'ready' : 'empty', 'Thuốc chưa có đơn vị bán', 'Thêm đơn vị tính, giá bán và số lượng quy đổi cho thuốc này.');
@@ -103,7 +103,7 @@ export function setupUnits({ root, onAccessError }) {
             if (!active || attempt !== selectionVersion) return;
             if (data.code !== 'PRODUCT_FOUND' || data.product?.MaThuoc !== id || typeof data.product.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
             product = data.product;
-            const identity = node('div'); identity.append(node('h3', product.TenThuoc), node('p', `#${id} · Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), node('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
+            const identity = node('div'); identity.append(node('h3', product.TenThuoc), node('p', `Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), node('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
             if (validHttps(product.HinhAnh)) {
                 const image = node('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.src = product.HinhAnh;
                 image.addEventListener('error', () => { image.hidden = true; }); $('units-product').append(image);
@@ -136,7 +136,7 @@ export function setupUnits({ root, onAccessError }) {
         mode = action; unitId = id; opener = source; ready = action === 'create';
         $('unit-form').reset(); clearErrors(); $('unit-delete-summary').textContent = '';
         $('unit-dialog-title').textContent = action === 'create' ? 'Thêm đơn vị bán' : action === 'edit' ? 'Sửa đơn vị & giá bán' : 'Xóa đơn vị bán';
-        $('unit-dialog-context').textContent = `${product.TenThuoc} · #${productId}`;
+        $('unit-dialog-context').textContent = product.TenThuoc;
         $('unit-dialog-status').textContent = ready ? '' : 'Đang lấy dữ liệu hiện tại…';
         $('unit-form').hidden = action === 'delete' || !ready; $('unit-delete-panel').hidden = action !== 'delete';
         setBusy(false); dialog.showModal(); document.body.classList.add('category-modal-open');

@@ -64,8 +64,12 @@ export async function checkAccounts({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('#accounts-body b')`), null); assert.equal(await run(`document.querySelector('[data-account-id="12"][data-account-action="status"]').disabled`), true);
     await screenshot('DESKTOP');
     await click('accounts-next'); await waitFor(`document.querySelector('#accounts-body').children.length===4`);
-    assert.match(await run(`document.querySelector('#accounts-body').textContent`), /9223372036854775807/);
-    await rowAction(BIG_ID, 'view'); await waitFor(`!document.querySelector('#account-detail').hidden`); assert.match(await run(`document.querySelector('#account-detail').textContent`), /9223372036854775807/);
+    assert.equal(await run(`document.querySelector('#accounts-body tr > :first-child').textContent`), '21', 'STT continues across pages');
+    assert.doesNotMatch(await run(`document.querySelector('#accounts-body').textContent`), /#\d+/, 'No database identity is displayed');
+    assert.doesNotMatch(await run(`document.querySelector('#accounts-body').textContent`), /9223372036854775807|#\d+/);
+    await rowAction(BIG_ID, 'view'); await waitFor(`!document.querySelector('#account-detail').hidden`);
+    assert.match(await run(`document.querySelector('#account-detail').textContent`), /Quản lý BigInteger/);
+    assert.doesNotMatch(await run(`document.querySelector('#account-detail').textContent`), /9223372036854775807|Mã người dùng/);
     await screenshot('DETAIL_DESKTOP'); await key('Escape', 27); await waitFor(`!document.querySelector('#account-dialog').open`);
     await click('accounts-prev'); await waitFor(`document.querySelector('#accounts-body').children.length===20`);
     await filter('', '1', 'true'); await waitFor(`document.querySelector('#accounts-body').children.length===2`); assert.equal(await run(`document.querySelector('#accounts-stat-total').textContent`), '24');

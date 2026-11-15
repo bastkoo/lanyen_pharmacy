@@ -70,10 +70,10 @@ export function setupCategories({ root, onAccessError }) {
             if (!Array.isArray(data.items) || !['total', 'pages', 'page', 'per_page'].every(key => Number.isSafeInteger(data[key]) && data[key] >= 0)) throw new ApiError('INVALID_RESPONSE');
             if (page > Math.max(1, data.pages)) { page = Math.max(1, data.pages); return loadList(); }
             const body = $('categories-body'); body.replaceChildren();
-            for (const item of data.items) {
+            for (const [index, item] of data.items.entries()) {
                 if (!Number.isInteger(item.MaLoaiThuoc) || typeof item.TenLoaiThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
                 const row = element('tr');
-                const id = element('th', `#${item.MaLoaiThuoc}`); id.scope = 'row';
+                const id = element('th', String((page - 1) * perPage + index + 1)); id.scope = 'row';
                 const name = element('td', item.TenLoaiThuoc, 'categories-table__name');
                 const actions = element('td'); const group = element('div', undefined, 'categories-actions');
                 for (const action of ['edit', 'delete']) {

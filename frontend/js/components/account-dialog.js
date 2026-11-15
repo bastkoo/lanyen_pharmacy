@@ -41,7 +41,7 @@ export function setupAccountDialog({ isActive, getActorId, onAccessError, onSave
         const target = $('account-detail'); target.replaceChildren();
         const identity = n('div', undefined, 'accounts-detail-identity'); identity.append(renderAccountAvatar(account), n('strong', account.HoTen)); target.append(identity);
         const dl = n('dl');
-        for (const [label, value] of [['Mã người dùng', account.MaNguoiDung], ['Họ tên', account.HoTen], ['Số điện thoại', account.SDT], ['Email', account.Email || 'Chưa có'], ['Ảnh đại diện', account.AnhDaiDien || 'Chưa có'], ['Vai trò', accountRole(account.VaiTro)], ['Trạng thái', account.TrangThai ? 'Đã khóa' : 'Đang hoạt động']]) dl.append(n('dt', label), n('dd', value));
+        for (const [label, value] of [['Họ tên', account.HoTen], ['Số điện thoại', account.SDT], ['Email', account.Email || 'Chưa có'], ['Ảnh đại diện', account.AnhDaiDien || 'Chưa có'], ['Vai trò', accountRole(account.VaiTro)], ['Trạng thái', account.TrangThai ? 'Đã khóa' : 'Đang hoạt động']]) dl.append(n('dt', label), n('dd', value));
         target.append(dl); $('account-detail-status').textContent = account.TrangThai ? 'Mở khóa tài khoản' : 'Khóa tài khoản'; $('account-detail-status').title = self(account.MaNguoiDung) ? 'Không thể tự khóa tài khoản đang đăng nhập.' : '';
     }
     async function open(action, id, source) {
@@ -60,7 +60,7 @@ export function setupAccountDialog({ isActive, getActorId, onAccessError, onSave
             const data = await getAccount(targetId, { signal: controller.signal });
             if (!isActive() || attempt !== version || !dialog.open) return;
             if (data.code !== 'ACCOUNT_FOUND') throw new Error('INVALID_RESPONSE'); current = normalizeAccount(data.account); if (current.MaNguoiDung !== targetId) throw new Error('INVALID_RESPONSE');
-            $('account-dialog-context').textContent = `${current.HoTen} · #${targetId}${self(targetId) ? ' · Tài khoản của bạn' : ''}`;
+            $('account-dialog-context').textContent = `${current.HoTen}${self(targetId) ? ' · Tài khoản của bạn' : ''}`;
             $('account-dialog-loading').textContent = ''; ready = true;
             if (action === 'view') { renderDetail(current); $('account-detail').hidden = false; $('account-detail-actions').hidden = false; }
             if (action === 'edit') { for (const [name] of ACCOUNT_FIELDS) $(`account-${name}`).value = current[name] ?? ''; $('account-form').hidden = false; roleChange(); }

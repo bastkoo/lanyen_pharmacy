@@ -54,12 +54,12 @@ export function setupPromotions({ root, onAccessError }) {
         const today = vietnamToday(), term = filters.search.toLocaleLowerCase('vi');
         const found = programs.filter(item => item.TenChuongTrinh.toLocaleLowerCase('vi').includes(term) && (!filters.status || promotionStatus(item, today) === filters.status));
         const pages = Math.ceil(found.length / 20); page = Math.max(1, Math.min(page, pages || 1)); $('promotions-body').replaceChildren();
-        for (const value of found.slice((page - 1) * 20, page * 20)) {
-            const row = n('tr'), name = n('th'), actions = n('td'); name.scope = 'row'; name.append(n('strong', value.TenChuongTrinh), n('span', `#${value.MaChuongTrinh}`, 'product-row-meta'));
+        for (const [index, value] of found.slice((page - 1) * 20, page * 20).entries()) {
+            const row = n('tr'), name = n('th'), actions = n('td'); name.scope = 'row'; name.append(n('strong', value.TenChuongTrinh));
             for (const [action, label] of [['view', 'Xem'], ['edit', 'Sửa'], ['delete', 'Xóa']]) {
                 const button = n('button', label, `categories-action${action === 'delete' ? ' categories-action--delete' : ''}`); button.type = 'button'; button.dataset.promotionAction = action; button.dataset.id = value.MaChuongTrinh; button.setAttribute('aria-label', `${label} chương trình ${value.TenChuongTrinh}`); actions.append(button);
             }
-            row.append(name, n('td', formatBatchDate(value.NgayBatDau), 'stock-date'), n('td', formatBatchDate(value.NgayKetThuc), 'stock-date'), n('td', PROMOTION_STATUSES[promotionStatus(value, today)]), actions); $('promotions-body').append(row);
+            row.append(n('td', String((page - 1) * 20 + index + 1)), name, n('td', formatBatchDate(value.NgayBatDau), 'stock-date'), n('td', formatBatchDate(value.NgayKetThuc), 'stock-date'), n('td', PROMOTION_STATUSES[promotionStatus(value, today)]), actions); $('promotions-body').append(row);
         }
         $('promotions-count').textContent = `${found.length} / ${programs.length} chương trình · Ngày Việt Nam: ${formatBatchDate(today)}`;
         $('promotions-page').textContent = pages ? `Trang ${page} / ${pages}` : '';
@@ -82,7 +82,7 @@ export function setupPromotions({ root, onAccessError }) {
     const itemRow = item => {
         const row = n('tr'), name = n('th'), identity = n('div', undefined, 'promotion-item-identity'), product = products.get(item.MaThuoc); name.scope = 'row';
         if (validHttps(product?.HinhAnh)) { const image = n('img'); image.src = product.HinhAnh; image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.addEventListener('error', () => { image.hidden = true; }); identity.append(image); }
-        const text = n('div'); text.append(n('strong', product.TenThuoc), n('span', `#${item.MaThuoc}`), n('span', `Mã vạch: ${product.MaVach || 'Chưa có'}`)); identity.append(text); name.append(identity);
+        const text = n('div'); text.append(n('strong', product.TenThuoc), n('span', `Mã vạch: ${product.MaVach || 'Chưa có'}`)); identity.append(text); name.append(identity);
         const actions = n('td');
         for (const [action, label] of [['edit', 'Sửa'], ['delete', 'Xóa']]) {
             const button = n('button', label, `categories-action${action === 'delete' ? ' categories-action--delete' : ''}`); button.type = 'button'; button.dataset.itemAction = action; button.dataset.id = item.MaThuoc; button.setAttribute('aria-label', `${label} khuyến mãi của ${product.TenThuoc}`); actions.append(button);
@@ -114,7 +114,7 @@ export function setupPromotions({ root, onAccessError }) {
         const root = $('promotion-identity'); root.replaceChildren(); const heading = n('h2', current.TenChuongTrinh); heading.id = 'promotion-detail-title'; heading.tabIndex = -1;
         const dates = n('dl');
         for (const [label, value] of [['Bắt đầu', formatBatchDate(current.NgayBatDau)], ['Kết thúc', formatBatchDate(current.NgayKetThuc)], ['Trạng thái', PROMOTION_STATUSES[promotionStatus(current)]]]) { const wrap = n('div'); wrap.append(n('dt', label), n('dd', value)); dates.append(wrap); }
-        root.append(n('p', `CHƯƠNG TRÌNH #${detailId}`, 'manager-eyebrow'), heading, dates);
+        root.append(n('p', 'CHƯƠNG TRÌNH', 'manager-eyebrow'), heading, dates);
     }
     async function openDetail(id) {
         if (!active || busy) return;
@@ -161,7 +161,7 @@ export function setupPromotions({ root, onAccessError }) {
             const assigned = new Set(items.map(item => item.MaThuoc));
             for (const item of data.items) {
                 if (!Number.isInteger(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-                const option = new Option(`${item.TenThuoc} · #${item.MaThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}${assigned.has(item.MaThuoc) ? ' · Đã có trong chương trình' : ''}`, String(item.MaThuoc)); option.disabled = assigned.has(item.MaThuoc); $('promotion-MaThuoc').append(option); products.set(item.MaThuoc, item);
+                const option = new Option(`${item.TenThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}${assigned.has(item.MaThuoc) ? ' · Đã có trong chương trình' : ''}`, String(item.MaThuoc)); option.disabled = assigned.has(item.MaThuoc); $('promotion-MaThuoc').append(option); products.set(item.MaThuoc, item);
             }
             pickerReady = true; pickerPages = data.pages; $('promotion-MaThuoc').disabled = busy;
             $('promotion-picker-status').textContent = data.total ? `${data.total} thuốc · Trang ${data.page}/${data.pages}. Thuốc đã gán được vô hiệu hóa.` : 'Không có thuốc phù hợp.';
@@ -186,10 +186,10 @@ export function setupPromotions({ root, onAccessError }) {
             if (!alive('dialog', attempt) || !dialog.open) return;
             if (itemMode) {
                 checkItem(data.item, detailId); if (data.item.MaThuoc !== id) throw new ApiError('INVALID_RESPONSE');
-                $('promotion-selected-product').textContent = `${products.get(id)?.TenThuoc || `Thuốc #${id}`} · #${id} · Mã vạch: ${products.get(id)?.MaVach || 'Chưa có'}`;
+                $('promotion-selected-product').textContent = `${products.get(id)?.TenThuoc || 'Chưa tải được tên thuốc'} · Mã vạch: ${products.get(id)?.MaVach || 'Chưa có'}`;
                 for (const key of ['LoaiGiamGia', 'SoLuong']) $(`promotion-${key}`).value = String(data.item[key]);
                 $('promotion-GiaTriGiam').value = data.item.LoaiGiamGia ? String(Number(data.item.GiaTriGiam)) : data.item.GiaTriGiam;
-                $('promotion-delete-name').textContent = `${products.get(id)?.TenThuoc || `Thuốc #${id}`} · ${formatPromotionDiscount(data.item)} · Số lượng: ${data.item.SoLuong}`;
+                $('promotion-delete-name').textContent = `${products.get(id)?.TenThuoc || 'Chưa tải được tên thuốc'} · ${formatPromotionDiscount(data.item)} · Số lượng: ${data.item.SoLuong}`;
             } else {
                 checkProgram(data.promotion); if (data.promotion.MaChuongTrinh !== id) throw new ApiError('INVALID_RESPONSE');
                 for (const [key] of programFields) $(`promotion-${key}`).value = data.promotion[key]; $('promotion-delete-name').textContent = data.promotion.TenChuongTrinh;
