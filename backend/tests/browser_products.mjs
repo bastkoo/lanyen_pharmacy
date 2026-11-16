@@ -58,7 +58,7 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     await run(`location.hash='products'`);
     await waitFor(`!document.querySelector('#products-table-wrap').hidden && document.querySelector('#products-body').children.length===20`);
     assert.match(await run(`document.querySelector('#products-body').textContent`), /Mã vạch: 0000000000001/);
-    await run(`document.querySelector('#products-search').value='0000000000001';document.querySelector('#products-filters').requestSubmit()`);
+    await run(`document.querySelector('#products-search').value='0000000000001';document.querySelector('#products-search').dispatchEvent(new Event('input'))`);
     await waitFor(`document.querySelector('#products-body').children.length===1`);
     await run(`document.querySelector('#products-reset').click()`);
     await waitFor(`document.querySelector('#products-body').children.length===20`);

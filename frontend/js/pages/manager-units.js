@@ -2,6 +2,7 @@ import { getProducts, getProduct } from '../api/products.js';
 import { getCategories } from '../api/categories.js';
 import { getUnits, getUnit, createUnit, updateUnit, deleteUnit } from '../api/units.js';
 import { ApiError } from '../api/auth.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { validHttps } from '../utils/product-validation.js';
 import { validateUnit, formatUnitPrice, unitErrorMessage } from '../utils/unit-validation.js';
 
@@ -23,6 +24,7 @@ export function setupUnits({ root, onAccessError }) {
     let pickerVersion = 0, selectionVersion = 0, listVersion = 0, dialogVersion = 0;
     let pickerController, selectionController, listController, dialogController;
     let mode, unitId, opener, busy = false, ready = false;
+    const cancelSearch = setupLiveSearch({ input: $('units-search'), form: $('units-search-form'), isActive: () => active, filters: [$('units-category')] });
 
     function access(error) {
         if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; }
@@ -229,8 +231,8 @@ export function setupUnits({ root, onAccessError }) {
         if ($('units-search-error').textContent) { $('units-search').focus(); return; }
         search = value; categoryId = $('units-category').value; productPage = 1; loadProducts();
     });
-    $('units-category').addEventListener('change', () => $('units-search-form').requestSubmit());
     $('units-reset').addEventListener('click', () => {
+        cancelSearch();
         search = ''; categoryId = ''; productPage = 1; $('units-search').value = ''; $('units-category').value = ''; $('units-search-error').textContent = ''; loadProducts();
     });
     $('units-categories-retry').addEventListener('click', loadCategories);
@@ -242,6 +244,7 @@ export function setupUnits({ root, onAccessError }) {
     $('units-reload').addEventListener('click', loadList);
     $('units-retry').addEventListener('click', () => product ? loadList() : selectProduct(productId));
     function deactivate() {
+        cancelSearch();
         active = false; pickerVersion++; selectionVersion++; listVersion++; categoryVersion++; categoryController?.abort();
         pickerController?.abort(); selectionController?.abort(); listController?.abort(); closeDialog();
     }

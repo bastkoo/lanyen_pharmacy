@@ -46,7 +46,7 @@ export async function checkCategories({ evaluate, waitFor, key, command, root })
     await waitFor(`document.querySelector('#categories-page-status').textContent.includes('Trang 2')`);
     assert.equal(await run(`document.querySelector('#categories-body tr > :first-child').textContent`), '21', 'STT continues across pages');
     assert.doesNotMatch(await run(`document.querySelector('#categories-body').textContent`), /#\d+/, 'No database identity is displayed');
-    await run(`document.querySelector('#categories-search-input').value='Danh mục 01';document.querySelector('#categories-search-form').requestSubmit()`);
+    await run(`document.querySelector('#categories-search-input').value='Danh mục 01';document.querySelector('#categories-search-input').dispatchEvent(new Event('input'))`);
     await waitFor(`document.querySelector('#categories-body').children.length===1 && document.querySelector('#categories-body').textContent.includes('Danh mục 01')`);
     await run(`document.querySelector('#categories-clear-search').click()`);
     await waitFor(`document.querySelector('#categories-body').children.length===20`);

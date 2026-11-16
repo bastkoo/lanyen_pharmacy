@@ -82,7 +82,7 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     assert.equal(await run(`document.querySelector('#units-products-page').textContent`), '1 / 2', 'Category change resets the product page');
     await click('units-products-next'); await waitFor(`document.querySelector('#units-products').children.length===2`);
     assert.ok(calls.some(call => call.params.get('category_id') === '1' && call.params.get('page') === '2'), 'Pagination retains category');
-    await run(`document.querySelector('#units-search').value='Thuốc 13';document.querySelector('#units-search-form').requestSubmit()`);
+    await run(`document.querySelector('#units-search').value='Thuốc 13';document.querySelector('#units-search').dispatchEvent(new Event('input'))`);
     await waitFor(`document.querySelector('#units-picker-status').textContent.includes('Không tìm thấy thuốc')`);
     await run(`document.querySelector('#units-category').value='2';document.querySelector('#units-category').dispatchEvent(new Event('change'))`);
     await waitFor(`document.querySelector('#units-products').children.length===1`);

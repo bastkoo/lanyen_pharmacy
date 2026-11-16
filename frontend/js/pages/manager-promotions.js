@@ -1,4 +1,5 @@
 import * as api from '../api/promotions.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { getProducts, getProduct } from '../api/products.js';
 import { ApiError } from '../api/auth.js';
 import { validHttps } from '../utils/product-validation.js';
@@ -13,6 +14,8 @@ export function setupPromotions({ root, onAccessError }) {
     let active = false, programs = [], listReady = false, page = 1, filters = { search: '', status: '' };
     let detailId, current, items = [], itemsReady = false, itemPage = 1, products = new Map();
     let mode, targetId, opener, ready = false, busy = false, pickerPage = 1, pickerPages = 0, pickerSearch = '', pickerReady = false;
+    const cancelSearch = setupLiveSearch({ input: $('promotions-search'), form: $('promotions-filters'), isActive: () => active && !detailId, filters: [$('promotions-status')] });
+    const cancelPickerSearch = setupLiveSearch({ input: $('promotion-product-search'), onSearch: searchPicker, isActive: () => active && dialog.open && mode === 'item-create' && !busy });
     const slots = new Map();
     function begin(key) {
         const old = slots.get(key); old?.controller.abort();
@@ -149,10 +152,11 @@ export function setupPromotions({ root, onAccessError }) {
         $('promotion-picker-prev').disabled = value || !pickerReady || pickerPage <= 1; $('promotion-picker-next').disabled = value || !pickerReady || pickerPage >= pickerPages;
         $('promotion-dialog-save').textContent = value ? 'Đang lưu…' : 'Lưu'; $('promotion-delete-confirm').textContent = value ? 'Đang xóa…' : 'Xác nhận xóa';
     }
-    function closeDialog() { cancel('dialog'); cancel('picker'); ready = false; busy = false; if (dialog.open) dialog.close(); document.body.classList.remove('category-modal-open'); }
+    function closeDialog() { cancelPickerSearch(); cancel('dialog'); cancel('picker'); ready = false; busy = false; if (dialog.open) dialog.close(); document.body.classList.remove('category-modal-open'); }
     async function loadPicker() {
         if (!active || mode !== 'item-create' || !dialog.open || busy) return;
         const attempt = begin('picker'), dialogAttempt = slots.get('dialog').version; pickerReady = false; $('promotion-picker-status').textContent = 'Đang tải thuốc…';
+        $('promotion-picker-retry').hidden = true;
         $('promotion-MaThuoc').replaceChildren(new Option('Chọn thuốc…', '')); $('promotion-MaThuoc').disabled = true; $('promotion-picker-prev').disabled = $('promotion-picker-next').disabled = true;
         try {
             const data = await getProducts({ search: pickerSearch, page: pickerPage, per_page: 20, sort_by: 'TenThuoc', sort_order: 'asc' }, { signal: attempt.signal });
@@ -166,7 +170,11 @@ export function setupPromotions({ root, onAccessError }) {
             pickerReady = true; pickerPages = data.pages; $('promotion-MaThuoc').disabled = busy;
             $('promotion-picker-status').textContent = data.total ? `${data.total} thuốc · Trang ${data.page}/${data.pages}. Thuốc đã gán được vô hiệu hóa.` : 'Không có thuốc phù hợp.';
             $('promotion-picker-prev').disabled = data.page <= 1 || busy; $('promotion-picker-next').disabled = data.page >= data.pages || busy;
-        } catch (error) { if (alive('picker', attempt) && error.code !== 'REQUEST_ABORTED' && !access(error)) $('promotion-picker-status').textContent = promotionError(error); }
+        } catch (error) {
+            if (alive('picker', attempt) && error.code !== 'REQUEST_ABORTED' && !access(error)) {
+                $('promotion-picker-status').textContent = promotionError(error); $('promotion-picker-retry').hidden = false;
+            }
+        }
     }
     async function openDialog(nextMode, id, source) {
         if (!active || busy || (nextMode.startsWith('item-') && (!current || !itemsReady))) return;
@@ -202,7 +210,7 @@ export function setupPromotions({ root, onAccessError }) {
         clearErrors(); const itemMode = mode.startsWith('item-'), create = mode.endsWith('create');
         const values = Object.fromEntries(fieldNames.map(key => [key, $(`promotion-${key}`).value]));
         const { data, errors } = itemMode ? validatePromotionItem(values, { create, quantityEditable: !create }) : validatePromotion(values);
-        if (!removing && itemMode && create && (!pickerReady || items.some(item => item.MaThuoc === data.MaThuoc))) errors.MaThuoc = !pickerReady ? 'Chưa tải được thuốc. Nhấn Tìm thuốc để thử lại.' : 'Thuốc đã có trong chương trình.';
+        if (!removing && itemMode && create && (!pickerReady || items.some(item => item.MaThuoc === data.MaThuoc))) errors.MaThuoc = !pickerReady ? 'Chưa tải được thuốc. Nhập lại từ khóa hoặc thử tải thuốc lại.' : 'Thuốc đã có trong chương trình.';
         if (!removing && Object.keys(errors).length) {
             for (const [key, text] of Object.entries(errors)) { $(`promotion-${key}-error`).textContent = text; $(`promotion-${key}`).setAttribute('aria-invalid', 'true'); }
             $(`promotion-${Object.keys(errors)[0]}`).focus(); return;
@@ -226,11 +234,12 @@ export function setupPromotions({ root, onAccessError }) {
     $('promotion-form').addEventListener('submit', event => { event.preventDefault(); save(); }); $('promotion-delete-confirm').addEventListener('click', () => save(true));
     for (const id of ['promotion-dialog-close', 'promotion-dialog-cancel']) $(id).addEventListener('click', () => { if (!busy) closeDialog(); });
     dialog.addEventListener('cancel', event => { if (busy) event.preventDefault(); }); document.addEventListener('keydown', event => { if (dialog.open && busy && event.key === 'Escape') event.preventDefault(); });
-    dialog.addEventListener('close', () => { if (dialog.open) return; cancel('dialog'); cancel('picker'); ready = false; busy = false; document.body.classList.remove('category-modal-open'); if (active) (opener?.isConnected && opener.getClientRects().length ? opener : current ? $('promotion-item-add') : $('promotions-list-title')).focus(); });
+    dialog.addEventListener('close', () => { if (dialog.open) return; cancelPickerSearch(); cancel('dialog'); cancel('picker'); ready = false; busy = false; document.body.classList.remove('category-modal-open'); if (active) (opener?.isConnected && opener.getClientRects().length ? opener : current ? $('promotion-item-add') : $('promotions-list-title')).focus(); });
     for (const key of fieldNames) $(`promotion-${key}`).addEventListener('input', () => { $(`promotion-${key}-error`).textContent = ''; $(`promotion-${key}`).removeAttribute('aria-invalid'); });
     $('promotion-LoaiGiamGia').addEventListener('change', discountLabel);
-    $('promotion-product-find').addEventListener('click', () => { const value = $('promotion-product-search').value.trim(); if ([...value].length > 255 || value.includes('\0')) { $('promotion-picker-status').textContent = 'Từ khóa tối đa 255 ký tự, không chứa NUL.'; return; } pickerSearch = value; pickerPage = 1; loadPicker(); });
-    $('promotion-product-search').addEventListener('keydown', event => { if (event.key === 'Enter') { event.preventDefault(); $('promotion-product-find').click(); } });
+    function searchPicker() { cancelPickerSearch(); const value = $('promotion-product-search').value.trim(); if ([...value].length > 255 || value.includes('\0')) { $('promotion-picker-status').textContent = 'Từ khóa tối đa 255 ký tự, không chứa NUL.'; return; } pickerSearch = value; pickerPage = 1; loadPicker(); }
+    $('promotion-picker-retry').addEventListener('click', searchPicker);
+    $('promotion-product-search').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); searchPicker(); } });
     $('promotion-picker-prev').addEventListener('click', () => { pickerPage--; loadPicker(); }); $('promotion-picker-next').addEventListener('click', () => { pickerPage++; loadPicker(); });
     $('promotion-add').addEventListener('click', event => openDialog('program-create', undefined, event.currentTarget)); $('promotion-item-add').addEventListener('click', event => openDialog('item-create', undefined, event.currentTarget));
     $('promotions-body').addEventListener('click', event => { const button = event.target.closest('[data-promotion-action]'); if (!button) return; const id = Number(button.dataset.id); if (button.dataset.promotionAction === 'view') openDetail(id); else openDialog(`program-${button.dataset.promotionAction}`, id, button); });
@@ -243,7 +252,7 @@ export function setupPromotions({ root, onAccessError }) {
     function refreshDates() { const today = vietnamToday(); if (!active || today === renderedDay) return; renderedDay = today; if (listReady) drawList(); if (current) drawIdentity(); }
     const dateTimer = setInterval(refreshDates, 60000); window.addEventListener('pagehide', () => clearInterval(dateTimer), { once: true });
     window.addEventListener('focus', refreshDates); document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshDates(); });
-    function deactivate() { active = false; for (const key of slots.keys()) cancel(key); closeDialog(); }
+    function deactivate() { cancelSearch(); active = false; for (const key of slots.keys()) cancel(key); closeDialog(); }
     return {
         activate() { if (active) return; active = true; if (detailId) openDetail(detailId); else { $('promotion-detail-view').hidden = true; $('promotions-list-view').hidden = false; loadList(); } },
         deactivate,

@@ -1,6 +1,7 @@
 import { getProducts, getProduct } from '../api/products.js';
 import { getBatches, getBatch, createBatch, updateBatch, deleteBatch } from '../api/batches.js';
 import { ApiError } from '../api/auth.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { validHttps } from '../utils/product-validation.js';
 import { formatUnitPrice } from '../utils/unit-validation.js';
 import { BATCH_FIELDS, validateBatch, formatBatchDate, expiryText, vietnamToday, dateValue, stockError } from '../utils/batch-validation.js';
@@ -12,6 +13,7 @@ export function setupBatches({ root, onAccessError }) {
     let pickerVersion = 0, selectionVersion = 0, listVersion = 0, dialogVersion = 0;
     let pickerController, selectionController, listController, dialogController;
     let busy = false, ready = false, mode, batchId, opener;
+    const cancelSearch = setupLiveSearch({ input: $('batch-search'), form: $('batch-product-search'), isActive: () => active });
     const count = value => new Intl.NumberFormat('vi-VN').format(value);
     function checkBatch(batch, id) {
         if (!batch || !Number.isInteger(batch.MaLo) || batch.MaThuoc !== id || typeof batch.SoLoSanXuat !== 'string' || dateValue(batch.NgaySanXuat) === null || dateValue(batch.HanSuDung) === null || ![batch.SoLuongNhap, batch.SoLuongTon, batch.GiaNhap].every(Number.isSafeInteger)) throw new ApiError('INVALID_RESPONSE');
@@ -189,7 +191,7 @@ export function setupBatches({ root, onAccessError }) {
         search = value; productsPage = 1; loadProducts();
     });
     $('batch-products-prev').addEventListener('click', () => { productsPage--; loadProducts(); }); $('batch-products-next').addEventListener('click', () => { productsPage++; loadProducts(); }); $('batch-products-retry').addEventListener('click', loadProducts);
-    function deactivate() { active = false; pickerVersion++; selectionVersion++; listVersion++; pickerController?.abort(); selectionController?.abort(); listController?.abort(); closeDialog(); }
+    function deactivate() { cancelSearch(); active = false; pickerVersion++; selectionVersion++; listVersion++; pickerController?.abort(); selectionController?.abort(); listController?.abort(); closeDialog(); }
     return {
         activate() { if (active) return; active = true; loadProducts(); if (pendingId) selectProduct(pendingId); },
         openProduct(id) { pendingId = id; if (active) selectProduct(id); },

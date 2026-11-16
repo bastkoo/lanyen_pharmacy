@@ -1,6 +1,7 @@
 import { getProducts, getProduct, createProduct, updateProduct, deleteProduct, uploadProductImage } from '../api/products.js';
 import { getCategories } from '../api/categories.js';
 import { ApiError } from '../api/auth.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { PRODUCT_GROUPS, PRODUCT_FIELDS, validateProduct, validateImageFile, validHttps, productErrorMessage } from '../utils/product-validation.js';
 
 const node = (tag, text, className) => {
@@ -20,6 +21,7 @@ export function setupProducts({ root, onAccessError }) {
     let listController, detailController, categoryController, deleteController;
     let mode = 'list', currentId, currentProduct, busy = false, ready = false, deleteReady = false, deleting = false, deleteId, opener;
     let selectedFile, objectUrl;
+    const cancelSearch = setupLiveSearch({ input: $('products-search'), form: $('products-filters'), isActive: () => active && mode === 'list', filters: [$('products-category'), $('products-classification'), $('products-sort')] });
 
     // Static schema metadata generates labelled controls; API content is never interpreted as HTML.
     for (const group of PRODUCT_GROUPS) {
@@ -217,6 +219,7 @@ export function setupProducts({ root, onAccessError }) {
     }
     async function openWorkspace(nextMode, id) {
         if (!active || busy) return;
+        cancelSearch();
         detailController?.abort(); const attempt = ++detailVersion;
         mode = nextMode; currentId = id; currentProduct = undefined; ready = nextMode === 'create';
         feedback(''); resetSelection(); $('product-form').reset(); clearErrors();
@@ -369,7 +372,7 @@ export function setupProducts({ root, onAccessError }) {
         const [sort_by, sort_order] = $('products-sort').value.split(':');
         filters = { search, category_id: $('products-category').value, phan_loai: $('products-classification').value, sort_by, sort_order }; page = 1; loadList();
     });
-    $('products-reset').addEventListener('click', () => { $('products-filters').reset(); filters = { sort_by: 'MaThuoc', sort_order: 'desc' }; page = 1; $('products-filter-error').textContent = ''; loadList(); });
+    $('products-reset').addEventListener('click', () => { cancelSearch(); $('products-filters').reset(); filters = { sort_by: 'MaThuoc', sort_order: 'desc' }; page = 1; $('products-filter-error').textContent = ''; loadList(); });
     $('products-per-page').addEventListener('change', () => { perPage = Number($('products-per-page').value); page = 1; loadList(); });
     $('products-prev').addEventListener('click', () => { if (page > 1) { page--; loadList(); } });
     $('products-next').addEventListener('click', () => { page++; loadList(); });
@@ -377,6 +380,7 @@ export function setupProducts({ root, onAccessError }) {
     $('products-categories-retry').addEventListener('click', async () => { await loadCategories(); if (active) loadList(); });
 
     function deactivate() {
+        cancelSearch();
         active = false; listVersion++; detailVersion++; categoryVersion++;
         listController?.abort(); detailController?.abort(); categoryController?.abort(); closeDelete();
         resetSelection(); busy = false; ready = false;
