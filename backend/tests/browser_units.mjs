@@ -8,6 +8,7 @@ let writeGate, releaseWrite;
 let units = Array.from({ length: 23 }, (_, index) => ({ MaDonGia: index + 1, MaThuoc: 1, DonViTinh: index === 0 ? '<b>Viên</b>' : `Hộp ${index}`, GiaBan: index * 10000, SoLuongQuyDoi: index + 1 }));
 const products = Array.from({ length: 13 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
 const calls = [];
+const categories = Array.from({ length: 101 }, (_, index) => ({ MaLoaiThuoc: index + 1, TenLoaiThuoc: `Loại thuốc ${index + 1}` }));
 export async function unitFixture(req, json) {
     const url = new URL(req.url, 'http://fixture.local'), parts = url.pathname.split('/');
     const productId = Number(parts[4]), unitId = Number(parts[6]);
@@ -17,9 +18,15 @@ export async function unitFixture(req, json) {
     if (mode === 'forbidden') return json(403, { code: 'FORBIDDEN' });
     if (mode === 'network') { req.socket.destroy(); return; }
     if (mode === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+    if (url.pathname.endsWith('/categories')) {
+        if (mode === 'categories-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        const page = Number(url.searchParams.get('page')), per_page = Number(url.searchParams.get('per_page'));
+        return json(200, { items: categories.slice((page - 1) * per_page, page * per_page), page, per_page, total: categories.length, pages: Math.ceil(categories.length / per_page) });
+    }
     if (!productId) {
         const page = Number(url.searchParams.get('page') || 1), perPage = Number(url.searchParams.get('per_page') || 10);
-        const items = products.filter(item => item.TenThuoc.includes(url.searchParams.get('search') || ''));
+        const categoryId = url.searchParams.get('category_id');
+        const items = products.filter(item => item.TenThuoc.includes(url.searchParams.get('search') || '') && (!categoryId || Number(categoryId) === (item.MaThuoc === 13 ? 2 : 1)));
         return json(200, { code: 'PRODUCTS_LISTED', items: items.slice((page - 1) * perPage, page * perPage), page, per_page: perPage, total: items.length, pages: Math.ceil(items.length / perPage) });
     }
     if (mode === 'slow' && productId === 1) await new Promise(resolve => setTimeout(resolve, 400));
@@ -66,6 +73,32 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     await run(`location.hash='units'`);
     await waitFor(`document.querySelector('#units-products').children.length===10`);
     assert.equal(calls.filter(call => call.path.endsWith('/units')).length, 0, 'No units loaded before product selection');
+    await waitFor(`!document.querySelector('#units-category').disabled && document.querySelector('#units-category').options.length===102`);
+    assert.equal(await run(`document.querySelector('label[for="units-category"]').textContent`), 'Loại thuốc');
+    assert.ok(calls.some(call => call.path.endsWith('/categories') && call.params.get('page') === '2'), 'Loads every category page');
+    await click('units-products-next'); await waitFor(`document.querySelector('#units-products').children.length===3`);
+    await run(`document.querySelector('#units-category').value='1';document.querySelector('#units-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#units-picker-status').textContent==='12 thuốc phù hợp' && document.querySelector('#units-products').children.length===10`);
+    assert.equal(await run(`document.querySelector('#units-products-page').textContent`), '1 / 2', 'Category change resets the product page');
+    await click('units-products-next'); await waitFor(`document.querySelector('#units-products').children.length===2`);
+    assert.ok(calls.some(call => call.params.get('category_id') === '1' && call.params.get('page') === '2'), 'Pagination retains category');
+    await run(`document.querySelector('#units-search').value='Thuốc 13';document.querySelector('#units-search-form').requestSubmit()`);
+    await waitFor(`document.querySelector('#units-picker-status').textContent.includes('Không tìm thấy thuốc')`);
+    await run(`document.querySelector('#units-category').value='2';document.querySelector('#units-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#units-products').children.length===1`);
+    assert.ok(calls.some(call => call.params.get('category_id') === '2' && call.params.get('search') === 'Thuốc 13'), 'Combines category and keyword');
+    await choose(13); await waitFor(`document.querySelector('#units-product').textContent.includes('Thuốc 13')`);
+    await run(`document.querySelector('#units-category').value='101';document.querySelector('#units-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#units-picker-status').textContent.includes('Không tìm thấy thuốc')`);
+    assert.match(await run(`document.querySelector('#units-product').textContent`), /Thuốc 13/, 'Filtering preserves the open price table');
+    await click('units-reset'); await waitFor(`document.querySelector('#units-products').children.length===10`);
+    assert.equal(await run(`document.querySelector('#units-search').value + document.querySelector('#units-category').value`), '');
+    mode = 'categories-error';
+    await run(`location.hash='categories'`); await waitFor(`document.querySelector('#units-content').hidden`);
+    await run(`location.hash='units'`); await waitFor(`!document.querySelector('#units-categories-retry').hidden`);
+    await waitFor(`document.querySelector('#units-products').children.length===10`);
+    assert.equal(await run(`document.querySelector('#units-category').disabled`), true, 'Failed categories do not block keyword search');
+    mode = 'normal'; await click('units-categories-retry'); await waitFor(`!document.querySelector('#units-category').disabled`);
     await click('units-products-next'); await waitFor(`document.querySelector('#units-products').children.length===3`);
     await click('units-products-prev'); await waitFor(`document.querySelector('#units-products').children.length===10`);
     await run(`document.querySelector('#units-search').value='Thuốc 13';document.querySelector('#units-search-form').requestSubmit()`);
@@ -74,6 +107,8 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     await run(`document.querySelector('#units-search').value='';document.querySelector('#units-search-form').requestSubmit()`);
     await waitFor(`document.querySelector('#units-products').children.length===10`);
     await choose(1); await ready();
+    await run(`document.querySelector('#units-category').value='1';document.querySelector('#units-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#units-picker-status').textContent==='12 thuốc phù hợp'`);
     assert.match(await run(`document.querySelector('#units-product').textContent`), /Mã vạch: 0000000000001/);
     assert.equal(await run(`document.querySelector('#units-body').children.length`), 20);
     assert.equal(await run(`document.querySelector('#units-body b')`), null, 'API names are text, never HTML');
@@ -112,6 +147,7 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     await waitFor(`!document.querySelector('#unit-dialog').open`); await ready();
     assert.match(await run(`document.querySelector('#units-body').textContent`), /1\.234\.567/);
     assert.equal(units.find(item => item.MaThuoc === 2).SoLuongQuyDoi, 20);
+    assert.equal(await run(`document.querySelector('#units-category').value`), '1', 'Saving prices preserves the category filter');
     // Duplicate names are supported by the current backend.
     await click('units-add'); await dialogReady(); await fill('Vỉ', '100', '1'); await submit();
     await waitFor(`!document.querySelector('#unit-dialog').open && document.querySelector('#units-body').children.length===2`);
@@ -156,7 +192,8 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     mode = 'normal'; await click('manager-retry'); // Gate login can be hidden; session is still provided by fixture.
     await waitFor(`!document.querySelector('#manager-shell').hidden`);
     await waitFor(`document.querySelector('#units-products').children.length===10`);
+    assert.equal(await run(`document.querySelector('#units-category').value`), '', 'Session cleanup clears the category filter');
     mode = 'forbidden'; await choose(1); await waitFor(`!document.querySelector('#manager-gate').hidden`);
     mode = 'normal';
-    console.log('PASS: units CRUD, exact payload/CSRF, empty, validation, duplicates, conversion edit, VND, delete confirmation/in-use, pagination, stale response, errors/retry, expired/forbidden, keyboard/dialog focus, desktop/tablet/mobile. API/AUTH MOCK; no PostgreSQL writes.');
+    console.log('PASS: units category/keyword filters, all category pages, reset, empty/error/retry, filter preserved after save and cleared on session expiry; CRUD, exact payload/CSRF, validation, duplicates, conversion edit, VND, protected delete, pagination, stale response, keyboard/dialog focus, desktop/tablet/mobile. API/AUTH MOCK; no PostgreSQL writes.');
 }

@@ -3,6 +3,9 @@
 .units-picker { padding: var(--manager-space-4); }
 .units-picker h2 { font-size: var(--manager-section); margin-bottom: var(--manager-space-4); }
 .units-picker form { display: grid; gap: var(--manager-space-2); }
+.units-picker .categories-input { min-width: 0; }
+#units-categories-status { font-size: var(--manager-small); color: var(--manager-muted); overflow-wrap: anywhere; }
+#units-categories-status:empty { display: none; }
 .units-picker label, .units-picker-status, .units-picker-pages, #units-picker-status { font-size: var(--manager-small); color: var(--manager-muted); }
 .units-products { list-style: none; padding: 0; margin-block: var(--manager-space-4); }
 .units-products button { display: block; text-align: left; width: 100%; min-height: 64px; padding: var(--manager-space-3); border-bottom: 1px solid var(--manager-border); overflow-wrap: anywhere; }

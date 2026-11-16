@@ -216,9 +216,14 @@
                         <section class="units-picker categories-surface" aria-labelledby="units-picker-title">
                             <h2 id="units-picker-title">Chọn thuốc</h2>
                             <form id="units-search-form" role="search">
+                                <label for="units-category">Loại thuốc</label>
+                                <select id="units-category" class="categories-input" aria-describedby="units-categories-status" disabled><option value="">Tất cả loại thuốc</option></select>
+                                <p id="units-categories-status" role="status"></p>
+                                <button id="units-categories-retry" class="button button-outline" type="button" hidden>Thử tải loại thuốc lại</button>
                                 <label for="units-search">Tên thuốc, mã vạch, mã dược hoặc số đăng ký</label>
                                 <input id="units-search" class="categories-input" type="search" aria-describedby="units-search-error" placeholder="Tìm thuốc…">
                                 <button class="button button-outline" type="submit">Tìm kiếm</button>
+                                <button id="units-reset" class="button button-outline" type="button">Bỏ bộ lọc</button>
                                 <p id="units-search-error" class="category-dialog__error" role="status"></p>
                             </form>
                             <p id="units-picker-status" role="status"></p>
