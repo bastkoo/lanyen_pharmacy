@@ -108,8 +108,8 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const browserProfile = await mkdtemp(path.join(tmpdir(), 'lanyen-manager-ui-'));
-const regressionArtifacts = promotionTest || accountTest ? await mkdtemp(path.join(tmpdir(), 'lanyen-manager-regression-')) : root;
-if (promotionTest || accountTest) await mkdir(path.join(regressionArtifacts, 'docs'));
+const regressionArtifacts = await mkdtemp(path.join(tmpdir(), 'lanyen-manager-regression-'));
+await mkdir(path.join(regressionArtifacts, 'docs'));
 const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', [
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--remote-debugging-port=0', `--user-data-dir=${browserProfile}`, 'about:blank'
@@ -169,7 +169,7 @@ try {
         if (!dashboardTest || categoryTest || productTest || unitTest || stockTest || promotionTest || accountTest) return; // Preserve earlier module artifacts during feature tests.
         filename = filename.replace('MODULE_02_6_1_MANAGER', 'MODULE_02_6_2_DASHBOARD');
         const result = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-        await writeFile(path.join(root, 'docs', filename), Buffer.from(result.data, 'base64'));
+        await writeFile(path.join(regressionArtifacts, 'docs', filename), Buffer.from(result.data, 'base64'));
     };
     await command('Page.enable');
     await command('Runtime.enable');
@@ -315,13 +315,13 @@ try {
     if (promotionTest) {
         checkingPromotions = true;
         await navigate('manager');
-        await checkPromotions({ evaluate, waitFor, key, command, root: accountTest ? regressionArtifacts : root });
+        await checkPromotions({ evaluate, waitFor, key, command, root: regressionArtifacts });
         checkingPromotions = false;
     }
     if (accountTest) {
         checkingAccounts = true;
         await navigate('manager');
-        await checkAccounts({ evaluate, waitFor, key, command, root });
+        await checkAccounts({ evaluate, waitFor, key, command, root: regressionArtifacts });
         checkingAccounts = false;
     }
     await navigate('forbidden');

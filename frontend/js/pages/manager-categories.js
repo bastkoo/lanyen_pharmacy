@@ -152,9 +152,9 @@ export function setupCategories({ root, onAccessError }) {
             if (action !== 'delete' && (typeof result.category?.TenLoaiThuoc !== 'string' || !Number.isInteger(result.category?.MaLoaiThuoc))) throw new ApiError('INVALID_RESPONSE');
             setBusy(false);
             const savedName = result.category?.TenLoaiThuoc || name;
-            if (action === 'create') { search = savedName; page = 1; $('categories-search-input').value = search; }
+            if (action === 'create') page = 1;
             closeDialog();
-            feedback(`${action === 'create' ? 'Đã thêm' : action === 'edit' ? 'Đã cập nhật' : 'Đã xóa'} danh mục “${savedName}”.${action === 'create' ? ' Danh sách đang tìm theo tên vừa tạo.' : ''}`);
+            feedback(`${action === 'create' ? 'Đã thêm' : action === 'edit' ? 'Đã cập nhật' : 'Đã xóa'} danh mục “${savedName}”.`);
             loadList();
         } catch (error) {
             if (!active || attempt !== dialogVersion) return;
