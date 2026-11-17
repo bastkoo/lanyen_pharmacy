@@ -32,8 +32,10 @@ mô tả, cách dùng, chống chỉ định, bảo quản. Nội dung lấy ngu
 bằng textContent; ảnh chỉ HTTPS. Không tự viết hướng dẫn y tế. Thiếu dữ liệu hiển thị
 Chưa có thông tin. CSS và JavaScript dùng lại kiến trúc, token và giỏ hàng hiện có.
 
-Native dialog quản lý focus; Escape/Đóng trả focus về ảnh/tên vừa chọn. Có trạng thái
-tải, lỗi/thử lại, AbortController và version để không nhận phản hồi cũ sau khi đóng/mở
+Native dialog quản lý focus; Escape/Đóng trả focus về ảnh/tên vừa chọn.
+Nút Đóng ghim ở góc phải của hộp thoại, luôn nhìn thấy và bấm được khi cuộn đến cuối.
+Giao diện công khai không hiển thị Mã vạch, Số đăng ký và Mã dược; API hiện có giữ nguyên.
+Có trạng thái tải, lỗi/thử lại, AbortController và version để không nhận phản hồi cũ sau khi đóng/mở
 thuốc khác. Nhóm radio trong chi tiết có prefix riêng, không làm mất lựa chọn trên thẻ
 phía sau. Trang chủ hiện không có khối tài khoản dưới nội dung; home.js xử lý phần
 phản hồi phiên tùy chọn để đăng nhập trên header vẫn hoạt động.

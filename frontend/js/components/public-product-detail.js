@@ -43,8 +43,7 @@ function render(product) {
         ['Danh mục', product.TenLoaiThuoc], ['Quy cách đóng gói', product.QuyCachDongGoi],
         ['Kê đơn', product.KeDon === true ? 'Thuốc kê đơn' : product.KeDon === false ? 'Thuốc không kê đơn' : 'Chưa có thông tin'],
         ['Tư vấn dược sĩ', product.PhanLoai === true ? 'Cần dược sĩ tư vấn' : product.PhanLoai === false ? 'Không bắt buộc tư vấn' : 'Chưa có thông tin'],
-        ['Dạng bào chế', product.DangBaoChe], ['Nhà sản xuất', product.NhaSanXuat], ['Nước sản xuất', product.NuocSanXuat],
-        ['Số đăng ký', product.SoDangKy], ['Mã dược', product.MaDuoc], ['Mã vạch', product.MaVach]
+        ['Dạng bào chế', product.DangBaoChe], ['Nhà sản xuất', product.NhaSanXuat], ['Nước sản xuất', product.NuocSanXuat]
     ];
     for (const [label, value] of values) { const row = node('div'); row.append(node('dt', label), node('dd', value || 'Chưa có thông tin')); specifications.append(row); }
     content.append(overview, specifications);

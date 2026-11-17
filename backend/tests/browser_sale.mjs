@@ -139,6 +139,10 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
         await run(`document.querySelector('#sale-products-grid .catalog-product-visual').click()`);
         await waitFor(`document.querySelector('#product-detail-dialog')?.open && document.querySelector('#product-detail-dialog').getAttribute('aria-busy')==='false'`);
         assert.equal(await run(`document.querySelector('#product-detail-dialog').scrollWidth<=document.querySelector('#product-detail-dialog').clientWidth`), true, `Detail fits at ${width}`);
+        assert.equal(await run(`Array.from(document.querySelectorAll('#product-detail-dialog dt')).some(item=>['Mã vạch','Số đăng ký','Mã dược'].includes(item.textContent))`), false, 'Public detail omits product identifiers');
+        await run(`document.querySelector('#product-detail-dialog').scrollTop=document.querySelector('#product-detail-dialog').scrollHeight`);
+        assert.equal(await run(`(() => {const dialog=document.querySelector('#product-detail-dialog'), close=dialog.querySelector('.product-detail-close'), rect=close.getBoundingClientRect(), box=dialog.getBoundingClientRect();return rect.top>=box.top && rect.bottom<=box.bottom && document.elementFromPoint(rect.left+rect.width/2,rect.top+rect.height/2)===close;})()`), true, `Close remains visible and clickable after scrolling at ${width}`);
+        await run(`document.querySelector('#product-detail-dialog').scrollTop=0`);
         if (width === 375) {
             const detailShot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
             await writeFile(path.join(root, 'docs', 'MODULE_03_3_DETAIL_MOBILE.png'), Buffer.from(detailShot.data, 'base64'));
@@ -167,7 +171,7 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     mode = 'detail-error'; await run(`document.querySelector('#catalog-products-grid .product-detail-trigger').click()`);
     await waitFor(`!document.querySelector('#product-detail-dialog > button:nth-of-type(2)').hidden`);
     mode = 'normal'; await run(`document.querySelector('#product-detail-dialog > button:nth-of-type(2)').click()`);
-    await waitFor(`document.querySelector('#product-detail-dialog').textContent.includes('SĐK kiểm thử')`);
+    await waitFor(`document.querySelector('#product-detail-dialog').textContent.includes('Viên nén')`);
     await key('Escape', 27); await waitFor(`!document.querySelector('#product-detail-dialog').open`);
     mode = 'detail-slow';
     await run(`document.querySelector('#catalog-products-grid .product-detail-trigger').click();document.querySelector('#product-detail-dialog').close();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.product-detail-trigger').click()`);
