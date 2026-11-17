@@ -7,6 +7,9 @@ const messages = {
     CSRF_FAILED: 'Phiên bảo mật đã thay đổi. Vui lòng thử lại.',
     AUTH_UNAVAILABLE: 'Dịch vụ OTP chưa sẵn sàng. Kiểm tra Redis và cấu hình máy chủ.',
     DATABASE_UNAVAILABLE: 'Chưa thể truy cập tài khoản. Vui lòng xác thực lại sau.',
+    UNIT_NOT_FOUND: 'Một đơn vị trong giỏ khách không còn tồn tại. Đóng hộp thoại, xóa sản phẩm không khả dụng trong giỏ rồi đăng nhập lại. Giỏ khách vẫn được giữ.',
+    UNIT_UNAVAILABLE: 'Một đơn vị trong giỏ khách chưa có giá hợp lệ. Xóa sản phẩm đó trong giỏ rồi đăng nhập lại. Giỏ khách vẫn được giữ.',
+    CART_QUANTITY_LIMIT: 'Tổng số lượng khi gộp giỏ vượt giới hạn lưu trữ. Xóa bớt sản phẩm trong giỏ khách rồi đăng nhập lại.',
     FORBIDDEN: 'Tài khoản chưa được phép truy cập.',
     INVALID_PHONE: 'Nhập số di động Việt Nam hợp lệ.',
     OTP_INVALID: 'Mã OTP chưa đúng. Vui lòng nhập lại.',
@@ -18,7 +21,7 @@ const messages = {
 };
 export function authMessage(error) { return messages[error.code] || "Chưa thể hoàn tất xác thực. Vui lòng thử lại."; }
 
-export function setupAuthDialog(onAuthenticated) {
+export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
     const $ = id => document.getElementById(id);
     const dialog = $("auth-dialog");
     const closeButton = $("close-auth");
@@ -31,10 +34,12 @@ export function setupAuthDialog(onAuthenticated) {
     function status(message = "", error = false) {
         $("auth-status").textContent = message;
         $("auth-status").dataset.error = String(error);
+        if (error && message) notice(message, 'error');
     }
     function fieldError(field, errorId, message) {
         field.setAttribute("aria-invalid", "true");
         $(errorId).textContent = message;
+        notice(message, 'error');
         field.focus();
     }
     function showStep(next) {
@@ -75,7 +80,7 @@ export function setupAuthDialog(onAuthenticated) {
                     if (sessionError.code !== "UNAUTHENTICATED") status(authMessage(sessionError), true);
                 }
             }
-            if (["VERIFICATION_EXPIRED", "DATABASE_UNAVAILABLE"].includes(error.code)) {
+            if (["VERIFICATION_EXPIRED", "DATABASE_UNAVAILABLE", "UNIT_NOT_FOUND", "UNIT_UNAVAILABLE", "CART_QUANTITY_LIMIT"].includes(error.code)) {
                 showStep("phone");
             }
             if (step === "otp" && error.code === "OTP_INVALID") {
@@ -93,6 +98,7 @@ export function setupAuthDialog(onAuthenticated) {
         if (result.code === 'PROFILE_REQUIRED') {
             showStep('profile');
             status('Số điện thoại đã xác thực. Vui lòng bổ sung họ tên trong 5 phút.');
+            notice('Xác thực số điện thoại thành công. Vui lòng bổ sung họ tên.');
         } else if (result.code === 'AUTHENTICATED') {
             onAuthenticated(result.user);
             dialog.close();
@@ -108,6 +114,7 @@ export function setupAuthDialog(onAuthenticated) {
             resendAt = Date.now() + result.retry_after * 1000;
             showStep("otp");
             status("Mã đã được tạo. Khi chạy thử local, lấy OTP trong terminal Flask. Mã có hiệu lực 5 phút.");
+            notice('Đã tạo mã OTP. Mã có hiệu lực 5 phút.');
         }, "Đang xác minh và gửi mã OTP…");
     });
     forms.otp.addEventListener("submit", event => {
@@ -140,6 +147,7 @@ export function setupAuthDialog(onAuthenticated) {
             inputs.otp.value = "";
             resendAt = Date.now() + result.retry_after * 1000;
             status("Đã tạo mã mới. Lấy mã trong terminal Flask khi chạy thử local.");
+            notice('Đã tạo lại mã OTP.');
         }, "Đang gửi lại mã OTP…");
     });
     $("change-phone").addEventListener("click", async () => {

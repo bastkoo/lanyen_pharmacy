@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="540" viewBox="0 0 680 540" fill="none">
+  <title>Minh họa góc chăm sóc sức khỏe với hộp sản phẩm, chai và cành lá</title>
+  <path d="M106 440V252C106 127 207 40 337 40s237 87 237 212v188H106Z" fill="#D9ECE2"/>
+  <path d="M337 40v400M106 248h468" stroke="#B5D6C4" stroke-width="2"/>
+  <circle cx="437" cy="148" r="47" fill="#F7FBF8"/>
+  <path d="M74 442h532v30H74z" fill="#B5D6C4"/>
+  <path d="M74 442h532v9H74z" fill="#F7FBF8"/>
+  <ellipse cx="340" cy="443" rx="224" ry="14" fill="#106B48" fill-opacity=".08"/>
+  <path d="M469 411c-8-91 14-160 59-220" stroke="#106B48" stroke-width="4" stroke-linecap="round"/>
+  <path d="M486 301c-58-5-68-47-63-70 45 11 65 38 63 70Z" fill="#16865B"/>
+  <path d="M501 259c2-42 29-60 59-59-2 35-25 60-59 59Z" fill="#106B48"/>
+  <path d="M473 350c-36-4-58-23-62-53 37 0 62 20 62 53Z" fill="#106B48"/>
+  <path d="M478 331c34-36 65-30 82-12-23 26-51 34-82 12Z" fill="#16865B"/>
+  <path d="M526 196c-12-40 1-68 25-83 18 34 9 61-25 83Z" fill="#16865B"/>
+  <path d="M437 371h79l-11 71h-57l-11-71Z" fill="#F7FBF8"/>
+  <path d="M437 371h79v13h-79z" fill="#C6DFD0"/>
+  <path d="M146 230h135v212H146z" fill="#FFFFFF"/>
+  <path d="m281 230 30 19v193h-30V230Z" fill="#C6DFD0"/>
+  <path d="m146 230 29-17h106l30 36-30-19H146Z" fill="#F7FBF8"/>
+  <path d="M146 345h135v65H146z" fill="#16865B"/>
+  <path d="M281 345h30v65h-30z" fill="#106B48"/>
+  <path d="M167 261h15v-15h13v15h15v13h-15v15h-13v-15h-15v-13Z" fill="#16865B"/>
+  <path d="M168 311h82M168 323h59" stroke="#B5D6C4" stroke-width="4"/>
+  <path d="M167 369h88M167 382h53" stroke="#FFFFFF" stroke-opacity=".8" stroke-width="3"/>
+  <path d="M326 310c0-15 10-29 24-34v-24h58v24c14 5 24 19 24 34v110c0 12-10 22-22 22h-62c-12 0-22-10-22-22V310Z" fill="#106B48"/>
+  <path d="M345 242h68v29h-68z" fill="#F7FBF8"/>
+  <path d="M352 249v15m9-15v15m9-15v15m9-15v15m9-15v15m9-15v15m9-15v15" stroke="#C6DFD0" stroke-width="2"/>
+  <path d="M326 322h106v82H326z" fill="#F7FBF8"/>
+  <circle cx="379" cy="348" r="12" stroke="#16865B" stroke-width="2"/>
+  <path d="M374 348h10m-5-5v10" stroke="#16865B" stroke-width="2"/>
+  <path d="M346 378h65M358 389h41" stroke="#B5D6C4" stroke-width="3"/>
+  <path d="m247 407 89-21 12 50-89 21-12-50Z" fill="#F7FBF8" stroke="#C6DFD0" stroke-width="2"/>
+  <g fill="#C6DFD0"><rect x="262" y="416" width="20" height="12" rx="6" transform="rotate(-13 262 416)"/><rect x="292" y="409" width="20" height="12" rx="6" transform="rotate(-13 292 409)"/><rect x="267" y="434" width="20" height="12" rx="6" transform="rotate(-13 267 434)"/><rect x="297" y="427" width="20" height="12" rx="6" transform="rotate(-13 297 427)"/></g>
+  <path d="M108 493h70m365 0h30" stroke="#B5D6C4" stroke-width="2"/>
+</svg>

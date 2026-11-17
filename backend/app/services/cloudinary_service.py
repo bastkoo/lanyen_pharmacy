@@ -12,6 +12,7 @@ from app.utils.image_validator import ImageError, validate_image
 
 
 PRODUCT_FOLDER = 'lan-yen-pharmacy/products'
+AVATAR_FOLDER = 'lan-yen-pharmacy/avatars'
 
 
 def credentials():
@@ -23,7 +24,7 @@ def credentials():
                 secure=True, upload_prefix='https://api.cloudinary.com', timeout=20)
 
 
-def canonical_public_id(url, cloud_name):
+def canonical_public_id(url, cloud_name, folder=PRODUCT_FOLDER):
     """Accept only an original versioned image URL, with no transformations."""
     try:
         if not isinstance(url, str):
@@ -33,7 +34,7 @@ def canonical_public_id(url, cloud_name):
         if (parsed.scheme != 'https' or parsed.netloc != 'res.cloudinary.com' or
                 parsed.query or parsed.fragment or not parsed.path.startswith(prefix)):
             raise ValueError
-        match = re.fullmatch(r'v[0-9]+/(' + re.escape(PRODUCT_FOLDER) +
+        match = re.fullmatch(r'v[0-9]+/(' + re.escape(folder) +
                              r'/[A-Za-z0-9_-]+)\.(?:jpg|png|webp)', parsed.path[len(prefix):])
         if match is None:
             raise ValueError
@@ -49,13 +50,21 @@ def validate_resource(result, url, public_id):
 
 
 def upload_product_image(file):
+    return upload_image(file, PRODUCT_FOLDER)
+
+
+def upload_avatar_image(file):
+    return upload_image(file, AVATAR_FOLDER)
+
+
+def upload_image(file, folder):
     stream = validate_image(file)
     options = credentials()
     name = uuid.uuid4().hex
-    public_id = PRODUCT_FOLDER + '/' + name
+    public_id = folder + '/' + name
     try:
         result = cloudinary.uploader.upload(
-            stream, **options, folder=PRODUCT_FOLDER, public_id=name,
+            stream, **options, folder=folder, public_id=name,
             resource_type='image', type='upload', overwrite=False,
             use_filename=False, unique_filename=False, allowed_formats=['jpg', 'png', 'webp'])
     except (Error, HTTPError, OSError):
@@ -64,7 +73,7 @@ def upload_product_image(file):
         stream.close()
     url = result.get('secure_url') if isinstance(result, dict) else None
     try:
-        parsed_id = canonical_public_id(url, options['cloud_name'])
+        parsed_id = canonical_public_id(url, options['cloud_name'], folder)
     except ImageError:
         raise ImageError('CLOUDINARY_INVALID_RESPONSE', 502) from None
     if parsed_id != public_id or not validate_resource(result, url, public_id):
@@ -72,16 +81,16 @@ def upload_product_image(file):
     return dict(url=url, public_id=public_id)
 
 
-def validate_product_image_url(url):
+def validate_product_image_url(url, *, folder=PRODUCT_FOLDER):
     """External HTTPS URLs remain supported. Verify new standard Cloudinary URLs."""
     try:
         host = (urlsplit(url).hostname or '').encode('idna').decode('ascii').rstrip('.').lower()
     except (ValueError, UnicodeError):
         raise ImageError('INVALID_CLOUDINARY_URL', 400) from None
-    if host != 'cloudinary.com' and not host.endswith('.cloudinary.com'):
+    if folder == PRODUCT_FOLDER and host != 'cloudinary.com' and not host.endswith('.cloudinary.com'):
         return
     options = credentials()
-    public_id = canonical_public_id(url, options['cloud_name'])
+    public_id = canonical_public_id(url, options['cloud_name'], folder)
     try:
         result = cloudinary.api.resource(public_id, **options, resource_type='image', type='upload')
     except NotFound:

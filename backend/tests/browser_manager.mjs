@@ -13,6 +13,13 @@ import { unitFixture, checkUnits } from './browser_units.mjs';
 import { stockFixture, checkStock } from './browser_stock.mjs';
 import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
 import { accountFixture, accountActor, checkAccounts } from './browser_accounts.mjs';
+import { checkHomepage, publicCatalogFixture, cartFixture, mergeCartFixture } from './browser_home.mjs';
+import { publicSaleFixture, publicDetailFixture, checkSale } from './browser_sale.mjs';
+import { checkCartPage } from './browser_cart.mjs';
+import { checkProfile, profileFixture } from './browser_profile.mjs';
+import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
+import { checkPoints, pointsFixture } from './browser_points.mjs';
+import { checkCheckout } from './browser_checkout.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -24,6 +31,13 @@ const unitTest = process.argv.includes('--units');
 const stockTest = process.argv.includes('--stock');
 const promotionTest = process.argv.includes('--promotions');
 const accountTest = process.argv.includes('--accounts');
+const homepageTest = process.argv.includes('--homepage');
+const profileTest = process.argv.includes('--profile');
+const addressTest = process.argv.includes('--addresses');
+const pointsTest = process.argv.includes('--points');
+const checkoutTest = process.argv.includes('--checkout');
+let checkingHomepage = false;
+const homepageRequests = [];
 let checkingAccounts = false;
 let checkingPromotions = false;
 let checkingStock = false;
@@ -57,7 +71,15 @@ function dashboardFixture(pathname, params) {
 const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900000000', VaiTro: 2, TrangThai: false };
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
+    if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (checkingHomepage && pathname.startsWith('/api/auth/me/addresses')) return addressFixture(req, json);
+    if (checkingHomepage && pathname === '/api/auth/me/points') return pointsFixture(req, json);
+    if (checkingHomepage && ((pathname === '/api/auth/me' && req.method === 'PUT') || pathname === '/api/auth/me/avatar')) return profileFixture(req, json, fixtureUser);
+    if (checkingHomepage && (pathname === '/api/categories' || pathname === '/api/products')) return publicCatalogFixture(req, json);
+    if (checkingHomepage && /^\/api\/products\/\d+$/.test(pathname)) return publicDetailFixture(req, json);
+    if (checkingHomepage && pathname.startsWith('/api/promotions')) return publicSaleFixture(req, json);
+    if (checkingHomepage && pathname.startsWith('/api/cart')) return cartFixture(req, json, scenario === 'manager');
     if (checkingAccounts && pathname.startsWith('/api/manager/accounts')) return accountFixture(req, json);
     if (checkingPromotions && (pathname.startsWith('/api/manager/promotions') || pathname.startsWith('/api/manager/products'))) return promotionFixture(req, json);
     if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory') || pathname === '/api/manager/categories')) return stockFixture(req, json);
@@ -69,7 +91,7 @@ const server = createServer(async (req, res) => {
         if (scenario === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
         if (scenario === 'anonymous') return json(401, { code: 'UNAUTHENTICATED', csrf_token: 'fixture-csrf' });
         if (scenario === 'locked') return json(403, { code: 'ACCOUNT_LOCKED', csrf_token: 'fixture-csrf' });
-        return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...(checkingAccounts ? accountActor() : fixtureUser), VaiTro: scenario === 'forbidden' ? 1 : 2 } });
+        return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...(checkingAccounts ? accountActor() : fixtureUser), VaiTro: scenario === 'forbidden' ? 1 : scenario === 'customer' ? 0 : 2 } });
     }
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
@@ -79,6 +101,7 @@ const server = createServer(async (req, res) => {
     }
     if (pathname === '/api/auth/otp/request' && req.method === 'POST') return json(200, { code: 'OTP_SENT', retry_after: 60 });
     if (pathname === '/api/auth/otp/verify' && req.method === 'POST') {
+        if (checkingHomepage) mergeCartFixture();
         scenario = 'manager';
         return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: fixtureUser });
     }
@@ -94,10 +117,10 @@ const server = createServer(async (req, res) => {
         return res.end(`export const APP_CONFIG = {API_BASE_URL: 'http://127.0.0.1:${server.address().port}/api'};`);
     }
     try {
-        const filename = path.resolve(frontend, '.' + decodeURIComponent(pathname));
+        const filename = path.resolve(frontend, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
         if (!filename.startsWith(frontend + path.sep)) return json(403, {});
         let bytes = await readFile(filename);
-        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html')) {
+        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html') || (checkingHomepage && /[\\/]customer[\\/](?:home|products)\.html$/.test(filename))) {
             const mark = '<div aria-label="Môi trường kiểm thử" style="position:fixed;bottom:6px;right:8px;z-index:90;padding:3px 8px;background:#fff7e5;color:#785313;font:10px Arial;pointer-events:none">KIỂM THỬ GIAO DIỆN · AUTH/API MOCK</div>';
             bytes = Buffer.from(bytes.toString('utf8').replace('</body>', mark + '</body>'));
         }
@@ -131,6 +154,11 @@ try {
     socket.onmessage = event => {
         const data = JSON.parse(event.data);
         if (data.method === 'Fetch.requestPaused') {
+            if (data.params.request.url.startsWith('https://provinces.open-api.vn/')) {
+                const fixture = provinceFixture(data.params.request.url);
+                call('Fetch.fulfillRequest', { requestId: data.params.requestId, responseCode: fixture.status, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }, { name: 'Access-Control-Allow-Origin', value: '*' }], body: Buffer.from(JSON.stringify(fixture.body)).toString('base64') }, data.sessionId).catch(error => errors.push(error.message));
+                return;
+            }
             const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#e8f5ee"/><rect x="170" y="70" width="140" height="80" rx="40" fill="#16865b"/><text x="240" y="220" text-anchor="middle" fill="#106b48" font-size="24">IMAGE QA FIXTURE</text></svg>';
             call('Fetch.fulfillRequest', { requestId: data.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/svg+xml' }], body: Buffer.from(svg).toString('base64') }, data.sessionId).catch(error => errors.push(error.message));
         }
@@ -173,7 +201,7 @@ try {
     };
     await command('Page.enable');
     await command('Runtime.enable');
-    if (productTest) await command('Fetch.enable', { patterns: [{ urlPattern: 'https://example.invalid/*' }] });
+    if (productTest || homepageTest || addressTest || profileTest) await command('Fetch.enable', { patterns: [...(productTest || homepageTest ? [{ urlPattern: 'https://example.invalid/*' }] : []), { urlPattern: 'https://provinces.open-api.vn/*' }] });
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await navigate('manager');
     await evaluate('document.fonts.ready');
@@ -357,12 +385,26 @@ try {
     assert.equal(await evaluate(`document.querySelector('#account-full-name').textContent`), '');
     await command('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/pages/customer/home.html` });
     await waitFor(`document.querySelector('#header-status')?.textContent==='Bạn chưa đăng nhập'`);
-    await evaluate(`document.querySelector('#start-login').click()`);
+    await evaluate(`document.querySelector('#login-button').click()`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), true);
     await key('Escape', 27);
     await waitFor(`!document.querySelector('#main').inert`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), false);
-    assert.equal(await evaluate('document.activeElement.id'), 'start-login');
+    assert.equal(await evaluate('document.activeElement.id'), 'login-button');
+    if (homepageTest || profileTest || addressTest || pointsTest || checkoutTest) {
+        checkingHomepage = true;
+        if (homepageTest) {
+        await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });
+        await checkSale({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}` });
+        await checkCartPage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        }
+        if (homepageTest || profileTest) await checkProfile({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; }, user: fixtureUser });
+        if (homepageTest || addressTest) await checkAddresses({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        if (homepageTest || pointsTest) await checkPoints({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        if (checkoutTest && !homepageTest) await checkCartPage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        if (homepageTest || checkoutTest) await checkCheckout({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; }, requests: homepageRequests });
+        checkingHomepage = false;
+    }
     assert.deepEqual(errors, []);
     console.log('PASS: manager navigation, real CSS/fonts, 1440/1280/1024/768/375/320 widths, no overflow, drawer/keyboard/focus, account Escape, long name, anonymous/forbidden/locked/network/retry/expired, OTP UI flow, CSRF logout, customer auth dialog regression.');
     console.log(`Auth responses mocked by isolated test server (${sessionCount} checks). No production API or database used.`);

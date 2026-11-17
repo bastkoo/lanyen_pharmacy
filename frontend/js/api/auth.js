@@ -1,20 +1,25 @@
 import { APP_CONFIG } from "../config/app.js";
 import { parseJsonIntegers } from '../utils/json-integers.js';
+import { withSessionRequest } from '../utils/session-requests.js';
 
 let csrfToken = "";
 export class ApiError extends Error {
     constructor(code, status = 0) { super(code); this.code = code; this.status = status; }
 }
-async function request(path, body) {
+function request(path, body) {
+    return withSessionRequest(() => send(path, body));
+}
+async function send(path, body, method = body === undefined ? 'GET' : 'POST') {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
+    const multipart = body instanceof FormData;
+    const timer = setTimeout(() => controller.abort(), multipart ? 45000 : 20000);
     let response, data;
     try {
         response = await fetch(`${APP_CONFIG.API_BASE_URL}/auth/${path}`, {
-            method: body === undefined ? "GET" : "POST", credentials: "include",
+            method, credentials: "include",
             cache: "no-store", signal: controller.signal,
-            headers: body === undefined ? {} : { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
-            ...(body === undefined ? {} : { body: JSON.stringify(body) })
+            headers: body === undefined ? {} : { ...(!multipart ? { 'Content-Type': 'application/json' } : {}), 'X-CSRF-Token': csrfToken },
+            ...(body === undefined ? {} : { body: multipart ? body : JSON.stringify(body) })
         });
         data = parseJsonIntegers(await response.text());
     } catch { throw new ApiError("CONNECTION_FAILED"); }
@@ -24,6 +29,45 @@ async function request(path, body) {
     return data;
 }
 export function getSession() { return request("me"); }
+function requireSameOwner(data, expectedUserId) {
+    if (expectedUserId !== undefined && String(data.user?.MaNguoiDung) !== String(expectedUserId)) throw new ApiError('SESSION_CHANGED');
+}
+export function updateProfile(values, expectedUserId) {
+    return withSessionRequest(async () => {
+        requireSameOwner(await send('me'), expectedUserId);
+        return send('me', { HoTen: values.HoTen, AnhDaiDien: values.AnhDaiDien }, 'PUT');
+    });
+}
+export function uploadAvatar(file, expectedUserId) {
+    return withSessionRequest(async () => {
+        requireSameOwner(await send('me'), expectedUserId);
+        const body = new FormData(); body.append('image', file);
+        return send('me/avatar', body);
+    });
+}
+export function getAddresses(expectedUserId) {
+    return withSessionRequest(async () => {
+        if (expectedUserId !== undefined) requireSameOwner(await send('me'), expectedUserId);
+        return send('me/addresses');
+    });
+}
+export function getPoints(page = 1, expectedUserId) {
+    return withSessionRequest(async () => {
+        if (expectedUserId !== undefined) requireSameOwner(await send('me'), expectedUserId);
+        return send(`me/points?page=${page}&per_page=20`);
+    });
+}
+function writeAddress(path, method, data, expectedUserId) {
+    return withSessionRequest(async () => {
+        requireSameOwner(await send('me'), expectedUserId);
+        return send(path, data, method);
+    });
+}
+const addressFields = values => ({ TinhThanh: values.TinhThanh, PhuongXa: values.PhuongXa, DiaChiCuThe: values.DiaChiCuThe });
+export const createAddress = (values, owner) => writeAddress('me/addresses', 'POST', addressFields(values), owner);
+export const updateAddress = (id, values, owner) => writeAddress(`me/addresses/${id}`, 'PUT', addressFields(values), owner);
+export const deleteAddress = (id, owner) => writeAddress(`me/addresses/${id}`, 'DELETE', {}, owner);
+export const makePrimaryAddress = (id, owner) => writeAddress(`me/addresses/${id}/primary`, 'PATCH', {}, owner);
 export async function getCsrfToken() {
     await getSession();
     if (!csrfToken) throw new ApiError('CSRF_FAILED', 403);

@@ -39,6 +39,10 @@ def create_app(test_config=None):
     app.register_blueprint(category_bp)
     from app.routes.product_routes import product_bp
     app.register_blueprint(product_bp)
+    from app.routes.public_catalog_routes import public_catalog_bp
+    app.register_blueprint(public_catalog_bp)
+    from app.routes.cart_routes import cart_bp
+    app.register_blueprint(cart_bp)
     from app.routes.unit_routes import unit_bp
     app.register_blueprint(unit_bp)
     from app.routes.batch_routes import batch_bp, inventory_bp

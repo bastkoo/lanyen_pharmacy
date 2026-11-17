@@ -22,7 +22,7 @@ def find_by_id(product_id, for_update=False):
 
 
 def list_products(search='', category_id=None, phan_loai=None, page=1, per_page=20,
-                  sort_by='MaThuoc', sort_order='asc'):
+                  sort_by='MaThuoc', sort_order='asc', ke_don=None):
     query = select(Thuoc)
     if search:
         query = query.where(or_(*(column.icontains(search, autoescape=True) for column in
@@ -31,6 +31,8 @@ def list_products(search='', category_id=None, phan_loai=None, page=1, per_page=
         query = query.where(Thuoc.MaLoaiThuoc == category_id)
     if phan_loai is not None:
         query = query.where(Thuoc.PhanLoai == phan_loai)
+    if ke_don is not None:
+        query = query.where(Thuoc.KeDon == ke_don)
     total = db.session.execute(select(func.count()).select_from(query.subquery())).scalar_one()
     column = SORT_COLUMNS[sort_by]
     ordering = column.desc() if sort_order == 'desc' else column.asc()

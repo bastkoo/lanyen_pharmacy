@@ -4,9 +4,11 @@ from functools import wraps
 from flask import g, jsonify, request, session
 from marshmallow import ValidationError
 
-from app.schemas.auth_schema import OtpRequestSchema, OtpVerifySchema, RegisterSchema, UserSchema
+from app.schemas.auth_schema import OtpRequestSchema, OtpVerifySchema, RegisterSchema, UserSchema, ProfileSchema
 from app.services import auth_service, otp_service
 from app.utils.auth import csrf_token
+from app.schemas.unit_schema import UnitQuerySchema
+from app.services.points_service import list_points
 
 
 def payload(schema):
@@ -29,6 +31,8 @@ def payload(schema):
 
 
 def authenticated(user):
+    from app.services.cart_service import merge_guest
+    merge_guest(user.MaNguoiDung)
     session.clear()
     session.permanent = True
     session['user_id'] = user.MaNguoiDung
@@ -70,6 +74,21 @@ def register(data):
 
 def me():
     return jsonify(code='AUTHENTICATED', user=UserSchema().dump(g.current_user), csrf_token=csrf_token())
+
+
+@payload(ProfileSchema)
+def update_profile(data):
+    return jsonify(code='PROFILE_UPDATED', user=auth_service.update_profile(g.current_user.MaNguoiDung, data))
+
+
+def points():
+    try:
+        if any(len(values) != 1 for _, values in request.args.lists()):
+            raise ValidationError('Repeated query')
+        filters = UnitQuerySchema().load(request.args.to_dict())
+    except ValidationError:
+        return jsonify(code='INVALID_REQUEST'), 400
+    return jsonify(code='POINTS_LISTED', **list_points(g.current_user.MaNguoiDung, **filters))
 
 
 def logout():

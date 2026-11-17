@@ -1,0 +1,55 @@
+.browse-heading { padding-block: 28px 32px; }
+.catalog-breadcrumbs { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; font-size: 13px; color: var(--home-muted); }
+.catalog-breadcrumbs a { min-height: 44px; display: inline-flex; align-items: center; color: var(--primary-dark); }
+.browse-heading h1 { font-size: 36px; line-height: 1.35; font-weight: 500; margin-top: 12px; overflow-wrap: anywhere; }
+.catalog-search-description { margin-top: 12px; color: var(--home-muted); font-size: 14px; overflow-wrap: anywhere; }
+.catalog-search-description:empty { display: none; }
+.catalog-browse { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; gap: 32px; padding-bottom: 56px; }
+.catalog-browse > * { min-width: 0; }
+.catalog-filter-panel { padding: 24px 20px; border: 1px solid var(--home-line); border-radius: var(--radius-md); background: var(--background-color); }
+.catalog-filter-panel h2 { font-size: 18px; margin-bottom: 24px; letter-spacing: -.02em; }
+.catalog-filter-field { display: grid; gap: 10px; margin-block: 24px; min-width: 0; }
+.catalog-filter-field label, .catalog-sort label { font-size: 13px; font-weight: 500; }
+.catalog-filter-field select, .catalog-sort select { width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid var(--home-muted); border-radius: var(--radius-md); background: var(--surface-color); color: var(--text-color); font-size: 13px; }
+.catalog-filter-field [role='status'] { font-size: 12px; color: var(--home-muted); overflow-wrap: anywhere; }
+.catalog-filter-field [role='status']:empty { display: none; }
+.catalog-filter-help { font-size: 12px; color: var(--home-muted); margin-bottom: 20px; }
+.catalog-filter-panel .button { width: 100%; margin-top: 20px; }
+.catalog-results-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; min-height: 44px; }
+.catalog-results-toolbar > p { font-size: 14px; color: var(--home-muted); }
+.catalog-sort { display: flex; align-items: center; gap: 12px; flex: none; }
+.catalog-sort select { width: 160px; }
+.public-products .catalog-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.public-products .catalog-product-visual { aspect-ratio: 1.5; padding: 12px; }
+.public-products .catalog-product-content { padding: 12px; }
+.public-products .catalog-product-content h3 { font-size: 14px; line-height: 1.5; }
+.public-products .catalog-purchase { padding-top: 12px; }
+.public-products .catalog-purchase > .catalog-price { font-size: 15px; line-height: 1.4; min-height: 2.8em; margin: 8px 0; }
+.public-products .catalog-buy { min-height: 44px; padding: 8px 12px; font-size: 13px; }
+.public-products .catalog-unit-option span { min-height: 36px; padding-block: 4px; }
+.public-products .catalog-empty h2 { font-size: 20px; margin-bottom: 12px; }
+.catalog-session { padding-bottom: 32px; }
+@media (max-width: 1100px) {
+    .catalog-browse { grid-template-columns: 210px minmax(0, 1fr); gap: 24px; }
+    .public-products .catalog-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+    .public-products .catalog-product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+    .public-products .catalog-product-content { padding: 10px; }
+    .public-products .catalog-product-visual { padding: 8px; }
+    .public-products .catalog-purchase > .catalog-price { font-size: 14px; }
+    .public-products .catalog-unit-option span { min-height: 44px; }
+    .browse-heading { padding-block: 16px 24px; }
+    .catalog-breadcrumbs { margin-bottom: 16px; }
+    .browse-heading h1 { font-size: 28px; }
+    .catalog-browse { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-bottom: 40px; }
+    .catalog-filter-panel { padding: 20px; }
+    .catalog-filter-panel h2 { margin-bottom: 16px; }
+    .catalog-filter-field { margin-block: 16px; }
+    .catalog-filter-panel .button { width: auto; margin-top: 16px; }
+    .catalog-results-toolbar { align-items: start; flex-wrap: wrap; }
+    .catalog-sort { margin-left: auto; gap: 8px; }
+    .catalog-sort select { width: 142px; }
+}

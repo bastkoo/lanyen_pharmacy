@@ -35,3 +35,24 @@ def current_user(user_id):
     except SQLAlchemyError:
         db.session.rollback()
         raise AuthError('DATABASE_UNAVAILABLE', 503) from None
+
+
+def update_profile(user_id, data):
+    from app.schemas.auth_schema import UserSchema
+    from app.services.cloudinary_service import AVATAR_FOLDER, validate_product_image_url
+    from app.utils.image_validator import ImageError
+    try:
+        user = check_user(users.lock_by_id(user_id))
+        avatar = data['AnhDaiDien']
+        if avatar and avatar != user.AnhDaiDien:
+            validate_product_image_url(avatar, folder=AVATAR_FOLDER)
+        users.update_profile(user, data['HoTen'], avatar)
+        result = UserSchema().dump(user)
+        db.session.commit()
+        return result
+    except (AuthError, ImageError):
+        db.session.rollback()
+        raise
+    except SQLAlchemyError:
+        db.session.rollback()
+        raise AuthError('DATABASE_UNAVAILABLE', 503) from None

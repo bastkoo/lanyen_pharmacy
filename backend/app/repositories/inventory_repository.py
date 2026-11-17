@@ -5,6 +5,15 @@ from app.models.lo_thuoc import LoThuoc
 from app.models.thuoc import Thuoc
 
 
+def usable_totals(product_ids, today):
+    if not product_ids:
+        return {}
+    rows = db.session.execute(select(LoThuoc.MaThuoc, func.sum(LoThuoc.SoLuongTon)).where(
+        LoThuoc.MaThuoc.in_(product_ids), LoThuoc.SoLuongTon > 0,
+        LoThuoc.HanSuDung >= today).group_by(LoThuoc.MaThuoc)).all()
+    return dict(rows)
+
+
 def paginate(query, page, per_page, mappings=True):
     total = db.session.execute(select(func.count()).select_from(query.order_by(None).subquery())).scalar_one()
     result = db.session.execute(query.offset((page - 1) * per_page).limit(per_page))

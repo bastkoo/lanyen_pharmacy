@@ -9,6 +9,14 @@ from app.models.chi_tiet_don_hang import ChiTietDonHang
 REFERENCE_MODELS = (GioThuoc, ChiTietDonHang)
 
 
+def public_units(product_ids):
+    if not product_ids:
+        return []
+    return db.session.execute(select(DonViGiaThuoc).where(
+        DonViGiaThuoc.MaThuoc.in_(product_ids)).order_by(
+            DonViGiaThuoc.GiaBan.desc(), DonViGiaThuoc.MaDonGia)).scalars().all()
+
+
 def find_by_id(product_id, unit_id, for_update=False):
     query = select(DonViGiaThuoc).where(
         DonViGiaThuoc.MaThuoc == product_id, DonViGiaThuoc.MaDonGia == unit_id)
