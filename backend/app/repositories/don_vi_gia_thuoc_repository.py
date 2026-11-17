@@ -21,7 +21,7 @@ def find_by_id(product_id, unit_id, for_update=False):
     query = select(DonViGiaThuoc).where(
         DonViGiaThuoc.MaThuoc == product_id, DonViGiaThuoc.MaDonGia == unit_id)
     if for_update:
-        query = query.with_for_update()
+        query = query.with_for_update().execution_options(populate_existing=True)
     return db.session.execute(query).scalar_one_or_none()
 
 

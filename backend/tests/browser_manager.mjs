@@ -19,7 +19,7 @@ import { checkCartPage } from './browser_cart.mjs';
 import { checkProfile, profileFixture } from './browser_profile.mjs';
 import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
 import { checkPoints, pointsFixture } from './browser_points.mjs';
-import { checkCheckout } from './browser_checkout.mjs';
+import { checkCheckout, orderFixture } from './browser_checkout.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -73,6 +73,7 @@ const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (checkingHomepage && pathname.startsWith('/api/orders')) return orderFixture(req, json);
     if (checkingHomepage && pathname.startsWith('/api/auth/me/addresses')) return addressFixture(req, json);
     if (checkingHomepage && pathname === '/api/auth/me/points') return pointsFixture(req, json);
     if (checkingHomepage && ((pathname === '/api/auth/me' && req.method === 'PUT') || pathname === '/api/auth/me/avatar')) return profileFixture(req, json, fixtureUser);

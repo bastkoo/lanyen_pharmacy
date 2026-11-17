@@ -6,6 +6,35 @@ import { resetAddressFixture, setAddressFixtureMode, addressSnapshot } from './b
 
 const cart = [{ MaThuoc: 1, MaDonGia: 11, SoLuong: 1 }, { MaThuoc: 2, MaDonGia: 21, SoLuong: 2 }];
 const addresses = [{ MaDiaChi: 1, DiaChiGiao: true, TinhThanh: 'Thành phố Huế', PhuongXa: 'Phường Vỹ Dạ', DiaChiCuThe: 'Nhà chính' }, { MaDiaChi: 2, DiaChiGiao: false, TinhThanh: 'Thành phố Hà Nội', PhuongXa: 'Phường B', DiaChiCuThe: '<b>Nhà phụ</b>' }];
+let fixtureOrder, paymentConfirmed = false, orderCreates = 0, orderMode = 'normal';
+let gatewayInitializations = 0;
+let fixtureEnvironment = 'sandbox';
+export async function orderFixture(req, json) {
+    if (req.url.endsWith('/payment') && req.method === 'POST') {
+        assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
+        if (orderMode === 'initialize-error') return json(503, { code: 'GATEWAY_NOT_CONFIGURED' });
+        gatewayInitializations++;
+        return json(200, { code: 'PAYMENT_INITIALIZED', payment: {
+            environment: fixtureEnvironment, action: fixtureEnvironment === 'sandbox' ? 'https://pay-sandbox.sepay.vn/v1/checkout/init' : 'https://pay.sepay.vn/v1/checkout/init', method: 'POST', fields: {
+                signature: 'A'.repeat(43) + '=', payment_method: 'BANK_TRANSFER', customer_id: '12',
+                order_invoice_number: `${fixtureEnvironment === 'sandbox' ? 'LYSGTEST' : 'LYSGLIVE'}${fixtureOrder.MaDonHang}`, order_description: 'Thanh toán đơn kiểm thử',
+                operation: 'PURCHASE', currency: 'VND', merchant: fixtureEnvironment === 'sandbox' ? 'SP-TEST-FIXTURE' : 'MERCHANT_PRODUCTION_TEST', order_amount: fixtureOrder.TongThanhToan } } });
+    }
+    if (req.method === 'POST') {
+        assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
+        let body = ''; for await (const chunk of req) body += chunk;
+        const values = JSON.parse(body);
+        if (orderMode === 'config-error') return json(503, { code: 'GATEWAY_NOT_CONFIGURED' });
+        orderCreates++;
+        fixtureOrder = { MaDonHang: String(9007199254741000n + BigInt(orderCreates)), TongThanhToan: values.TongThanhToan, payment_environment: fixtureEnvironment,
+            PhuongThucThanhToan: values.PhuongThucThanhToan, TrangThaiThanhToan: 0,
+            TrangThaiDonHang: values.PhuongThucThanhToan === 0 ? 1 : 0 };
+        return json(201, { code: 'ORDER_CREATED', order: fixtureOrder });
+    }
+    if (orderMode === 'read-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+    return json(200, { code: 'ORDER_READ', order: paymentConfirmed
+        ? { ...fixtureOrder, TrangThaiThanhToan: 1, TrangThaiDonHang: 1 } : fixtureOrder });
+}
 export async function checkCheckout({ evaluate: run, waitFor, command, key, baseUrl, root, setScenario, requests }) {
     const click = expression => run(`${expression}.click()`);
     const $ = id => `document.querySelector('#${id}')`;
@@ -22,7 +51,7 @@ export async function checkCheckout({ evaluate: run, waitFor, command, key, base
         assert.equal(await run(`${$('checkout-products')}.children.length`), 1);
         assert.equal(await run(`${$('checkout-original')}.textContent`), '50.000 ₫');
         assert.equal(await run(`${$('checkout-discount')}.textContent`), '−10.000 ₫');
-        assert.equal(await run(`${$('checkout-complete')}.disabled`), true);
+        assert.equal(await run(`${$('checkout-complete')}.disabled`), false);
         assert.equal(await run(`${$('checkout-products')}.querySelector('h3 b')`), null);
         assert.match(await run(`document.querySelector('.checkout-shipping-note').textContent`), /2–3 giờ.*3–4 ngày/s);
         await waitFor(`${$('checkout-login')}.hidden===false`);
@@ -82,7 +111,87 @@ export async function checkCheckout({ evaluate: run, waitFor, command, key, base
         await run(`${$('checkout-note')}.value='Nội dung riêng tư'`);
         await click($('account-avatar-button')); await click($('logout-button'));
         await waitFor(`${$('checkout-login')}.hidden===false && ${$('checkout-note')}.value===''`);
-        assert.equal(requests.some(url => /\/api\/(orders|payments)/.test(url)), false, 'Confirmation never creates an order or submits a payment');
-        console.log('PASS: cart-to-confirmation selected rows, guest/login merge, delivery/pickup, notes, primary/secondary address choice, COD/QR selection, authoritative/partial discounts, no fees invented, stock/error/retry/empty/missing selection, logout privacy and 1440–320px. No orders/payments; MOCK API.');
-    } finally { setSaleQuotes(false); setCartMode('normal'); resetCartFixture([]); resetAddressFixture([]); setScenario('anonymous'); }
+        assert.equal(requests.some(url => /^\/api\/(orders|payments)/.test(url)), false, 'Viewing confirmation does not create orders or payments');
+        setScenario('manager'); resetCartFixture([], cart); resetAddressFixture(addresses);
+        await navigate('checkout.html?unit=11'); await ready('50.000 ₫');
+        await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
+        await click($('checkout-complete'));
+        await waitFor(`${$('checkout-result')}.hidden===false && location.search.includes('order=')`);
+        assert.equal(orderCreates, 1);
+        assert.equal(await run(`${$('checkout-complete')}.disabled`), true);
+        assert.match(await run(`${$('checkout-result-status')}.textContent`), /Đang xử lý/);
+        assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
+        await click($('checkout-complete')); assert.equal(orderCreates, 1);
+        const savedUrl = await run('location.pathname+location.search');
+        await command('Page.navigate', { url: baseUrl + savedUrl });
+        await waitFor(`${$('checkout-result')}.hidden===false`);
+        assert.equal(orderCreates, 1, 'Reload reads existing order instead of recreating it');
+        await navigate('checkout.html?unit=11'); await ready('50.000 ₫');
+        await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
+        await click(`document.querySelector('input[name="payment"][value="qr"]')`);
+        orderMode = 'config-error'; await click($('checkout-complete'));
+        await waitFor(`${$('checkout-complete-note')}.textContent.includes('chưa được cấu hình')`);
+        assert.equal(orderCreates, 1);
+        // Automatic navigation after creation must be captured BEFORE clicking.
+        await run(`HTMLFormElement.prototype.submit=function(){window.__sepaySubmitted={action:this.action,method:this.method,fields:Array.from(this.elements).map(x=>[x.name,x.value])}}`);
+        orderMode = 'normal'; await click($('checkout-complete'));
+        await waitFor(`${$('checkout-result')}.hidden===false && !${$('checkout-open-payment')}.hidden`);
+        await waitFor(`Boolean(window.__sepaySubmitted)`);
+        assert.equal(gatewayInitializations, 1, 'Completing a QR order opens Checkout automatically');
+        assert.equal(orderCreates, 2);
+        assert.match(await run(`${$('checkout-transfer-details')}.textContent`), /50.000 ₫/);
+        assert.equal(await run(`${$('checkout-transfer-details')}.querySelector('b')`), null);
+        assert.equal(await run(`document.querySelector('#checkout-payment-qr')`), null);
+        // Capture form submission in this test only; never leave for real SePay.
+        await run(`HTMLFormElement.prototype.submit=function(){window.__sepaySubmitted={action:this.action,method:this.method,fields:Array.from(this.elements).map(x=>[x.name,x.value])}}`);
+        orderMode = 'initialize-error'; await click($('checkout-open-payment'));
+        await waitFor(`${$('checkout-gateway-state')}.textContent.includes('chưa được cấu hình')`);
+        assert.equal(gatewayInitializations, 1);
+        orderMode = 'normal';
+        await run(`${$('checkout-open-payment')}.click();${$('checkout-open-payment')}.click()`);
+        await waitFor(`Boolean(window.__sepaySubmitted)`);
+        await waitFor(`${$('checkout-open-payment')}.disabled===false`);
+        assert.equal(gatewayInitializations, 2);
+        const submitted = await run('window.__sepaySubmitted');
+        assert.equal(submitted.action, 'https://pay-sandbox.sepay.vn/v1/checkout/init');
+        assert.equal(submitted.method, 'post');
+        assert.deepEqual(submitted.fields.map(pair => pair[0]), ['order_amount','merchant','currency','operation','order_description','order_invoice_number','customer_id','payment_method','signature']);
+        assert.equal(submitted.fields[0][1], '50000');
+        assert.match(await run(`${$('checkout-result-status')}.textContent`), /chờ thanh toán/);
+        await run(`history.replaceState(null,'',location.pathname+location.search+'&status=success')`);
+        await click($('checkout-payment-check'));
+        assert.equal(await run(`${$('checkout-result-status')}.textContent.includes('Đã thanh toán')`), false);
+        orderMode = 'read-error'; await click($('checkout-payment-check'));
+        await waitFor(`${$('checkout-result-status')}.textContent.includes('Chưa kiểm tra được')`);
+        orderMode = 'normal'; await click($('checkout-payment-check'));
+        await waitFor(`${$('checkout-result-status')}.textContent.includes('chờ thanh toán')`);
+        for (const width of [1440, 768, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Payment result fits ${width}px`);
+        }
+        paymentConfirmed = true; await click($('checkout-payment-check'));
+        await waitFor(`${$('checkout-result-status')}.textContent.includes('Đã thanh toán')`);
+        assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
+        // Production response is mocked; intercept submit before any real network request.
+        fixtureEnvironment = 'production'; paymentConfirmed = false;
+        resetCartFixture([], cart);
+        await navigate('checkout.html?unit=11'); await ready('50.000 ₫');
+        await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
+        await click(`document.querySelector('input[name="payment"][value="qr"]')`);
+        await run(`HTMLFormElement.prototype.submit=function(){window.__sepayProductionAction=this.action}`);
+        await click($('checkout-complete'));
+        await waitFor(`${$('checkout-open-payment')}.hidden===false`);
+        assert.equal(await run(`${$('checkout-open-payment')}.textContent`), 'Thanh toán qua SePay');
+        assert.equal(await run(`${$('checkout-transfer-details')}.textContent.includes('mô phỏng')`), false);
+        await waitFor(`Boolean(window.__sepayProductionAction)`);
+        assert.equal(await run('window.__sepayProductionAction'), 'https://pay.sepay.vn/v1/checkout/init');
+        fixtureOrder.payment_environment = null;
+        await navigate(`checkout.html?order=${fixtureOrder.MaDonHang}`);
+        await waitFor(`${$('checkout-result')}.hidden===false`);
+        assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
+        assert.match(await run(`${$('checkout-transfer-details')}.textContent`), /chưa xác định môi trường/);
+        await click($('account-avatar-button')); await click($('logout-button'));
+        await waitFor(`${$('checkout-result')}.hidden===true`);
+        console.log('PASS: checkout selection, guest/login, address, pricing/errors, COD creation, QR/config failure/payment confirmation, double-click prevention, BIGINT order reload, logout privacy, responsive 1440–320px. API MOCK; no database or real payment.');
+    } finally { fixtureEnvironment = 'sandbox'; setSaleQuotes(false); setCartMode('normal'); resetCartFixture([]); resetAddressFixture([]); setScenario('anonymous'); }
 }

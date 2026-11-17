@@ -1,0 +1,581 @@
+"""Order and SePay tests with mocked repositories; never access real databases."""
+import unittest
+import runpy
+from types import SimpleNamespace as NS
+from unittest.mock import patch
+
+from sqlalchemy.exc import SQLAlchemyError
+
+from app import create_app
+from app.services import order_service
+from app.services import sepay_gateway_service as gateway
+from app.services.auth_service import AuthError
+from app.repositories import don_hang_repository
+from app.repositories.don_hang_repository import create as persist_order
+
+
+class OrderTests(unittest.TestCase):
+    def mock(self, name, **kwargs):
+        patcher = patch(name, **kwargs)
+        value = patcher.start()
+        self.addCleanup(patcher.stop)
+        return value
+
+    def setUp(self):
+        self.app = create_app({
+            'TESTING': True, 'SECRET_KEY': 'order-tests-secret-' * 3,
+            'SQLALCHEMY_DATABASE_URI': 'postgresql+psycopg://unused:unused@localhost/unused',
+            'SESSION_COOKIE_SECURE': False, 'APP_ENV': 'development', 'OTP_DEV_ENABLED': False,
+            'AUTH_ALLOWED_ORIGINS': ['https://shop.example'], 'SEPAY_BANK': 'VCB',
+            'SEPAY_ACCOUNT_NUMBER': '123456', 'SEPAY_ACCOUNT_NAME': 'LAN YEN',
+            'SEPAY_WEBHOOK_API_KEY': 'test-key',
+            'SEPAY_ENV': 'sandbox', 'SEPAY_MERCHANT_ID': 'SP-TEST-EXAMPLE',
+            'SEPAY_SECRET_KEY': 'gateway-test-secret', 'SEPAY_IPN_SECRET_KEY': 'ipn-test-secret',
+            'SEPAY_CHECKOUT_URL': gateway.CHECKOUT_URL, 'SEPAY_API_BASE_URL': gateway.API_BASE_URL,
+            'SEPAY_SUCCESS_URL': '', 'SEPAY_ERROR_URL': '', 'SEPAY_CANCEL_URL': '',
+            'SEPAY_PRODUCTION_ENABLED': False,
+            'SEPAY_SANDBOX_MERCHANT_ID': '', 'SEPAY_SANDBOX_SECRET_KEY': '', 'SEPAY_SANDBOX_IPN_SECRET_KEY': '',
+            'SEPAY_PRODUCTION_MERCHANT_ID': '', 'SEPAY_PRODUCTION_SECRET_KEY': '', 'SEPAY_PRODUCTION_IPN_SECRET_KEY': '',
+            'SEPAY_SANDBOX_CHECKOUT_URL': gateway.CHECKOUT_URL, 'SEPAY_SANDBOX_API_BASE_URL': gateway.API_BASE_URL,
+            'SEPAY_PRODUCTION_CHECKOUT_URL': gateway.ENVIRONMENTS['production'][0],
+            'SEPAY_PRODUCTION_API_BASE_URL': gateway.ENVIRONMENTS['production'][1],
+        })
+        self.mock('sqlalchemy.engine.Engine.connect', side_effect=AssertionError('Real database forbidden'))
+        self.user = NS(MaNguoiDung=12, VaiTro=0, TrangThai=False, HoTen='An', SDT='0900000000')
+        self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
+        self.mock('app.services.order_service.carts.lock_user', return_value=self.user)
+        self.records = self.mock('app.services.order_service.carts.list_items', return_value=[NS(MaDonGia=8)])
+        self.quote = self.mock('app.services.order_service.get_cart', return_value={
+            'total': 32000, 'items': [dict(MaThuoc=7, MaDonGia=8, SoLuong=3, GiaBan=10000,
+                                         ConHang=True, ThanhTien=32000)]})
+        self.mock('app.services.order_service.require_unit', return_value=NS(GiaBan=12000, SoLuongQuyDoi=10))
+        self.stock = self.mock('app.services.order_service.usable_stock', return_value={7: 100})
+        self.deduct = self.mock('app.services.order_service.deduct_order_stock')
+        self.mock('app.services.order_service.addresses.list_owned', return_value=[
+            NS(MaDiaChi=9, DiaChiCuThe='Nhà 1', PhuongXa='Vỹ Dạ', TinhThanh='Huế')])
+        self.create = self.mock('app.services.order_service.orders.create',
+                                side_effect=lambda values, items: NS(MaDonHang=45, **values))
+        self.find = self.mock('app.services.order_service.orders.find', return_value=None)
+        self.remove = self.mock('app.services.order_service.carts.remove')
+        self.commit = self.mock('app.services.order_service.db.session.commit')
+        self.rollback = self.mock('app.services.order_service.db.session.rollback')
+        self.client = self.app.test_client()
+        with self.client.session_transaction() as state:
+            state.update(user_id=12, csrf_token='test-csrf')
+        self.values = dict(MaDonGia=[8], PhuongThucThanhToan=0, HinhThucNhanHang='delivery',
+                           MaDiaChi='9', GhiChu='Gọi trước', TongThanhToan='32000')
+
+    def post(self, **changes):
+        return self.client.post('/api/orders', json={**self.values, **changes},
+                                headers={'X-CSRF-Token': 'test-csrf'})
+
+    def order(self, **changes):
+        return NS(**{**dict(MaDonHang=45, MaNguoiMua=12, TongTien=36000, TienGiamGia=4000,
+                           TongThanhToan=32000, PhuongThucThanhToan=1,
+                           MoiTruongThanhToan='sandbox',
+                           TrangThaiThanhToan=0, TrangThaiDonHang=0), **changes})
+
+    def webhook(self, key='Apikey test-key', **changes):
+        return self.client.post('/api/payments/sepay/webhook', json={
+            'id': 99, 'transferType': 'in', 'accountNumber': '123456',
+            'content': 'chuyen tien LYDH45', 'transferAmount': 32000, **changes},
+            headers={'Authorization': key})
+
+    def test_cod_saves_authoritative_totals_details_and_delivery_snapshot(self):
+        result = self.post()
+        self.assertEqual(result.status_code, 201)
+        order = result.json['order']
+        self.assertEqual((order['PhuongThucThanhToan'], order['TrangThaiDonHang'], order['TrangThaiThanhToan']), (0, 1, 0))
+        self.assertEqual((order['TongTien'], order['TienGiamGia'], order['TongThanhToan']), ('36000', '4000', '32000'))
+        values, items = self.create.call_args.args
+        self.assertIn('Nhà 1', values['GhiChu'])
+        self.assertIn('Gọi trước', values['GhiChu'])
+        self.assertFalse(values['KenhDatHang'])
+        self.assertIsNone(values['MoiTruongThanhToan'])
+        self.assertEqual(items, [dict(MaThuoc=7, MaDonGia=8, SoLuong=3, DonGia=12000)])
+        self.remove.assert_called_once()
+        self.commit.assert_called_once()
+        self.deduct.assert_called_once_with({7: 30})
+        self.records.return_value = []
+        self.assertEqual(self.post().json['code'], 'CART_CHANGED')
+        self.assertEqual(self.create.call_count, 1)
+        self.assertEqual(self.deduct.call_count, 1)
+
+    def test_qr_waits_and_does_not_expose_secret(self):
+        result = self.post(PhuongThucThanhToan=1, HinhThucNhanHang='pickup', MaDiaChi=None)
+        self.assertEqual(result.status_code, 201)
+        self.assertEqual(result.json['order']['TrangThaiDonHang'], 0)
+        self.assertNotIn('payment', result.json['order'])
+        self.assertEqual(result.json['order']['TrangThaiThanhToan'], 0)
+        self.assertNotIn('test-key', result.text)
+        self.assertIn('126 Dương Văn An', self.create.call_args.args[0]['GhiChu'])
+        self.assertEqual(self.create.call_args.args[0]['MoiTruongThanhToan'], 'sandbox')
+        self.deduct.assert_called_once_with({7: 30})
+
+    def test_qr_debits_on_completion_and_never_again_on_initialize_or_repeated_ipn(self):
+        self.assertEqual(self.post(PhuongThucThanhToan=1).status_code, 201)
+        self.deduct.assert_called_once_with({7: 30})
+        self.find.return_value = self.order()
+        self.assertEqual(self.initialize().status_code, 200)
+        self.assertEqual(self.ipn().status_code, 200)
+        self.assertEqual(self.ipn().status_code, 200)
+        self.deduct.assert_called_once_with({7: 30})
+        self.assertEqual(self.find.return_value.TrangThaiDonHang, 1)
+
+    def test_live_stock_shortage_after_quote_rolls_back_without_order_or_cart_removal(self):
+        self.deduct.side_effect = AuthError('OUT_OF_STOCK', 409)
+        result = self.post()
+        self.assertEqual((result.status_code, result.json['code']), (409, 'OUT_OF_STOCK'))
+        self.create.assert_not_called()
+        self.remove.assert_not_called()
+        self.commit.assert_not_called()
+        self.rollback.assert_called_once()
+
+    def test_commit_failure_rolls_back_the_stock_order_and_cart_transaction(self):
+        self.commit.side_effect = SQLAlchemyError('internal commit failure')
+        self.assertEqual(self.post().json['code'], 'DATABASE_UNAVAILABLE')
+        self.deduct.assert_called_once_with({7: 30})
+        self.rollback.assert_called_once()
+
+    def test_missing_payment_config_cannot_create_qr_but_cod_works(self):
+        self.app.config['SEPAY_SECRET_KEY'] = ''
+        self.assertEqual(self.post(PhuongThucThanhToan=1).json['code'], 'GATEWAY_NOT_CONFIGURED')
+        self.create.assert_not_called()
+        self.assertEqual(self.post().status_code, 201)
+
+    def test_quote_stock_address_and_cart_failures_do_not_write(self):
+        for change, expected in [({'TongThanhToan': '1'}, 'QUOTE_CHANGED'),
+                                 ({'MaDiaChi': '10'}, 'ADDRESS_NOT_FOUND'),
+                                 ({'MaDonGia': [99]}, 'CART_CHANGED')]:
+            self.assertEqual(self.post(**change).json['code'], expected)
+        self.stock.return_value = {7: 29}
+        self.assertEqual(self.post().json['code'], 'OUT_OF_STOCK')
+        self.create.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_combined_product_units_cannot_exceed_stock(self):
+        self.records.return_value = [NS(MaDonGia=8), NS(MaDonGia=9)]
+        self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=8, GiaBan=12000, ConHang=True))
+        self.assertEqual(self.post(MaDonGia=[8, 9]).json['code'], 'OUT_OF_STOCK')
+        self.create.assert_not_called()
+
+    def test_validation_rejects_injected_prices_status_and_owner(self):
+        for changes in [{'MaNguoiMua': 99}, {'TrangThaiThanhToan': 1}, {'DonGia': 1}, {'MoiTruongThanhToan': 'production'},
+                        {'MaDonGia': [8, 8]}, {'MaDonGia': []}, {'PhuongThucThanhToan': True},
+                        {'PhuongThucThanhToan': 2}, {'GhiChu': 'x' * 2001}, {'TongThanhToan': 1}]:
+            self.assertEqual(self.post(**changes).status_code, 400, changes)
+        self.create.assert_not_called()
+
+    def test_csrf_customer_role_and_ownership(self):
+        self.assertEqual(self.client.post('/api/orders', json=self.values).status_code, 403)
+        self.user.VaiTro = 2
+        self.assertEqual(self.post().status_code, 403)
+        self.user.VaiTro = 0
+        self.find.return_value = self.order(MaNguoiMua=99)
+        self.assertEqual(self.client.get('/api/orders/45').status_code, 404)
+        with self.client.session_transaction() as state:
+            state.pop('user_id')
+        self.assertEqual(self.post().status_code, 401)
+
+    def test_database_failure_rolls_back_cart_and_order_transaction(self):
+        self.create.side_effect = SQLAlchemyError('private database details')
+        result = self.post()
+        self.assertEqual((result.status_code, result.json['code']), (503, 'DATABASE_UNAVAILABLE'))
+        self.assertNotIn('private', result.text)
+        self.rollback.assert_called_once()
+        self.remove.assert_not_called()
+
+    def test_webhook_requires_key_and_rejects_malformed_amounts(self):
+        for key in ['', 'Bearer test-key', 'Apikey wrong']:
+            self.assertEqual(self.webhook(key=key).status_code, 401)
+        for amount in ['NaN', 'Infinity', -1, '123.1', True]:
+            self.assertEqual(self.webhook(transferAmount=amount).status_code, 400)
+        self.commit.assert_not_called()
+
+    def test_webhook_wrong_account_direction_reference_and_underpayment(self):
+        order = self.order()
+        self.find.return_value = order
+        for changes in [{'transferType': 'out'}, {'accountNumber': 'other'}, {'content': 'LYDH45 LYDH46'},
+                        {'content': 'LYDH450foo'}, {'transferAmount': 31999}]:
+            self.assertEqual(self.webhook(**changes).status_code, 200)
+            self.assertEqual(order.TrangThaiThanhToan, 0)
+        self.commit.assert_not_called()
+
+    def test_webhook_success_and_retries_are_idempotent(self):
+        order = self.order(MoiTruongThanhToan=None)
+        self.find.return_value = order
+        self.assertEqual(self.webhook().json, {'success': True})
+        self.assertEqual((order.TrangThaiThanhToan, order.TrangThaiDonHang), (1, 1))
+        self.find.assert_called_with(45, lock=True)
+        self.assertEqual(self.webhook().json, {'success': True})
+        self.commit.assert_called_once()
+
+    def test_cancelled_cod_or_paid_orders_cannot_be_credited(self):
+        for changes in [{'TrangThaiDonHang': 4}, {'PhuongThucThanhToan': 0}, {'TrangThaiThanhToan': 1}]:
+            self.find.return_value = self.order(**changes)
+            self.assertEqual(self.webhook().status_code, 200)
+        self.commit.assert_not_called()
+
+    def test_repository_persists_order_and_detail_foreign_key(self):
+        with self.app.app_context():
+            added = []
+            with patch.object(don_hang_repository.db.session, 'add', side_effect=added.append), \
+                    patch.object(don_hang_repository.db.session, 'flush', side_effect=lambda: setattr(added[0], 'MaDonHang', 45)):
+                order = persist_order(dict(MaNguoiMua=12), [
+                    dict(MaThuoc=7, MaDonGia=8, SoLuong=3, DonGia=12000)])
+            self.assertEqual(order.MaDonHang, 45)
+            self.assertEqual(added[1].MaDonHang, 45)
+            self.assertEqual(added[1].DonGia, 12000)
+
+    def initialize(self, order_id=45, **kwargs):
+        return self.client.post(f'/api/orders/{order_id}/payment', headers={'X-CSRF-Token': 'test-csrf'}, **kwargs)
+
+    def ipn_body(self):
+        return dict(timestamp=1795000000, notification_type='ORDER_PAID', customer={'customer_id': '12'},
+                    order=dict(order_invoice_number='LYSGTEST45', order_status='CAPTURED',
+                               order_amount='32000.00', order_currency='VND'),
+                    transaction=dict(transaction_id='test-transaction-1', payment_method='BANK_TRANSFER',
+                                     transaction_type='PAYMENT', transaction_status='APPROVED',
+                                     transaction_amount='32000', transaction_currency='VND'))
+
+    def ipn(self, body=None, key='ipn-test-secret'):
+        return self.client.post('/api/payments/sepay/ipn', json=self.ipn_body() if body is None else body,
+                                headers={'X-Secret-Key': key})
+
+    def test_gateway_initialize_sandbox_signed_form_and_no_order_mutation(self):
+        order = self.order()
+        before = vars(order).copy()
+        self.find.return_value = order
+        response = self.initialize()
+        self.assertEqual(response.status_code, 200)
+        payment = response.json['payment']
+        self.assertEqual((payment['action'], payment['method']), (gateway.CHECKOUT_URL, 'POST'))
+        fields = payment['fields']
+        self.assertEqual(fields['merchant'], 'SP-TEST-EXAMPLE')
+        self.assertEqual(fields['order_invoice_number'], 'LYSGTEST45')
+        self.assertEqual(fields['order_amount'], '32000')
+        self.assertEqual(fields['customer_id'], '12')
+        self.assertEqual((fields['payment_method'], fields['currency'], fields['operation']), ('BANK_TRANSFER', 'VND', 'PURCHASE'))
+        self.assertEqual(vars(order), before)
+        self.assertNotIn('gateway-test-secret', response.text)
+        self.assertNotIn('ipn-test-secret', response.text)
+        self.find.assert_called_with(45, lock=True)
+        self.create.assert_not_called()
+        self.remove.assert_not_called()
+        repeated = self.initialize().json['payment']
+        self.assertEqual(repeated, payment)
+
+    def test_gateway_signature_fixed_order_unicode_empty_values_and_raw_digest_base64(self):
+        # Golden vector independently computed using Node crypto, not this signer.
+        fields = dict(cancel_url='https://example.test/cancel', signature='ignored',
+                      error_url='https://example.test/error', success_url='https://example.test/success',
+                      order_invoice_number='INV_20231201_001', customer_id='0', payment_method='',
+                      order_description='Thanh toán đơn hàng #12345', operation='PURCHASE',
+                      currency='VND', merchant='MERCHANT_123', order_amount='100000', extra='ignored')
+        self.assertEqual(gateway.sign_fields(fields, 'gateway-test-secret'),
+                         '+lQvJ5mXt4WZpVghTIx7KZX3q8aCMdV29Vlyo9iKZFk=')
+
+    def test_gateway_form_callback_urls_are_server_configured_and_signed(self):
+        self.find.return_value = self.order()
+        with patch.dict(self.app.config, {'SEPAY_SUCCESS_URL': 'https://example.test/success',
+                                         'SEPAY_ERROR_URL': 'https://example.test/error',
+                                         'SEPAY_CANCEL_URL': 'https://example.test/cancel'}):
+            fields = self.initialize().json['payment']['fields']
+            self.assertEqual(fields['success_url'], 'https://example.test/success')
+            self.assertEqual(fields['error_url'], 'https://example.test/error')
+            self.assertEqual(fields['cancel_url'], 'https://example.test/cancel')
+            self.assertEqual(fields['signature'], gateway.sign_fields(fields, 'gateway-test-secret'))
+
+    def test_gateway_config_missing_wrong_merchant_and_production_rejected(self):
+        self.find.return_value = self.order()
+        for key, value, code in [
+            ('SEPAY_MERCHANT_ID', '', 'GATEWAY_NOT_CONFIGURED'),
+            ('SEPAY_SECRET_KEY', '', 'GATEWAY_NOT_CONFIGURED'),
+            ('SEPAY_IPN_SECRET_KEY', '', 'GATEWAY_NOT_CONFIGURED'),
+            ('SEPAY_MERCHANT_ID', 'SP-LIVE-EXAMPLE', 'GATEWAY_CONFIG_INVALID'),
+            ('SEPAY_MERCHANT_ID', 'SP-TEST-', 'GATEWAY_CONFIG_INVALID'),
+            ('SEPAY_ENV', 'production', 'GATEWAY_PRODUCTION_DISABLED'),
+            ('SEPAY_CHECKOUT_URL', 'https://pay.sepay.vn/v1/checkout/init', 'GATEWAY_CONFIG_INVALID'),
+            ('SEPAY_API_BASE_URL', 'https://pgapi.sepay.vn', 'GATEWAY_CONFIG_INVALID'),
+            ('SEPAY_SUCCESS_URL', 'javascript:alert(1)', 'GATEWAY_CONFIG_INVALID')]:
+            with patch.dict(self.app.config, {key: value}):
+                result = self.initialize()
+                self.assertEqual((result.status_code, result.json['code']), (503, code))
+        self.commit.assert_not_called()
+
+    def test_gateway_owned_pending_online_order_only(self):
+        for change, code in [({'MaNguoiMua': 99}, 'ORDER_NOT_FOUND'),
+                             ({'TrangThaiThanhToan': 1}, 'ORDER_ALREADY_PAID'),
+                             ({'TrangThaiDonHang': 4}, 'ORDER_NOT_PAYABLE'),
+                             ({'PhuongThucThanhToan': 0}, 'ORDER_PAYMENT_METHOD_INVALID'),
+                             ({'TongThanhToan': 0}, 'QR_AMOUNT_INVALID')]:
+            self.find.return_value = self.order(**change)
+            self.assertEqual(self.initialize().json['code'], code)
+        self.find.return_value = None
+        self.assertEqual(self.initialize().status_code, 404)
+        self.assertEqual(self.initialize(9223372036854775808).status_code, 404)
+        self.commit.assert_not_called()
+
+    def test_gateway_csrf_role_and_client_parameters(self):
+        self.find.return_value = self.order()
+        self.assertEqual(self.client.post('/api/orders/45/payment').status_code, 403)
+        self.user.VaiTro = 2
+        self.assertEqual(self.initialize().status_code, 403)
+        self.user.VaiTro = 0
+        self.assertEqual(self.initialize(json={'order_amount': '1'}).status_code, 400)
+        self.assertEqual(self.initialize(query_string={'success_url': 'https://evil.test'}).status_code, 400)
+        self.commit.assert_not_called()
+
+    def test_gateway_ipn_valid_without_browser_session_and_duplicate_does_not_rewind_order(self):
+        order = self.order()
+        self.find.return_value = order
+        with self.client.session_transaction() as state:
+            state.clear()
+        self.assertEqual(self.ipn().json, {'success': True})
+        self.assertEqual((order.TrangThaiDonHang, order.TrangThaiThanhToan), (1, 1))
+        order.TrangThaiDonHang = 2
+        self.assertEqual(self.ipn().status_code, 200)
+        self.assertEqual(order.TrangThaiDonHang, 2)
+        self.find.assert_called_with(45, lock=True)
+
+    def test_gateway_ipn_wrong_auth_header_or_key_rejected(self):
+        for key in ['', 'wrong', 'gateway-test-secret']:
+            self.assertEqual(self.ipn(key=key).status_code, 401)
+        result = self.client.post('/api/payments/sepay/ipn', json=self.ipn_body(),
+                                  headers={'Authorization': 'Apikey test-key'})
+        self.assertEqual(result.status_code, 401)
+        self.find.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_gateway_ipn_wrong_invoice_amount_and_currency_rejected(self):
+        order = self.order()
+        self.find.return_value = order
+        for section, field, value, code in [
+            ('order', 'order_invoice_number', 'LYDH45', 'IPN_ORDER_MISMATCH'),
+            ('order', 'order_invoice_number', 'LYSGTEST045', 'IPN_ORDER_MISMATCH'),
+            ('order', 'order_invoice_number', 'LYSGTEST9223372036854775808', 'IPN_ORDER_MISMATCH'),
+            ('order', 'order_amount', '31999.00', 'IPN_AMOUNT_MISMATCH'),
+            ('transaction', 'transaction_amount', '32001', 'IPN_AMOUNT_MISMATCH'),
+            ('transaction', 'transaction_amount', '32000.01', 'IPN_AMOUNT_MISMATCH'),
+            ('transaction', 'transaction_amount', 'NaN', 'IPN_AMOUNT_MISMATCH'),
+            ('transaction', 'transaction_amount', True, 'IPN_AMOUNT_MISMATCH'),
+            ('order', 'order_currency', 'USD', 'IPN_CURRENCY_MISMATCH'),
+            ('transaction', 'transaction_currency', 'USD', 'IPN_CURRENCY_MISMATCH')]:
+            body = self.ipn_body(); body[section][field] = value
+            self.assertEqual(self.ipn(body).json['code'], code)
+        self.find.return_value = None
+        self.assertEqual(self.ipn().status_code, 404)
+        self.assertEqual(order.TrangThaiThanhToan, 0)
+        self.commit.assert_not_called()
+
+    def test_gateway_failed_void_or_wrong_method_ipn_never_credits_order(self):
+        for section, field, value in [('order', 'order_status', 'CANCELLED'),
+                                       ('transaction', 'transaction_status', 'DECLINED'),
+                                       ('transaction', 'transaction_type', 'REFUND'),
+                                       ('transaction', 'payment_method', 'CARD')]:
+            body = self.ipn_body(); body[section][field] = value
+            self.assertEqual(self.ipn(body).json, {'success': True})
+        body = self.ipn_body(); body['notification_type'] = 'TRANSACTION_VOID'
+        self.assertEqual(self.ipn(body).status_code, 200)
+        self.find.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_gateway_ipn_cannot_credit_another_customers_equal_value_order(self):
+        self.find.return_value = self.order(MaNguoiMua=99)
+        self.assertEqual(self.ipn().json['code'], 'IPN_ORDER_MISMATCH')
+        self.assertEqual(self.find.return_value.TrangThaiThanhToan, 0)
+        self.commit.assert_not_called()
+
+    def test_gateway_cancelled_or_cod_local_order_cannot_be_paid_by_ipn(self):
+        for changes, code in [({'TrangThaiDonHang': 4}, 'ORDER_NOT_PAYABLE'),
+                              ({'PhuongThucThanhToan': 0}, 'ORDER_PAYMENT_METHOD_INVALID')]:
+            self.find.return_value = self.order(**changes)
+            self.assertEqual(self.ipn().json['code'], code)
+        self.commit.assert_not_called()
+
+    def test_gateway_ipn_database_failure_returns_retryable_error(self):
+        order = self.order()
+        self.find.return_value = order
+        self.commit.side_effect = SQLAlchemyError('private error')
+        response = self.ipn()
+        self.assertEqual((response.status_code, response.json['code']), (503, 'DATABASE_UNAVAILABLE'))
+        self.assertNotIn('private', response.text)
+        self.rollback.assert_called_once()
+
+    def test_gateway_callbacks_and_status_reads_cannot_mark_order_paid(self):
+        order = self.order()
+        self.find.return_value = order
+        result = self.client.get('/api/orders/45?status=success&paid=1')
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(order.TrangThaiThanhToan, 0)
+        self.assertEqual(self.client.get('/api/payments/sepay/ipn?status=success').status_code, 405)
+        self.assertEqual(self.client.get('/api/payments/sepay/success?order=45').status_code, 404)
+        self.commit.assert_not_called()
+
+    def test_gateway_only_configuration_can_create_and_read_qr_order(self):
+        with patch.dict(self.app.config, {'SEPAY_BANK': '', 'SEPAY_ACCOUNT_NUMBER': '', 'SEPAY_WEBHOOK_API_KEY': ''}):
+            self.assertEqual(self.post(PhuongThucThanhToan=1).status_code, 201)
+            self.find.return_value = self.order()
+            result = self.client.get('/api/orders/45')
+            self.assertEqual(result.status_code, 200)
+            self.assertEqual(result.json['order']['TrangThaiThanhToan'], 0)
+            self.assertNotIn('payment', result.json['order'])
+
+    def test_legacy_read_and_webhook_work_when_gateway_not_configured(self):
+        with patch.dict(self.app.config, {'SEPAY_SECRET_KEY': '', 'SEPAY_MERCHANT_ID': ''}):
+            self.find.return_value = self.order(MoiTruongThanhToan=None)
+            result = self.client.get('/api/orders/45')
+            self.assertIn('qr.sepay.vn/img?', result.json['order']['payment']['qr_url'])
+            self.assertEqual(self.webhook().status_code, 200)
+            self.assertEqual(self.find.return_value.TrangThaiThanhToan, 1)
+
+    def test_gateway_ipn_bad_json_and_nested_objects(self):
+        self.assertEqual(self.client.post('/api/payments/sepay/ipn', data='bad').status_code, 415)
+        for body in [[], {'notification_type': 'ORDER_PAID'},
+                     {'notification_type': 'ORDER_PAID', 'order': [], 'transaction': {} }]:
+            self.assertIn(self.ipn(body).status_code, [400, 409])
+        self.commit.assert_not_called()
+
+    def test_gateway_diagnostic_logs_omit_keys_signature_and_payload(self):
+        self.find.return_value = self.order()
+        with self.assertLogs(self.app.logger, level='INFO') as captured:
+            self.assertEqual(self.initialize().status_code, 200)
+            self.assertEqual(self.ipn(key='wrong-key').status_code, 401)
+            self.assertEqual(self.ipn().status_code, 200)
+        messages = '\n'.join(captured.output)
+        for forbidden in ['gateway-test-secret', 'ipn-test-secret', 'wrong-key', 'signature', 'transaction_amount']:
+            self.assertNotIn(forbidden, messages)
+        self.assertIn('sepay_initialize order_id=45 status=200', messages)
+        self.assertIn('code=INVALID_IPN_KEY', messages)
+        self.assertIn('code=PAID', messages)
+
+    def production_config(self):
+        return dict(SEPAY_ENV='production', SEPAY_PRODUCTION_ENABLED=True,
+                    SEPAY_PRODUCTION_MERCHANT_ID='MERCHANT_PRODUCTION_TEST',
+                    SEPAY_PRODUCTION_SECRET_KEY='spsk_live_fake_test_only',
+                    SEPAY_PRODUCTION_IPN_SECRET_KEY='production-ipn-fake-only')
+
+    def test_shared_database_production_form_and_ipn_require_saved_environment(self):
+        self.find.return_value = self.order(MoiTruongThanhToan='production')
+        with patch.dict(self.app.config, self.production_config()):
+            response = self.initialize()
+            self.assertEqual(response.status_code, 200)
+            payment = response.json['payment']
+            self.assertEqual(payment['environment'], 'production')
+            self.assertEqual(payment['action'], 'https://pay.sepay.vn/v1/checkout/init')
+            self.assertEqual(payment['fields']['order_invoice_number'], 'LYSGLIVE45')
+            self.assertEqual(payment['fields']['signature'], gateway.sign_fields(payment['fields'], 'spsk_live_fake_test_only'))
+            body = self.ipn_body(); body['order']['order_invoice_number'] = 'LYSGLIVE45'
+            self.assertEqual(self.ipn(body, key='production-ipn-fake-only').status_code, 200)
+            self.assertEqual(self.find.return_value.TrangThaiThanhToan, 1)
+            self.find.return_value.TrangThaiDonHang = 2
+            self.assertEqual(self.ipn(body, key='production-ipn-fake-only').status_code, 200)
+            self.assertEqual(self.find.return_value.TrangThaiDonHang, 2)
+            self.assertEqual(self.post(PhuongThucThanhToan=1).status_code, 201)
+            self.assertEqual(self.create.call_args.args[0]['MoiTruongThanhToan'], 'production')
+
+    def test_cross_environment_ipn_rejected_even_with_colliding_order_ids(self):
+        for production in (False, True):
+            config = {**self.production_config(), 'SEPAY_ENV': 'production' if production else 'sandbox'}
+            self.find.return_value = self.order(MoiTruongThanhToan='production' if production else 'sandbox')
+            with patch.dict(self.app.config, config):
+                body = self.ipn_body()
+                body['order']['order_invoice_number'] = 'LYSGTEST45' if production else 'LYSGLIVE45'
+                # Authenticate correctly for the incoming event, yet refuse to
+                # credit a local order bound to the other environment.
+                event_key = 'ipn-test-secret' if production else 'production-ipn-fake-only'
+                self.assertEqual(self.ipn(body, key=event_key).json['code'], 'ORDER_PAYMENT_ENVIRONMENT_MISMATCH')
+                wrong_key = 'production-ipn-fake-only' if production else 'ipn-test-secret'
+                self.assertEqual(self.ipn(body, key=wrong_key).status_code, 401)
+                self.assertEqual(self.find.return_value.TrangThaiThanhToan, 0)
+        self.commit.assert_not_called()
+
+    def test_old_unclassified_order_cannot_initialize_or_receive_gateway_ipn(self):
+        order = self.order(MoiTruongThanhToan=None)
+        self.find.return_value = order
+        self.assertEqual(self.initialize().json['code'], 'ORDER_PAYMENT_ENVIRONMENT_UNKNOWN')
+        self.assertEqual(self.ipn().json['code'], 'ORDER_PAYMENT_ENVIRONMENT_UNKNOWN')
+        self.assertIsNone(order.MoiTruongThanhToan)
+        self.commit.assert_not_called()
+
+    def test_saved_environment_does_not_change_when_config_switches(self):
+        order = self.order()
+        self.find.return_value = order
+        with patch.dict(self.app.config, self.production_config()):
+            self.assertEqual(self.initialize().json['code'], 'ORDER_PAYMENT_ENVIRONMENT_MISMATCH')
+            result = self.client.get('/api/orders/45')
+            self.assertEqual(result.json['order']['payment_environment'], 'sandbox')
+            # Late Sandbox IPN is authenticated with Sandbox key even after the
+            # storefront has switched to Production.
+            self.assertEqual(self.ipn().status_code, 200)
+            self.assertEqual(order.TrangThaiThanhToan, 1)
+            self.assertEqual(order.MoiTruongThanhToan, 'sandbox')
+
+    def test_production_ipn_can_settle_existing_order_after_new_payments_disabled(self):
+        self.find.return_value = self.order(MoiTruongThanhToan='production')
+        with patch.dict(self.app.config, {**self.production_config(), 'SEPAY_ENV': 'sandbox', 'SEPAY_PRODUCTION_ENABLED': False}):
+            body = self.ipn_body(); body['order']['order_invoice_number'] = 'LYSGLIVE45'
+            self.assertEqual(self.ipn(body, key='production-ipn-fake-only').status_code, 200)
+            self.assertEqual(self.find.return_value.TrangThaiThanhToan, 1)
+
+    def test_bank_webhook_cannot_credit_gateway_bound_order(self):
+        self.find.return_value = self.order()
+        self.assertEqual(self.webhook().status_code, 200)
+        self.assertEqual(self.find.return_value.TrangThaiThanhToan, 0)
+        self.commit.assert_not_called()
+
+    def test_production_cannot_fallback_to_sandbox_keys(self):
+        for change, expected in [
+            ({'SEPAY_PRODUCTION_SECRET_KEY': ''}, 'GATEWAY_NOT_CONFIGURED'),
+            ({'SEPAY_PRODUCTION_MERCHANT_ID': 'SP-TEST-EXAMPLE'}, 'GATEWAY_CONFIG_INVALID'),
+            ({'SEPAY_PRODUCTION_SECRET_KEY': 'spsk_test_fake'}, 'GATEWAY_CONFIG_INVALID'),
+            ({'SEPAY_PRODUCTION_IPN_SECRET_KEY': 'ipn-test-secret'}, 'GATEWAY_ENVIRONMENT_COLLISION'),
+            ({'SEPAY_PRODUCTION_CHECKOUT_URL': gateway.CHECKOUT_URL}, 'GATEWAY_CONFIG_INVALID')]:
+            with patch.dict(self.app.config, {**self.production_config(), **change}):
+                self.assertEqual(self.initialize().json['code'], expected)
+        self.find.assert_not_called()
+
+    def test_new_sandbox_group_overrides_legacy_without_mixing_partial_groups(self):
+        self.find.return_value = self.order()
+        with patch.dict(self.app.config, {'SEPAY_SANDBOX_MERCHANT_ID': 'SP-TEST-NEW'}):
+            self.assertEqual(self.initialize().json['code'], 'GATEWAY_NOT_CONFIGURED')
+        with patch.dict(self.app.config, {'SEPAY_SANDBOX_MERCHANT_ID': 'SP-TEST-NEW',
+                                         'SEPAY_SANDBOX_SECRET_KEY': 'new-sandbox-secret',
+                                         'SEPAY_SANDBOX_IPN_SECRET_KEY': 'new-sandbox-ipn'}):
+            payment = self.initialize().json['payment']
+            self.assertEqual(payment['environment'], 'sandbox')
+            self.assertEqual(payment['fields']['merchant'], 'SP-TEST-NEW')
+            self.assertEqual(payment['fields']['signature'], gateway.sign_fields(payment['fields'], 'new-sandbox-secret'))
+
+    def test_cod_works_when_production_payments_are_disabled(self):
+        with patch.dict(self.app.config, {'SEPAY_ENV': 'production', 'SEPAY_PRODUCTION_ENABLED': False}):
+            self.assertEqual(self.post().status_code, 201)
+            self.assertEqual(self.post(PhuongThucThanhToan=1).json['code'], 'GATEWAY_PRODUCTION_DISABLED')
+
+    def test_payment_environment_never_changes_shared_database(self):
+        values = dict(DATABASE_URL='postgresql+psycopg://unused@localhost/shared_db',
+                      SEPAY_SANDBOX_DATABASE_URL='postgresql+psycopg://unused@localhost/ignored_sandbox',
+                      SEPAY_PRODUCTION_DATABASE_URL='postgresql+psycopg://unused@localhost/ignored_production',
+                      SEPAY_PRODUCTION_ENABLED='false')
+        for env in ('sandbox', 'production'):
+            with patch.dict('os.environ', {**values, 'SEPAY_ENV': env}):
+                config = runpy.run_path('app/config/config.py')['Config']
+                self.assertEqual(config.SQLALCHEMY_DATABASE_URI, values['DATABASE_URL'])
+                self.assertFalse(config.SEPAY_PRODUCTION_ENABLED)
+
+    def test_approved_migration_adds_only_nullable_environment_without_backfill(self):
+        migration = runpy.run_path('migrations/versions/31ac74d9e206_add_order_payment_environment.py')
+        self.assertEqual(migration['down_revision'], '7e66691b2041')
+        with patch('alembic.op.add_column') as add, patch('alembic.op.execute') as execute:
+            migration['upgrade']()
+        add.assert_called_once()
+        table, column = add.call_args.args
+        self.assertEqual((table, column.name, column.type.length), ('DonHang', 'MoiTruongThanhToan', 10))
+        self.assertTrue(column.nullable)
+        self.assertIsNone(column.default)
+        self.assertIsNone(column.server_default)
+        execute.assert_not_called()
+
+
+if __name__ == '__main__':
+    unittest.main()

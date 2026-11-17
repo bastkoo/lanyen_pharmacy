@@ -65,3 +65,7 @@
 .checkout-dialog-actions { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
 @media (max-width: 1100px) { .checkout-layout { grid-template-columns: minmax(0, 1fr); } .checkout-summary { position: static; } }
 @media (max-width: 600px) { .checkout-section, .checkout-summary { padding: 20px; } .receipt-options { grid-template-columns: minmax(0, 1fr); } .checkout-product { grid-template-columns: 48px minmax(0, 1fr); gap: 12px; } .checkout-product-image { width: 48px; height: 64px; } .checkout-product-price { grid-column: 2; text-align: left; } .checkout-product-offer, .checkout-product-unavailable { grid-column: 1 / -1; } .checkout-dialog-actions { align-items: stretch; flex-direction: column; } }
+.checkout-result { margin-top: var(--spacing-lg, 24px); }
+.checkout-result img { display: block; max-width: 100%; height: auto; margin-block: 16px; }
+#checkout-transfer-details { white-space: pre-line; overflow-wrap: anywhere; margin-block: 16px; }
+.checkout-result > .quiet-link { display: inline-block; margin: 16px; }

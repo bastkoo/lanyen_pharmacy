@@ -45,8 +45,9 @@ def check_quantity(quantity):
         raise AuthError('CART_QUANTITY_LIMIT', 409)
 
 
-def require_unit(product_id, unit_id, check_stock=False):
-    unit = units.find_by_id(product_id, unit_id)
+def require_unit(product_id, unit_id, check_stock=False, for_update=False):
+    unit = (units.find_by_id(product_id, unit_id, for_update=True) if for_update
+            else units.find_by_id(product_id, unit_id))
     if unit is None:
         raise AuthError('UNIT_NOT_FOUND', 404)
     if unit.GiaBan < 0:

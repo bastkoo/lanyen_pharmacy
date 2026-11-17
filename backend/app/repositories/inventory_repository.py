@@ -14,6 +14,17 @@ def usable_totals(product_ids, today):
     return dict(rows)
 
 
+def lock_usable_batches_fifo(product_ids, today):
+    if not product_ids:
+        return []
+    # MaLo is the existing insertion sequence; NgaySanXuat is not an entry date.
+    # Stable lock order across products prevents competing orders overselling.
+    return db.session.execute(select(LoThuoc).where(
+        LoThuoc.MaThuoc.in_(sorted(product_ids)), LoThuoc.SoLuongTon > 0,
+        LoThuoc.HanSuDung >= today).order_by(LoThuoc.MaThuoc, LoThuoc.MaLo)
+        .with_for_update().execution_options(populate_existing=True)).scalars().all()
+
+
 def paginate(query, page, per_page, mappings=True):
     total = db.session.execute(select(func.count()).select_from(query.order_by(None).subquery())).scalar_one()
     result = db.session.execute(query.offset((page - 1) * per_page).limit(per_page))

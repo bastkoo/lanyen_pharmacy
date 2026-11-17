@@ -62,6 +62,9 @@ class DonHang(db.Model):
         nullable=False
     )
 
+    # Immutable Gateway environment; NULL for COD and unclassified old orders.
+    MoiTruongThanhToan = db.Column(db.String(10), nullable=True)
+
     # Ngày đặt hàng
     NgayDat = db.Column(
         db.DateTime,
