@@ -10,6 +10,7 @@ const catalogProducts = Array.from({ length: 26 }, (_, index) => ({ MaThuoc: ind
 for (const product of catalogProducts) product.DonViGia = product.MaThuoc === 3 ? [] : product.MaThuoc === 2 ? [
     { MaDonGia: 21, DonViTinh: 'Vỉ', GiaBan: 10000 }, { MaDonGia: 22, DonViTinh: 'Viên', GiaBan: 1000 }, { MaDonGia: 23, DonViTinh: 'Hộp', GiaBan: 100000 }
 ] : [{ MaDonGia: product.MaThuoc * 10 + 1, DonViTinh: 'Hộp', GiaBan: 50000 }];
+for (const product of catalogProducts) for (const unit of product.DonViGia) unit.ConHang = product.MaThuoc !== 4 && unit.MaDonGia !== 23;
 let guestCart = [], accountCart = [];
 export function mergeCartFixture() {
     for (const item of guestCart) {
@@ -41,6 +42,7 @@ export async function cartFixture(req, json, authenticated) {
     assert.deepEqual(Object.keys(item).sort(), ['MaDonGia', 'MaThuoc']);
     const product = catalogProducts.find(product => product.MaThuoc === item.MaThuoc);
     assert.ok(product.DonViGia.some(unit => unit.MaDonGia === item.MaDonGia));
+    if (catalogMode === 'stock-changed') return json(409, { code: 'OUT_OF_STOCK' });
     const match = items.find(row => row.MaDonGia === item.MaDonGia);
     if (match) match.SoLuong++; else items.push({ ...item, SoLuong: 1 });
     return json(200, { code: 'CART_ITEM_ADDED' });
@@ -172,10 +174,12 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     await run(`document.querySelector('#public-categories-grid [data-category-id="1"]').click()`);
     await landed('/pages/customer/products.html?category_id=1'); await productsReady(12); await filtersReady();
     assert.deepEqual(await run(`Array.from(document.querySelectorAll('input[name="product-unit-2"]')).map(input=>Number(input.value))`), [23, 21, 22], 'Unit buttons run from highest to lowest price');
+    assert.equal(await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').textContent`), 'Hết hàng', 'Large unit exceeds usable stock');
     assert.equal(await run(`Array.from(document.querySelectorAll('.catalog-product')).find(card=>card.querySelector('h3').textContent==='<b>Thuốc 1</b> (Hộp 10 viên)').querySelector('fieldset')`), null, 'One unit has no selector');
     assert.equal(await run(`Array.from(document.querySelectorAll('.catalog-product')).find(card=>card.querySelector('h3').textContent==='Thuốc 3 (Hộp 10 viên)').querySelector('.catalog-buy').disabled`), true, 'Unpriced product cannot be added');
     await checkCardLayout();
     await run(`document.querySelector('input[name="product-unit-2"][value="21"]').click()`);
+    assert.equal(await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').disabled`), false, 'Small unit remains available');
     assert.match(await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-price').textContent`), /10\.000 ₫ \/ Vỉ/);
     for (let i = 0; i < 2; i++) {
         await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
@@ -196,6 +200,12 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     catalogMode = 'normal'; await run(`document.querySelector('#cart-dialog > button:last-child').click()`);
     await waitFor(`document.querySelectorAll('.cart-items li').length===1`);
     await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
+    catalogMode = 'stock-changed';
+    await run(`document.querySelector('input[name="product-unit-2"][value="21"]').click();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
+    await waitFor(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').textContent==='Hết hàng' && document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-purchase-status').textContent.includes('đã hết hàng')`);
+    await run(`document.querySelector('input[name="product-unit-2"][value="22"]').click()`);
+    assert.equal(await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').disabled`), false, 'Stock rejection for one unit does not disable another available unit');
+    catalogMode = 'normal';
     assert.equal(await run(`document.querySelector('#catalog-products-title').textContent`), categoryNames[0]);
     assert.equal(await run(`document.querySelector('#catalog-filter-category').value`), '1');
     assert.match(await run(`document.querySelector('#catalog-products-grid h3').textContent`), /\(Hộp 10 viên\)$/);

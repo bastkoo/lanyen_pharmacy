@@ -10,6 +10,10 @@ def current_date():
     return datetime.now(timezone(timedelta(hours=7))).date()
 
 
+def usable_stock(product_ids):
+    return inventory.usable_totals(product_ids, current_date())
+
+
 @database_operation
 def summary(page, per_page, low_stock=False):
     items, total = inventory.summary(page, per_page, low_stock=low_stock)

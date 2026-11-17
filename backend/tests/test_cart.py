@@ -22,7 +22,8 @@ class CartTests(unittest.TestCase):
         self.user = NS(MaNguoiDung=12, HoTen='An', SDT='+84901234567', VaiTro=0,
                        TrangThai=False, Email=None, AnhDaiDien=None)
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
-        self.unit = NS(MaDonGia=8, MaThuoc=7, GiaBan=12000, DonViTinh='Vỉ')
+        self.unit = NS(MaDonGia=8, MaThuoc=7, GiaBan=12000, DonViTinh='Vỉ', SoLuongQuyDoi=10)
+        self.stock = self.mock('app.services.cart_service.usable_stock', return_value={7: 100})
         self.find_unit = self.mock('app.services.cart_service.units.find_by_id',
                                   side_effect=lambda p, u: self.unit if (p, u) == (7, 8) else None)
         self.lock = self.mock('app.services.cart_service.carts.lock_user', return_value=self.user)
@@ -83,6 +84,36 @@ class CartTests(unittest.TestCase):
         self.assertEqual(self.add(Origin='https://evil.example').status_code, 403)
         self.assertEqual(self.client.delete('/api/cart/items/8').status_code, 403)
         self.assertEqual(self.add(Origin='https://shop.example').status_code, 200)
+
+    def test_no_usable_batches_or_insufficient_conversion_cannot_add_guest_or_account(self):
+        for logged_in in (False, True):
+            if logged_in:
+                self.login_session()
+            for totals in ({}, {7: 0}, {7: 9}):
+                self.stock.return_value = totals
+                response = self.add()
+                self.assertEqual((response.status_code, response.json['code']), (409, 'OUT_OF_STOCK'))
+        self.commit.assert_not_called()
+        self.create.assert_not_called()
+
+    def test_small_unit_can_be_added_but_large_unit_requires_its_full_conversion(self):
+        self.stock.return_value = {7: 20}
+        self.assertEqual(self.add().status_code, 200)
+        self.unit.SoLuongQuyDoi = 100
+        self.assertEqual(self.add().json['code'], 'OUT_OF_STOCK')
+        self.unit.SoLuongQuyDoi = 20
+        self.assertEqual(self.add().status_code, 200)
+
+    def test_login_preserves_existing_guest_cart_even_if_stock_has_since_run_out(self):
+        self.stock.return_value = {}
+        with self.app.test_request_context():
+            from flask import session
+            session['guest_cart'] = [[7, 8, 2]]
+            authenticated(self.user)
+            self.assertNotIn('guest_cart', session)
+            self.assertEqual(session['user_id'], 12)
+        self.stock.assert_not_called()
+        self.commit.assert_called_once()
 
     def test_logged_in_add_only_uses_current_owner_and_merges_same_unit(self):
         self.login_session()

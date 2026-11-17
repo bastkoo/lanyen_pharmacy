@@ -32,7 +32,7 @@ trả 503 `DATABASE_UNAVAILABLE`, không lộ thông tin lỗi nội bộ.
 Tái sử dụng truy vấn repository hiện có. Sản phẩm được sắp xếp theo tên và ID để
 phân trang ổn định. Response sản phẩm chỉ gồm `MaThuoc`, `MaLoaiThuoc`, `TenThuoc`,
 `HinhAnh`, `MoTa`, `QuyCachDongGoi`, `NhaSanXuat`, `NuocSanXuat`, `KeDon`, `DonViGia`.
-`DonViGia` gồm `MaDonGia`, `DonViTinh`, `GiaBan`, được truy vấn theo cả trang trong một lần,
+`DonViGia` gồm `MaDonGia`, `DonViTinh`, `GiaBan`, `ConHang`, được truy vấn theo cả trang trong một lần,
 sắp xếp giá giảm dần rồi ID. Không xuất ngưỡng tồn kho, giá nhập, số lượng quy đổi hoặc dữ liệu tài khoản.
 Giá bán lấy trực tiếp từ `DonVi_GiaThuoc`, không suy ra từ đơn vị khác.
 
@@ -120,7 +120,7 @@ cd backend
 .\.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
 ```
 
-- 53 kiểm thử JavaScript và 313 kiểm thử backend: đạt (bao gồm giỏ hàng).
+- 53 kiểm thử JavaScript và 319 kiểm thử backend: đạt (bao gồm giỏ hàng và tồn khả dụng).
 - Browser fixture: 13 danh mục/icon, chọn từng danh mục, danh sách thuốc/phân trang,
   tìm kiếm mở trang riêng, kết hợp danh mục/kê đơn/sắp xếp, URL/tải lại/Quay lại/Tiến tới,
   reset, empty/error/retry, request chậm, chống HTML injection, ảnh, header tìm kiếm cố định,
@@ -155,6 +155,16 @@ Header công khai chỉ còn logo, tìm kiếm, tài khoản và giỏ hàng. Đ
 - Vùng ảnh cố định theo tỷ lệ khung, ảnh và placeholder nằm tuyệt đối bên trong,
   không tham gia tính chiều cao nội dung. Ảnh dùng `object-fit: contain`, căn giữa
   và đệm thống nhất, giữ tỷ lệ đầy đủ; kích thước gốc hoặc trạng thái ảnh lỗi không làm giãn thẻ.
+- Tồn khả dụng là tổng `SoLuongTon > 0` của các lô có `HanSuDung >= ngày hiện tại`
+  theo múi giờ Việt Nam (giữ quy tắc hết hạn hiện có). Tổng này tính theo đơn vị nhỏ nhất.
+  Không có lô hoặc chỉ còn lô hết hạn/hết tồn thì tổng bằng 0.
+  Mỗi đơn vị có `ConHang = tổng tồn khả dụng >= SoLuongQuyDoi` với quy đổi dương.
+  Truy vấn tồn được nhóm riêng theo thuốc trước khi ghép đơn vị để không nhân đôi số tồn.
+  Không xuất số tồn chi tiết hoặc thông tin lô trong API công khai.
+- Chọn đơn vị thiếu tồn đổi nút thành `Hết hàng` và vô hiệu hóa; vẫn cho chọn lại
+  đơn vị khác. POST thêm giỏ kiểm tra lại đủ một đơn vị đang chọn, trả 409 `OUT_OF_STOCK`
+  nếu không đủ. Không trừ/giữ tồn khi thêm giỏ; không tự xóa hoặc chặn gộp giỏ cũ
+  khi hàng hết sau đó. Giỏ hàng không phải cam kết tồn kho cho thanh toán.
 - Mỗi lần Chọn mua thêm 1 đơn vị đang chọn. Cùng thuốc và đơn vị cộng số lượng;
   các đơn vị khác nhau giữ dòng riêng. Không thay đổi tồn kho hoặc tạo đơn hàng.
 - Nút Giỏ hàng ở header mở hộp thoại xem tên, quy cách, số lượng, đơn vị, giá,

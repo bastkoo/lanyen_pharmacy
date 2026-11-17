@@ -22,6 +22,7 @@ class PublicCatalogTests(unittest.TestCase):
         self.product = SimpleNamespace(MaThuoc=7, MaLoaiThuoc=1, TenThuoc='Thuốc A', HinhAnh='https://example.com/image.png', MoTa='<b>Mô tả</b>', QuyCachDongGoi='Hộp 10 viên', NhaSanXuat='NSX', NuocSanXuat='Việt Nam', KeDon=True, NguongTonKho=5, MaVach='00123', PhanLoai=False)
         self.products = self.mock('app.repositories.thuoc_repository.list_products', return_value=([self.product], 1))
         self.units = self.mock('app.repositories.don_vi_gia_thuoc_repository.public_units', return_value=[])
+        self.stock = self.mock('app.services.inventory_service.usable_stock', return_value={7: 100})
         self.user = self.mock('app.repositories.nguoi_dung_repository.find_by_id')
         self.product_rollback = self.mock('app.repositories.thuoc_repository.rollback')
         self.category_rollback = self.mock('app.repositories.loai_thuoc_repository.rollback')
@@ -68,8 +69,18 @@ class PublicCatalogTests(unittest.TestCase):
         self.units.return_value = [SimpleNamespace(MaThuoc=7, MaDonGia=8, DonViTinh='Hộp', GiaBan=120000, SoLuongQuyDoi=100)]
         response = self.client.get('/api/products')
         self.assertEqual(response.json['items'][0]['DonViGia'], [
-            {'MaDonGia': 8, 'DonViTinh': 'Hộp', 'GiaBan': 120000}])
+            {'MaDonGia': 8, 'DonViTinh': 'Hộp', 'GiaBan': 120000, 'ConHang': True}])
         self.units.assert_called_once_with([7])
+
+    def test_public_availability_depends_on_selected_unit_and_usable_batches(self):
+        self.units.return_value = [
+            SimpleNamespace(MaThuoc=7, MaDonGia=8, DonViTinh='Hộp', GiaBan=120000, SoLuongQuyDoi=100),
+            SimpleNamespace(MaThuoc=7, MaDonGia=9, DonViTinh='Vỉ', GiaBan=12000, SoLuongQuyDoi=10)]
+        for total, expected in ((0, [False, False]), (9, [False, False]), (10, [False, True]),
+                                (20, [False, True]), (100, [True, True])):
+            self.stock.return_value = {7: total} if total else {}
+            result = self.client.get('/api/products').json
+            self.assertEqual([unit['ConHang'] for unit in result['items'][0]['DonViGia']], expected)
 
     def test_missing_category_returns_not_found(self):
         self.find_category.return_value = None

@@ -7,6 +7,7 @@ from app.extensions import db
 from app.repositories import gio_thuoc_repository as carts
 from app.repositories import don_vi_gia_thuoc_repository as units
 from app.services.auth_service import AuthError, current_user
+from app.services.inventory_service import usable_stock
 
 MAX_QUANTITY = 2147483647
 # Bound the signed session cookie; only identifiers and quantities are stored.
@@ -41,21 +42,24 @@ def check_quantity(quantity):
         raise AuthError('CART_QUANTITY_LIMIT', 409)
 
 
-def require_unit(product_id, unit_id):
+def require_unit(product_id, unit_id, check_stock=False):
     unit = units.find_by_id(product_id, unit_id)
     if unit is None:
         raise AuthError('UNIT_NOT_FOUND', 404)
     if unit.GiaBan < 0:
         raise AuthError('UNIT_UNAVAILABLE', 409)
+    if check_stock and (unit.SoLuongQuyDoi <= 0 or
+                        usable_stock([product_id]).get(product_id, 0) < unit.SoLuongQuyDoi):
+        raise AuthError('OUT_OF_STOCK', 409)
     return unit
 
 
-def add_database(user_id, entries):
+def add_database(user_id, entries, check_stock=False):
     if carts.lock_user(user_id) is None:
         raise AuthError('UNAUTHENTICATED', 401)
     existing = carts.list_items(user_id)
     for product_id, unit_id, quantity in entries:
-        require_unit(product_id, unit_id)
+        require_unit(product_id, unit_id, check_stock=check_stock)
         matches = [item for item in existing if (item.MaThuoc, item.MaDonGia) == (product_id, unit_id)]
         total = quantity + sum(item.SoLuong for item in matches)
         check_quantity(total)
@@ -82,9 +86,9 @@ def merge_guest(user_id):
 def add_item(product_id, unit_id):
     user_id = owner()
     if user_id is not None:
-        add_database(user_id, [(product_id, unit_id, 1)])
+        add_database(user_id, [(product_id, unit_id, 1)], check_stock=True)
     else:
-        require_unit(product_id, unit_id)
+        require_unit(product_id, unit_id, check_stock=True)
         entries = guest_items()
         match = next((item for item in entries if item[:2] == [product_id, unit_id]), None)
         if match:

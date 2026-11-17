@@ -8,6 +8,7 @@ const node = (tag, text, className) => {
 };
 export const money = value => `${new Intl.NumberFormat('vi-VN').format(BigInt(value))} ₫`;
 const errorMessage = error => ({
+    OUT_OF_STOCK: 'Đơn vị này đã hết hàng hoặc không còn lô đủ tồn và còn hạn. Vui lòng chọn đơn vị khác hoặc tải lại danh sách.',
     UNIT_NOT_FOUND: 'Đơn vị này không còn tồn tại. Hãy tải lại danh sách sản phẩm.',
     UNIT_UNAVAILABLE: 'Đơn vị này chưa có giá bán hợp lệ.',
     GUEST_CART_FULL: 'Giỏ khách đã có 50 đơn vị sản phẩm. Đăng nhập để lưu thêm hoặc xóa bớt trong giỏ.',
@@ -41,23 +42,35 @@ export function purchaseControls(product) {
         for (const unit of units) {
             const label = node('label', undefined, 'catalog-unit-option'), radio = node('input');
             radio.type = 'radio'; radio.name = `product-unit-${product.MaThuoc}`; radio.value = unit.MaDonGia;
+            radio.setAttribute('aria-label', `${unit.DonViTinh}${unit.ConHang === true ? '' : ', hết hàng'}`);
             radio.checked = selected === unit;
             radio.addEventListener('change', () => { selected = unit; price.textContent = `${money(unit.GiaBan)} / ${unit.DonViTinh}`; });
             label.append(radio, node('span', unit.DonViTinh)); fieldset.append(label);
         }
         block.append(fieldset);
     }
-    const buy = node('button', 'Chọn mua', 'button button-primary catalog-buy'); buy.type = 'button';
-    buy.disabled = !selected; buy.setAttribute('aria-label', `Chọn mua ${product.TenThuoc}`);
+    let adding = false;
+    const buy = node('button', undefined, 'button button-primary catalog-buy'); buy.type = 'button';
+    const updateBuy = () => {
+        const available = selected?.ConHang === true;
+        buy.disabled = adding || !available;
+        buy.textContent = available ? 'Chọn mua' : 'Hết hàng';
+        buy.setAttribute('aria-label', `${available ? 'Chọn mua' : 'Hết hàng'} ${product.TenThuoc}${selected ? `, ${selected.DonViTinh}` : ''}`);
+    };
+    block.addEventListener('change', updateBuy);
+    updateBuy();
     buy.addEventListener('click', async () => {
-        buy.disabled = true; const chosen = selected;
+        adding = true; updateBuy(); const chosen = selected;
         status.textContent = 'Đang thêm vào giỏ…';
         try {
             await serialize(() => addCartItem(product.MaThuoc, chosen.MaDonGia));
             status.textContent = `Đã thêm 1 ${chosen.DonViTinh} vào giỏ hàng.`;
             window.dispatchEvent(new Event('cart-changed'));
-        } catch (error) { status.textContent = errorMessage(error); }
-        finally { buy.disabled = false; }
+        } catch (error) {
+            status.textContent = errorMessage(error);
+            if (error.code === 'OUT_OF_STOCK') chosen.ConHang = false;
+        }
+        finally { adding = false; updateBuy(); }
     });
     block.append(price, buy); return block;
 }

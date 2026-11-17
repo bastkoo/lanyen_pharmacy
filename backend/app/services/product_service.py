@@ -67,9 +67,13 @@ def list_public_products(filters):
     items, total = products.list_products(**filters, sort_by='TenThuoc')
     serialized = PublicProductSchema(many=True).dump(items)
     grouped = {item['MaThuoc']: [] for item in serialized}
+    from app.services.inventory_service import usable_stock
+    stock = usable_stock(list(grouped))
     for unit in units.public_units(list(grouped)):
         grouped[unit.MaThuoc].append({'MaDonGia': unit.MaDonGia,
-                                     'DonViTinh': unit.DonViTinh, 'GiaBan': unit.GiaBan})
+                                     'DonViTinh': unit.DonViTinh, 'GiaBan': unit.GiaBan,
+                                     'ConHang': unit.SoLuongQuyDoi > 0 and
+                                     stock.get(unit.MaThuoc, 0) >= unit.SoLuongQuyDoi})
     for item in serialized:
         item['DonViGia'] = grouped[item['MaThuoc']]
     page, per_page = filters['page'], filters['per_page']
