@@ -183,8 +183,11 @@
                     <section class="categories-surface stock-picker" aria-labelledby="batch-picker-title">
                         <h2 id="batch-picker-title">Chọn thuốc để quản lý lô</h2>
                         <form id="batch-product-search" class="stock-picker-form" role="search" novalidate>
+                            <div class="products-field"><label for="batch-category">Danh mục thuốc</label><select id="batch-category" class="categories-input" aria-describedby="batch-categories-status" disabled><option value="">Tất cả danh mục</option></select></div>
                             <div class="products-field"><label for="batch-search">Tìm tên thuốc, mã vạch, mã dược hoặc số đăng ký</label><input id="batch-search" class="categories-input" type="search" aria-describedby="batch-search-error"></div>
+                            <button id="batch-reset" class="button button-outline" type="button">Bỏ bộ lọc</button>
                         </form>
+                        <p id="batch-categories-status" class="products-note" role="status"></p><button id="batch-categories-retry" class="categories-action" type="button" hidden>Thử tải danh mục lại</button>
                         <p id="batch-search-error" class="category-dialog__error" role="status"></p>
                         <div class="stock-picker-form"><div class="products-field"><label for="batch-product-select">Thuốc trong trang kết quả</label><select id="batch-product-select" class="categories-input" disabled><option value="">Chọn thuốc…</option></select></div><button id="batch-products-prev" class="button button-outline" type="button" disabled>Trước</button><button id="batch-products-next" class="button button-outline" type="button" disabled>Sau</button><button id="batch-products-retry" class="categories-action" type="button">Tải lại thuốc</button></div>
                         <p id="batch-picker-status" class="products-note" role="status"></p>

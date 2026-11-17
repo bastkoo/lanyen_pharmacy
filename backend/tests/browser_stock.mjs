@@ -4,7 +4,8 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 let mode = 'normal', nextId = 50, writeGate, releaseWrite;
 const calls = [], asOf = '2026-11-15';
-const products = Array.from({ length: 23 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
+const products = Array.from({ length: 23 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, MaLoaiThuoc: index === 22 ? 2 : 1, QuyCachDongGoi: `Hộp ${index + 1} vỉ x 10 viên`, HinhAnh: '' }));
+const categories = Array.from({ length: 101 }, (_, index) => ({ MaLoaiThuoc: index + 1, TenLoaiThuoc: `Danh mục ${index + 1}` }));
 let batches = Array.from({ length: 23 }, (_, index) => ({ MaLo: index + 1, MaThuoc: 1, SoLoSanXuat: index ? `LOT-${index + 1}` : '<b>LOT-1</b>', NgaySanXuat: '2025-01-01', HanSuDung: index ? '2027-01-01' : '2026-11-14', SoLuongNhap: 100, SoLuongTon: index ? 100 : 1, GiaNhap: 1000 }));
 const pageResult = (items, url, code, extra = {}) => {
     const page = Number(url.searchParams.get('page') || 1), per_page = Number(url.searchParams.get('per_page') || 20);
@@ -18,6 +19,10 @@ export async function stockFixture(req, json) {
     if (mode === 'forbidden') return json(403, { code: 'FORBIDDEN' });
     if (mode === 'network') { req.socket.destroy(); return; }
     if (mode === 'error' || (mode === 'low-error' && url.pathname.endsWith('/low-stock'))) return json(503, { code: 'DATABASE_UNAVAILABLE' });
+    if (parts[3] === 'categories') {
+        if (mode === 'categories-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        return json(200, pageResult(categories, url, 'CATEGORIES_LISTED'));
+    }
     if (parts[3] === 'inventory') {
         if (url.pathname.endsWith('/expiring')) {
             const status = url.searchParams.get('status') || 'expiring', days = Number(url.searchParams.get('days') || 0);
@@ -29,7 +34,7 @@ export async function stockFixture(req, json) {
         return json(200, pageResult(mode === 'empty' ? [] : low ? items.slice(0, 2) : items, url, low ? 'LOW_STOCK_LISTED' : 'INVENTORY_SUMMARY'));
     }
     const productId = Number(parts[4]), batchId = Number(parts[6]);
-    if (!productId) return json(200, pageResult(mode === 'empty' ? [] : products.filter(product => product.TenThuoc.includes(url.searchParams.get('search') || '')), url, 'PRODUCTS_LISTED'));
+    if (!productId) return json(200, pageResult(mode === 'empty' ? [] : products.filter(product => product.TenThuoc.includes(url.searchParams.get('search') || '') && (!url.searchParams.has('category_id') || product.MaLoaiThuoc === Number(url.searchParams.get('category_id')))), url, 'PRODUCTS_LISTED'));
     if (mode === 'slow' && productId === 1) await new Promise(resolve => setTimeout(resolve, 400));
     const product = products.find(item => item.MaThuoc === productId);
     if (!product || mode === 'product-missing') return json(404, { code: 'PRODUCT_NOT_FOUND' });
@@ -65,7 +70,28 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     };
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await run(`location.hash='batches'`); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
+    await waitFor(`!document.querySelector('#batch-category').disabled && document.querySelector('#batch-category').options.length===102`);
+    assert.ok(calls.some(call => call.path.endsWith('/categories') && call.params.get('page') === '2'), 'Loads all category pages');
+    assert.match(await run(`document.querySelector('#batch-product-select option[value="1"]').textContent`), /Quy cách: Hộp 1 vỉ x 10 viên/);
     assert.equal(calls.some(call => call.path.endsWith('/batches')), false);
+    await click('batch-products-next'); await waitFor(`document.querySelector('#batch-product-select').options.length===4`);
+    await run(`document.querySelector('#batch-category').value='1';document.querySelector('#batch-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#batch-picker-status').textContent==='22 thuốc · Trang 1 / 2'`);
+    await click('batch-products-next'); await waitFor(`document.querySelector('#batch-product-select').options.length===3`);
+    assert.ok(calls.some(call => call.params.get('category_id') === '1' && call.params.get('page') === '2'));
+    await run(`document.querySelector('#batch-search').value='Thuốc 23';document.querySelector('#batch-search').dispatchEvent(new Event('input'))`);
+    await waitFor(`document.querySelector('#batch-picker-status').textContent.includes('Không tìm thấy')`);
+    await run(`document.querySelector('#batch-category').value='2';document.querySelector('#batch-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#batch-product-select').options.length===2`);
+    assert.ok(calls.some(call => call.params.get('category_id') === '2' && call.params.get('search') === 'Thuốc 23'));
+    await click('batch-reset'); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
+    await run(`document.querySelector('#batch-category').value='101';document.querySelector('#batch-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#batch-product-select').disabled && document.querySelector('#batch-picker-status').textContent.includes('Không tìm thấy')`);
+    await click('batch-reset'); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
+    mode = 'categories-error'; await run(`location.hash='inventory'`); await waitFor(`document.querySelector('#batches-content').hidden`);
+    await run(`location.hash='batches'`); await waitFor(`!document.querySelector('#batch-categories-retry').hidden && document.querySelector('#batch-product-select').options.length===21`);
+    assert.equal(await run(`document.querySelector('#batch-category').disabled`), true);
+    mode = 'normal'; await click('batch-categories-retry'); await waitFor(`!document.querySelector('#batch-category').disabled`);
     await click('batch-products-next'); await waitFor(`document.querySelector('#batch-product-select').options.length===4`);
     await click('batch-products-prev'); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
     await run(`document.querySelector('#batch-search').value='Thuốc 23';document.querySelector('#batch-search').dispatchEvent(new Event('input'))`);
@@ -74,6 +100,9 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     await run(`document.querySelector('#batch-search').value='';document.querySelector('#batch-product-search').requestSubmit()`); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
     await select(1); await ready(); assert.equal(await run(`document.querySelector('#batches-body').children.length`), 20);
     assert.match(await run(`document.querySelector('#batch-product-identity').textContent`), /Mã vạch: 0000000000001/);
+    assert.match(await run(`document.querySelector('#batch-product-identity').textContent`), /Quy cách đóng gói: Hộp 1 vỉ x 10 viên/);
+    await run(`document.querySelector('#batch-category').value='1';document.querySelector('#batch-category').dispatchEvent(new Event('change'))`);
+    await waitFor(`document.querySelector('#batch-picker-status').textContent==='22 thuốc · Trang 1 / 2'`);
     assert.equal(await run(`document.querySelector('#batches-body b')`), null);
     await screenshot('BATCHES_DESKTOP');
     await click('batches-next'); await waitFor(`document.querySelector('#batches-body').children.length===3`);
@@ -88,6 +117,7 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     assert.match(await run(`document.querySelector('#batch-detail-panel').textContent`), /Số lượng tồn/);
     await key('Escape', 27); await waitFor(`!document.querySelector('#batch-dialog').open`);
     await select(2); await waitFor(`document.querySelector('#batches-state').textContent.includes('Chưa có dữ liệu')`);
+    assert.match(await run(`document.querySelector('#batch-product-identity').textContent`), /Quy cách đóng gói: Hộp 2 vỉ x 10 viên/);
     await click('batch-add'); await formReady(); await submit();
     assert.equal(await run(`document.querySelector('#batch-SoLoSanXuat').getAttribute('aria-invalid')`), 'true');
     assert.equal(calls.filter(call => call.method === 'POST').length, 0);
@@ -102,6 +132,7 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     await waitFor(`!document.querySelector('#batch-dialog').open && document.querySelector('#batches-body').children.length===1`);
     assert.equal(calls.filter(call => call.method === 'POST').length, before + 1); mode = 'normal';
     assert.equal(batches.find(item => item.MaThuoc === 2).SoLuongTon, 100);
+    assert.equal(await run(`document.querySelector('#batch-category').value`), '1', 'Saving batches preserves category selection');
     await run(`document.querySelector('#batches-body [data-batch-action="edit"]').click()`); await formReady();
     assert.equal(await run(`document.querySelector('#batch-SoLuongNhap').disabled`), true);
     assert.equal(await run(`document.querySelector('#batch-SoLuongTon')`), null);
@@ -172,6 +203,7 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     assert.equal(await run(`document.querySelector('#inventory-summary-body').children.length+document.querySelector('#batches-body').children.length`), 0);
     mode = 'normal'; await click('manager-retry'); await waitFor(`!document.querySelector('#manager-shell').hidden`);
     await run(`location.hash='batches'`); await waitFor(`!document.querySelector('#batch-product-select').disabled`);
+    assert.equal(await run(`document.querySelector('#batch-category').value`), '', 'Session cleanup clears category selection');
     mode = 'forbidden'; await select(1); await waitFor(`!document.querySelector('#manager-gate').hidden`); mode = 'normal';
     console.log('PASS: batches create/view/edit, immutable quantities, unsafe delete refusal, stock summary/low/expiry/as_of, filters/pagination, cross-page navigation, stale requests/errors/retry/401/403, keyboard/dialogs, 1440–320px. API/AUTH MOCK; no PostgreSQL writes.');
 }

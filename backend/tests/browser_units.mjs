@@ -6,7 +6,7 @@ import path from 'node:path';
 let mode = 'normal', nextId = 40;
 let writeGate, releaseWrite;
 let units = Array.from({ length: 23 }, (_, index) => ({ MaDonGia: index + 1, MaThuoc: 1, DonViTinh: index === 0 ? '<b>Viên</b>' : `Hộp ${index}`, GiaBan: index * 10000, SoLuongQuyDoi: index + 1 }));
-const products = Array.from({ length: 13 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, HinhAnh: '' }));
+const products = Array.from({ length: 13 }, (_, index) => ({ MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc ${index + 1}`, MaDuoc: `MD-${index + 1}`, SoDangKy: `SDK-${index + 1}`, QuyCachDongGoi: `Hộp ${index + 1} vỉ x 10 viên`, HinhAnh: '' }));
 const calls = [];
 const categories = Array.from({ length: 101 }, (_, index) => ({ MaLoaiThuoc: index + 1, TenLoaiThuoc: `Loại thuốc ${index + 1}` }));
 export async function unitFixture(req, json) {
@@ -110,6 +110,7 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     await run(`document.querySelector('#units-category').value='1';document.querySelector('#units-category').dispatchEvent(new Event('change'))`);
     await waitFor(`document.querySelector('#units-picker-status').textContent==='12 thuốc phù hợp'`);
     assert.match(await run(`document.querySelector('#units-product').textContent`), /Mã vạch: 0000000000001/);
+    assert.match(await run(`document.querySelector('#units-product').textContent`), /Quy cách đóng gói: Hộp 1 vỉ x 10 viên/);
     assert.equal(await run(`document.querySelector('#units-body').children.length`), 20);
     assert.equal(await run(`document.querySelector('#units-body b')`), null, 'API names are text, never HTML');
     assert.match(await run(`document.querySelector('#units-body').textContent`), /0\s*₫/);
@@ -119,6 +120,7 @@ export async function checkUnits({ evaluate: run, waitFor, key, command, root })
     assert.doesNotMatch(await run(`document.querySelector('#units-body').textContent`), /#\d+/, 'No database identity is displayed');
     await click('units-prev'); await waitFor(`document.querySelector('#units-body').children.length===20`);
     await choose(2); await waitFor(`document.querySelector('#units-state-title').textContent==='Thuốc chưa có đơn vị bán'`);
+    assert.match(await run(`document.querySelector('#units-product').textContent`), /Quy cách đóng gói: Hộp 2 vỉ x 10 viên/);
     await click('units-add'); await dialogReady(); await submit();
     assert.equal(await run(`document.querySelector('#unit-DonViTinh').getAttribute('aria-invalid')`), 'true');
     assert.equal(calls.filter(call => call.method === 'POST').length, 0);

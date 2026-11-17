@@ -134,6 +134,7 @@ export function setupUnits({ root, onAccessError }) {
             if (data.code !== 'PRODUCT_FOUND' || data.product?.MaThuoc !== id || typeof data.product.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
             product = data.product;
             const identity = node('div'); identity.append(node('h3', product.TenThuoc), node('p', `Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), node('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
+            identity.append(node('p', `Quy cách đóng gói: ${product.QuyCachDongGoi || 'Chưa có thông tin'}`));
             if (validHttps(product.HinhAnh)) {
                 const image = node('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.src = product.HinhAnh;
                 image.addEventListener('error', () => { image.hidden = true; }); $('units-product').append(image);
