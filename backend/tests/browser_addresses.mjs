@@ -3,6 +3,9 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 let rows = [], nextId = 1, mode = 'normal';
+export function resetAddressFixture(items) { rows = items.map(item => ({ ...item })); nextId = Math.max(0, ...rows.map(item => item.MaDiaChi)) + 1; mode = 'normal'; }
+export const setAddressFixtureMode = value => { mode = value; };
+export const addressSnapshot = () => rows.map(item => ({ ...item }));
 let provinceMode = 'normal';
 export function provinceFixture(url) {
     const isList = new URL(url).pathname.endsWith('/p/');

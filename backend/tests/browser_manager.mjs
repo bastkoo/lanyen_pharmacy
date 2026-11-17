@@ -19,6 +19,7 @@ import { checkCartPage } from './browser_cart.mjs';
 import { checkProfile, profileFixture } from './browser_profile.mjs';
 import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
 import { checkPoints, pointsFixture } from './browser_points.mjs';
+import { checkCheckout } from './browser_checkout.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -34,6 +35,7 @@ const homepageTest = process.argv.includes('--homepage');
 const profileTest = process.argv.includes('--profile');
 const addressTest = process.argv.includes('--addresses');
 const pointsTest = process.argv.includes('--points');
+const checkoutTest = process.argv.includes('--checkout');
 let checkingHomepage = false;
 const homepageRequests = [];
 let checkingAccounts = false;
@@ -389,7 +391,7 @@ try {
     await waitFor(`!document.querySelector('#main').inert`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), false);
     assert.equal(await evaluate('document.activeElement.id'), 'login-button');
-    if (homepageTest || profileTest || addressTest || pointsTest) {
+    if (homepageTest || profileTest || addressTest || pointsTest || checkoutTest) {
         checkingHomepage = true;
         if (homepageTest) {
         await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });
@@ -399,6 +401,8 @@ try {
         if (homepageTest || profileTest) await checkProfile({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; }, user: fixtureUser });
         if (homepageTest || addressTest) await checkAddresses({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
         if (homepageTest || pointsTest) await checkPoints({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        if (checkoutTest && !homepageTest) await checkCartPage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        if (homepageTest || checkoutTest) await checkCheckout({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; }, requests: homepageRequests });
         checkingHomepage = false;
     }
     assert.deepEqual(errors, []);

@@ -8,7 +8,7 @@ Trang hỗ trợ chọn tất cả/từng dòng, xem chi tiết thuốc, chỉnh
 
 Hiển thị giá gốc, giá ưu đãi, số lượng được ưu đãi và tổng tiền của các dòng được chọn. Máy chủ tính lại ưu đãi trên phần được chọn để các dòng không chọn không chiếm hạn mức khuyến mãi. Tiếp tục dùng chương trình đang diễn ra có giá tốt nhất, không cộng dồn; hạn mức tính theo đơn vị nhỏ nhất, không giữ chỗ hay trừ hạn mức khi sửa giỏ.
 
-Nút Mua hàng bị vô hiệu hóa theo phạm vi yêu cầu. Chưa có đặt hàng, thanh toán, voucher hoặc chính sách miễn phí giao hàng mới. Tổng tiền hiển thị là tạm tính chưa gồm phí giao hàng.
+Nút Mua hàng chuyển sang trang xác nhận nhận hàng/thanh toán của Module 03.8 khi có sản phẩm được chọn và báo giá thành công. Nút bị khóa khi đang tải, báo giá lỗi hoặc không có lựa chọn hợp lệ. Chưa tạo đơn hay thanh toán thật; tổng tiền giỏ vẫn là tạm tính chưa gồm phí giao hàng.
 
 Sản phẩm được giảm giá có icon vé ưu đãi và mức giảm: phần trăm của chương trình hoặc số tiền thực giảm trên một đơn vị đang chọn. Icon này minh họa ưu đãi sản phẩm hiện có, không thêm chức năng nhập voucher. Thanh thông tin thanh toán ẩn dòng giảm giá và khối ưu đãi khi tổng giảm của các dòng được chọn bằng 0.
 

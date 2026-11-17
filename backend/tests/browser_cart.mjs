@@ -15,7 +15,7 @@ export async function checkCartPage({ evaluate: run, waitFor, command, root, bas
     await navigate('home.html'); await waitFor(`document.querySelector('[data-cart]')?.getAttribute('href')==='cart.html'`);
     await click(`document.querySelector('[data-cart]')`); await ready(2); await total('50.000 ₫');
     assert.equal(await run('location.pathname'), '/pages/customer/cart.html');
-    assert.equal(await run(`document.querySelector('.cart-checkout').disabled`), true, 'Checkout is deliberately inactive');
+    assert.equal(await run(`document.querySelector('.cart-checkout').disabled`), false, 'Selected quoted products can continue to confirmation');
     assert.equal(await run(`document.querySelector('#cart-original-total').textContent`), '60.000 ₫');
     assert.equal(await run(`document.querySelector('#cart-discount-total').textContent`), '−10.000 ₫');
     assert.equal(await run(`${row(11)}.querySelector('.cart-offer strong').textContent`), 'Giảm 20%');
@@ -29,6 +29,7 @@ export async function checkCartPage({ evaluate: run, waitFor, command, root, bas
     await click(`document.querySelector('#cart-select-all')`); await total('50.000 ₫'); setCartMode('cart-quote-error');
     await click(`${row(11)}.querySelector('input[type="checkbox"]')`);
     await waitFor(`document.querySelector('#cart-final-total').textContent==='—' && !document.querySelector('#cart-retry').hidden`);
+    assert.equal(await run(`document.querySelector('.cart-checkout').disabled`), true, 'Failed quotes cannot continue to confirmation');
     assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Loading, selecting and failed quotes do not show a notice');
     setCartMode('normal'); await click(`document.querySelector('#cart-retry')`); await total('10.000 ₫');
     await click(`document.querySelector('#cart-select-all')`); await total('50.000 ₫');
@@ -46,6 +47,7 @@ export async function checkCartPage({ evaluate: run, waitFor, command, root, bas
     assert.equal(await run(`${row(11)}.querySelector('input[type="number"]').value`), '2');
     setCartMode('normal'); await click(`document.querySelector('#cart-retry')`); await total('80.000 ₫');
     await click(`document.querySelector('#cart-select-all')`); await total('0 ₫');
+    assert.equal(await run(`document.querySelector('.cart-checkout').disabled`), true, 'No selection cannot continue to confirmation');
     await click(`${row(11)}.querySelector('.cart-remove')`); await ready(0);
     assert.equal(await run(`document.querySelector('#cart-empty').hidden`), false);
     await waitFor(`document.querySelector('.cart-count').hidden`);
@@ -78,5 +80,5 @@ export async function checkCartPage({ evaluate: run, waitFor, command, root, bas
     assert.equal(await run(`document.querySelector('.cart-offer')`), null, 'Full-price items have no voucher strip');
     assert.equal(await run(`getComputedStyle(document.querySelector('#cart-discount-total').parentElement).display`), 'none', 'Zero discount rows are visually hidden');
     setCartMode('normal');
-    console.log('PASS: dedicated cart navigation, selection/requote, totals/discounts, quantity/unit edits, remove/empty, persisted guest, owner separation, failed writes/quotes/retry, checkout inactive, 1440–320px. MOCK API; no database writes.');
+    console.log('PASS: dedicated cart navigation, selection/requote, totals/discounts, quantity/unit edits, remove/empty, persisted guest, owner separation, failed writes/quotes/retry, confirmation availability, 1440–320px. MOCK API; no database writes.');
 }

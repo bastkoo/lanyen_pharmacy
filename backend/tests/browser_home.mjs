@@ -31,8 +31,8 @@ export async function cartFixture(req, json, authenticated) {
             const unit = product.DonViGia.find(unit => unit.MaDonGia === item.MaDonGia);
             return { ...item, ...unit, HinhAnh: product.HinhAnh, ConHang: unit.ConHang && item.SoLuong <= 20, DonViGia: product.DonViGia,
                 TenThuoc: product.TenThuoc, QuyCachDongGoi: product.QuyCachDongGoi, ThanhTien: unit.GiaBan * item.SoLuong,
-                ...(saleQuotes && product.MaThuoc === 1 ? { GiaBan: 40000, GiaGoc: unit.GiaBan, SoLuongKhuyenMai: item.SoLuong,
-                    ThanhTien: 40000 * item.SoLuong, KhuyenMai: { MaChuongTrinh: 1, TenChuongTrinh: 'Ưu đãi tháng 11', LoaiGiamGia: saleQuotes !== 'direct', GiaTriGiam: saleQuotes === 'direct' ? '1000' : '20' } } : {}) };
+                ...(saleQuotes && product.MaThuoc === 1 ? { GiaBan: 40000, GiaGoc: unit.GiaBan, SoLuongKhuyenMai: saleQuotes === 'partial' ? Math.min(item.SoLuong, 1) : item.SoLuong,
+                    ThanhTien: saleQuotes === 'partial' ? 40000 + unit.GiaBan * (item.SoLuong - 1) : 40000 * item.SoLuong, KhuyenMai: { MaChuongTrinh: 1, TenChuongTrinh: 'Ưu đãi tháng 11', LoaiGiamGia: saleQuotes !== 'direct', GiaTriGiam: saleQuotes === 'direct' ? '1000' : '20' } } : {}) };
         });
     const reply = entries => {
         const rows = readRows(entries);

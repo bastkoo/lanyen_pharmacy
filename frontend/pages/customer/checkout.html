@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Xác nhận sản phẩm, hình thức nhận hàng và phương thức thanh toán tại Lan Yến Pharmacy.">
+    <meta name="theme-color" content="#16865B">
+    <title>Xác nhận mua hàng · Lan Yến Pharmacy</title>
+    <link rel="icon" href="../../assets/images/LY-removebg-preview.png">
+    <link rel="preload" href="../../assets/fonts/be-vietnam-pro-400.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="../../css/base/variables.css">
+    <link rel="stylesheet" href="../../css/base/reset.css">
+    <link rel="stylesheet" href="../../css/base/global.css">
+    <link rel="stylesheet" href="../../css/pages/home.css">
+    <link rel="stylesheet" href="../../css/components/auth.css">
+    <link rel="stylesheet" href="../../css/pages/public-checkout.css">
+    <script type="module" src="../../js/pages/home.js"></script>
+    <script type="module" src="../../js/pages/public-home.js"></script>
+    <script type="module" src="../../js/pages/public-checkout.js"></script>
+</head>
+<body class="public-home public-checkout">
+    <a class="skip-link" href="#main">Đến nội dung chính</a>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="home.html" aria-label="Lan Yến Pharmacy — Trang chủ">
+                <img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56">
+                <span>Lan Yến<span class="brand-caption">PHARMACY</span></span>
+            </a>
+            <div class="header-search">
+                <form id="public-search-form" class="public-search" role="search" action="products.html" method="get" novalidate>
+                    <label class="sr-only" for="public-search">Tìm thuốc và sản phẩm chăm sóc sức khỏe</label>
+                    <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 5 5"></path></svg>
+                    <input id="public-search" name="search" type="search" placeholder="Tìm tên thuốc, vitamin, sản phẩm chăm sóc sức khỏe..." aria-describedby="public-search-status" maxlength="255" autocomplete="off">
+                    <button class="button button-primary" type="submit">Tìm kiếm</button>
+                </form>
+                <p id="public-search-status" class="search-status" role="status"></p>
+            </div>
+            <div class="header-account">
+                <span id="header-status" class="sr-only">Đang kiểm tra phiên…</span>
+                <button type="button" class="account-button" id="login-button" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>Đăng nhập</span></button>
+                <button type="button" class="account-button" id="logout-button" hidden>Đăng xuất</button>
+                <span class="header-divider" aria-hidden="true"></span>
+                <a class="account-button" data-cart href="cart.html"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12h11l2-8H6"></path><circle cx="9" cy="20" r="1"></circle><circle cx="18" cy="20" r="1"></circle></svg><span>Giỏ hàng</span></a>
+            </div>
+        </div>
+    </header>
+    <main id="main" tabindex="-1" class="page-width checkout-page">
+        <a href="cart.html" class="quiet-link">← Trở về giỏ hàng</a>
+        <h1>Xác nhận mua hàng</h1><p class="checkout-intro">Kiểm tra sản phẩm và lựa chọn cách nhận hàng phù hợp với bạn.</p>
+        <p id="checkout-state" class="checkout-state" role="status">Đang kiểm tra sản phẩm đã chọn…</p><button id="checkout-retry" class="quiet-link" type="button" hidden>Thử tải lại</button>
+        <div id="checkout-layout" class="checkout-layout" hidden>
+            <div class="checkout-content">
+                <section class="checkout-section" aria-labelledby="checkout-receipt-title">
+                    <h2 id="checkout-receipt-title">1. Chọn hình thức nhận hàng</h2>
+                    <fieldset class="receipt-options"><legend class="sr-only">Hình thức nhận hàng</legend><label><input type="radio" name="receipt" value="delivery" checked><span>Giao hàng tận nơi</span></label><label><input type="radio" name="receipt" value="pickup"><span>Nhận tại nhà thuốc</span></label></fieldset>
+                    <div id="checkout-delivery" class="checkout-recipient">
+                        <div class="checkout-panel-heading"><h3>Địa chỉ nhận hàng</h3><button id="checkout-change-address" class="quiet-link" type="button" hidden>Thay đổi</button></div>
+                        <p id="checkout-address-state" role="status">Đang kiểm tra tài khoản…</p><div id="checkout-address" hidden><p id="checkout-address-badge" class="checkout-address-badge"></p><p id="checkout-street" class="checkout-street"></p><p id="checkout-locality"></p></div>
+                        <p id="checkout-recipient" class="checkout-recipient-name"></p>
+                        <button id="checkout-login" class="button button-outline" type="button" hidden>Đăng nhập để chọn địa chỉ</button><a id="checkout-add-address" class="quiet-link" href="addresses.html" hidden>+ Thêm địa chỉ nhận hàng</a><button id="checkout-address-retry" class="quiet-link" type="button" hidden>Thử tải địa chỉ lại</button>
+                    </div>
+                    <div id="checkout-pickup" class="checkout-recipient" hidden><h3>Nhà thuốc Lan Yến</h3><p class="checkout-street">126 Dương Văn An</p><p>Phường Vỹ Dạ, TP Huế</p></div>
+                    <div class="checkout-note"><label for="checkout-note">Ghi chú <span>(không bắt buộc)</span></label><textarea id="checkout-note" rows="3" placeholder="Ví dụ: Gọi cho tôi trước khi giao hàng"></textarea></div>
+                    <div class="checkout-shipping-note"><h3>Lưu ý giao hàng</h3><p>Được miễn phí giao trong Trung tâm thành phố Huế (dự kiến nhận hàng sau 2–3 giờ). Các phường/xã ngoài trung tâm hoặc tỉnh/thành khác có thể nhận hàng từ 3–4 ngày và phát sinh chi phí giao hàng do người đặt chi trả.</p></div>
+                </section>
+                <section class="checkout-section" aria-labelledby="checkout-products-title"><div class="checkout-panel-heading"><h2 id="checkout-products-title">2. Sản phẩm đã chọn</h2><span id="checkout-product-count"></span></div><ul id="checkout-products" class="checkout-products"></ul></section>
+                <section class="checkout-section" aria-labelledby="checkout-payment-title">
+                    <h2 id="checkout-payment-title">3. Chọn phương thức thanh toán</h2>
+                    <fieldset class="payment-options"><legend class="sr-only">Phương thức thanh toán</legend><label><input type="radio" name="payment" value="cod" checked><span class="payment-icon" aria-hidden="true">₫</span><span>Thanh toán khi nhận hàng</span></label><label><input type="radio" name="payment" value="qr"><svg class="icon payment-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h6v6H3zm12 0h6v6h-6zM3 15h6v6H3zm12 0h2v2h-2zm4 0h2v6h-6v-2h2M3 12h6m3-9v6m0 3h5m-5 3v6"/></svg><span>Thanh toán bằng QR</span></label></fieldset>
+                    <p id="checkout-qr-state" class="checkout-qr-state" hidden>Chưa có mã QR thanh toán cho đơn này.</p>
+                </section>
+            </div>
+            <aside class="checkout-summary" aria-labelledby="checkout-summary-title"><h2 id="checkout-summary-title">Thông tin thanh toán</h2><p id="checkout-offers" class="checkout-offers" hidden></p>
+                <dl class="checkout-totals"><div><dt>Tổng tiền hàng</dt><dd id="checkout-original">—</dd></div><div id="checkout-discount-row" hidden><dt>Giảm giá sản phẩm</dt><dd id="checkout-discount">—</dd></div><div><dt>Phí giao hàng</dt><dd id="checkout-shipping">Xác nhận theo địa chỉ</dd></div><div class="checkout-final"><dt>Tạm tính</dt><dd id="checkout-total">—</dd></div></dl>
+                <p id="checkout-total-note" class="checkout-total-note">Chưa bao gồm phí giao hàng nếu có.</p><button id="checkout-complete" class="button button-primary" type="button" disabled aria-describedby="checkout-complete-note">Hoàn tất</button><p id="checkout-complete-note" class="checkout-total-note">Chức năng hoàn tất đơn hàng sẽ được bổ sung ở bước tiếp theo.</p>
+            </aside>
+        </div>
+        <p id="page-status" class="sr-only" role="status"></p><button id="retry-session" class="quiet-link" type="button" hidden>Thử kiểm tra đăng nhập lại</button>
+        <dialog id="checkout-address-dialog" class="checkout-address-dialog" aria-labelledby="checkout-address-dialog-title"><div class="checkout-panel-heading"><h2 id="checkout-address-dialog-title">Chọn địa chỉ nhận hàng</h2><button id="checkout-address-close" class="icon-button" type="button" aria-label="Đóng chọn địa chỉ">×</button></div><fieldset id="checkout-address-options"><legend class="sr-only">Địa chỉ nhận hàng của bạn</legend></fieldset><div class="checkout-dialog-actions"><a href="addresses.html" class="quiet-link">Quản lý địa chỉ</a><button id="checkout-address-done" class="button button-primary" type="button">Sử dụng địa chỉ này</button></div></dialog>
+        <noscript><p>Bật JavaScript để xem thông tin xác nhận mua hàng.</p></noscript>
+    </main>
+    <footer id="contact" class="site-footer" tabindex="-1">
+        <div class="page-width footer-grid">
+            <div class="footer-brand"><a href="home.html" class="brand" aria-label="Lan Yến Pharmacy — Trang chủ"><img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56" loading="lazy"><span>Lan Yến<span class="brand-caption">PHARMACY</span></span></a><p>Chăm sóc sức khỏe, <br>bắt đầu từ sự an tâm.</p></div>
+            <div><h2>Khám phá</h2><nav aria-label="Điều hướng cuối trang"><a href="home.html">Trang chủ</a><a href="home.html#categories">Danh mục</a><a href="home.html#health-journal">Góc sức khỏe</a><a href="#contact">Liên hệ</a></nav></div>
+            <div><h2>Hỗ trợ khách hàng</h2><ul><li><button type="button" data-coming="shopping" aria-haspopup="dialog">Hướng dẫn mua hàng</button></li><li><button type="button" data-coming="privacy" aria-haspopup="dialog">Chính sách bảo mật</button></li><li><button type="button" data-coming="terms" aria-haspopup="dialog">Điều khoản sử dụng</button></li></ul></div>
+            <div><h2>Liên hệ Lan Yến</h2><p>Thông tin liên hệ đang được cập nhật.</p><p class="footer-note">Địa chỉ, số điện thoại và email sẽ được công bố tại đây khi có thông tin chính thức.</p></div>
+        </div>
+        <div class="page-width footer-bottom"><span>© Lan Yến Pharmacy.</span><span>Quan tâm mỗi ngày. An tâm mỗi lựa chọn.</span></div>
+    </footer>
+    <dialog id="feature-dialog" class="feature-dialog" aria-labelledby="feature-title" aria-describedby="feature-description"><button id="feature-close" class="icon-button" type="button" aria-label="Đóng thông báo"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button><p class="eyebrow">LAN YẾN PHARMACY</p><h2 id="feature-title">Chức năng đang được phát triển</h2><p id="feature-description"></p><button id="feature-done" class="button button-primary" type="button">Đã hiểu</button></dialog>
+    <div id="auth-backdrop" hidden aria-hidden="true"></div>
+    <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
+        <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
+        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
+        <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
+        <form id="phone-form" novalidate>
+            <label for="phone">Số điện thoại</label>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
+            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <p id="phone-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Gửi mã OTP</button>
+            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
+        </form>
+        <form id="otp-form" hidden novalidate>
+            <label for="otp">Mã OTP gồm 6 chữ số</label>
+            <input id="otp" name="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required spellcheck="false" aria-describedby="otp-help otp-error">
+            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã vào ô này.</p>
+            <p id="otp-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
+            <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>
+        </form>
+        <form id="profile-form" hidden novalidate>
+            <label for="full-name">Họ và tên</label>
+            <input id="full-name" name="ho_ten" type="text" autocomplete="name" maxlength="255" required aria-describedby="name-help name-error">
+            <p id="name-help" class="field-help">Tên này sẽ hiển thị trong tài khoản của bạn.</p>
+            <p id="name-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Hoàn tất và đăng nhập</button>
+        </form>
+    </dialog>
+</body>
+</html>

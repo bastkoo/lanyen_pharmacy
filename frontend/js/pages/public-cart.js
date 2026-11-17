@@ -3,6 +3,7 @@ import { money, cartErrorMessage } from '../components/cart.js';
 import { notify } from '../components/customer-notice.js';
 import { openProductDetail } from '../components/public-product-detail.js';
 import { validHttps } from '../utils/product-validation.js';
+import { checkoutUrl } from '../utils/checkout-selection.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => {
@@ -12,6 +13,7 @@ const node = (tag, text, className) => {
     return element;
 };
 let items = [], selected = null, prices = new Map(), authenticated, busy = false, version = 0, quoteVersion = 0, disposed = false, pendingFocus;
+let checkoutReady = false;
 const selectionOverrides = new Map();
 const usable = item => item.GiaBan !== null && item.ConHang === true;
 function button(text, label, action, className) {
@@ -101,10 +103,12 @@ function renderRows() {
     $('cart-select-all').checked = candidates.length > 0 && candidates.every(item => selected.has(item.MaDonGia));
     $('cart-select-all').indeterminate = selected.size > 0 && !$('cart-select-all').checked;
     $('cart-select-all').disabled = busy || !candidates.length;
+    document.querySelector('.cart-checkout').disabled = busy || !checkoutReady;
     $('cart-select-count').textContent = `Chọn tất cả (${items.length})`;
     if (focus && !busy) { ([...document.querySelectorAll('[data-focus]')].find(element => element.dataset.focus === focus && !element.disabled) || $('cart-select-all')).focus({ preventScroll: true }); pendingFocus = undefined; }
 }
 function renderTotals(data) {
+    checkoutReady = data.items.length > 0 && data.items.every(usable);
     const total = BigInt(data.total);
     const original = data.items.reduce((sum, item) => sum + BigInt(item.GiaGoc ?? item.GiaBan ?? 0) * BigInt(item.SoLuong), 0n);
     const offers = new Set(data.items.filter(item => item.KhuyenMai).map(item => item.KhuyenMai.MaChuongTrinh));
@@ -116,6 +120,7 @@ function renderTotals(data) {
     $('cart-selected-count').textContent = `Tạm tính (${data.items.length} sản phẩm)`;
 }
 async function refreshQuote(fullCart) {
+    checkoutReady = false;
     const attempt = ++quoteVersion; busy = true; renderRows(); $('cart-summary').setAttribute('aria-busy', 'true');
     $('cart-discount-total').parentElement.hidden = true; $('cart-offer-summary').hidden = true;
     for (const id of ['cart-original-total', 'cart-discount-total', 'cart-final-total']) $(id).textContent = '…';
@@ -134,6 +139,7 @@ async function refreshQuote(fullCart) {
 }
 async function load() {
     if (busy || disposed) return;
+    checkoutReady = false; document.querySelector('.cart-checkout').disabled = true;
     const attempt = ++version; $('cart-state').textContent = 'Đang tải giỏ hàng…'; $('cart-retry').hidden = true;
     try {
         const data = await getCart();
@@ -163,6 +169,11 @@ async function mutate(task, message, committed) {
     finally { if (!disposed) { busy = false; renderRows(); } }
 }
 $('cart-select-all').addEventListener('change', () => { selected = new Set($('cart-select-all').checked ? items.filter(usable).map(item => item.MaDonGia) : []); refreshQuote(); });
+document.querySelector('.cart-checkout').addEventListener('click', () => {
+    if (busy || !checkoutReady) return;
+    try { window.location.assign(checkoutUrl([...selected])); }
+    catch { $('cart-state').textContent = 'Chọn từ 1 đến 1.000 dòng sản phẩm để tiếp tục.'; }
+});
 $('cart-retry').addEventListener('click', load);
 window.addEventListener('auth-changed', load);
 window.addEventListener('cart-changed', load);
