@@ -115,6 +115,25 @@ def read(user_id, order_id):
 
 
 @operation
+def read_detail(user_id, order_id):
+    if not 0 < order_id <= 9223372036854775807:
+        raise AuthError('ORDER_NOT_FOUND', 404)
+    order = orders.find(order_id)
+    if order is None or order.MaNguoiMua != user_id:
+        raise AuthError('ORDER_NOT_FOUND', 404)
+    result = serialize(order, legacy_payment=False)
+    result['NgayDat'] = order.NgayDat.isoformat()
+    result['GhiChu'] = order.GhiChu
+    result['items'] = [dict(
+        MaChiTiet=str(detail.MaChiTiet), MaThuoc=detail.MaThuoc, MaDonGia=detail.MaDonGia,
+        SoLuong=detail.SoLuong, DonGia=str(detail.DonGia), ThanhTien=str(detail.SoLuong * detail.DonGia),
+        TenThuoc=product.TenThuoc if product else 'Sản phẩm không còn trong danh mục',
+        HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '')
+        for detail, product, unit in orders.detail_items(order_id)]
+    return result
+
+
+@operation
 def webhook(authorization, data):
     config = payment_config()
     expected = 'Apikey ' + config['SEPAY_WEBHOOK_API_KEY']

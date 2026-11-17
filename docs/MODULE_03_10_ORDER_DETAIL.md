@@ -1,0 +1,43 @@
+# MODULE 03.10 — Chi tiết và tiến trình đơn hàng
+
+## Luồng đã xác nhận
+
+- COD: Hoàn tất tạo đơn/trừ kho như hiện tại, sau đó chuyển sang `customer/order-detail.html?order=<id>`.
+- QR: giữ chuyển thẳng Checkout SePay sau khi tạo đơn. Các callback thành công/lỗi/hủy đều trả qua `GET /api/payments/sepay/return?order=<id>` để mở trang chi tiết. Không cập nhật trạng thái từ callback.
+- API chi tiết chỉ đọc: `GET /api/orders/<id>/detail`, session khách hàng và kiểm tra quyền sở hữu. API `GET /api/orders/<id>` hiện có được giữ nguyên.
+- Các giá trị BIGINT của mã/tiền được trả dạng chuỗi. Giá và số lượng lấy từ ChiTietDonHang; tên, ảnh, tên đơn vị lấy từ danh mục hiện tại. Tổng tiền và giảm giá lấy từ DonHang, không tính lại theo giá bán hiện tại.
+
+## Tiến trình
+
+| TrangThaiDonHang | Nhãn trên trang |
+| --- | --- |
+| 0 | Đặt hàng |
+| 1 | Xử lý đơn |
+| 2 | Đang giao |
+| 3 | Đã giao |
+
+Các giá trị 4/5 vẫn hiển thị Đã hủy/Đổi trả, không bị ép về tiến trình 0–3. Không đổi enum hoặc ý nghĩa trạng thái Backend.
+
+Đường nối từ bước hiện tại đến bước kế tiếp có vệt xanh chạy lặp. Khi đã giao thì dừng. Người dùng có thể tạm dừng/chạy lại hiệu ứng; `prefers-reduced-motion` tắt animation. Hiệu ứng chỉ minh họa bước kế tiếp, không tự thay đổi trạng thái đơn. Trang đọc lại API mỗi 5 giây khi đơn ở 0/1/2; có nút cập nhật thủ công và xử lý lỗi riêng.
+
+## Dữ liệu và bố cục
+
+Trang theo bố cục tham khảo, giữ Green 1.0: tiến trình/thông tin nhận bên trái, thanh toán bên phải, danh sách sản phẩm phía dưới. Mobile xếp tiến trình, thanh toán rồi sản phẩm; không ép bốn bước thành thanh cuộn ngang. Có sao chép mã đơn, nút tiếp tục thanh toán QR còn chờ và liên kết mua hàng.
+
+Thông tin nhận hàng đọc bản chụp trong GhiChu theo định dạng luồng tạo đơn hiện có. Đơn cũ không có bản chụp hiển thị rõ thiếu thông tin, không tự lấy địa chỉ hiện tại để thay cho địa chỉ lúc đặt. Chỉ hiển thị ngày đặt có thật; không bịa thời gian các bước, ngày giao dự kiến, phí miễn phí, voucher, blockchain hoặc chức năng hủy đơn chưa có API.
+
+Đăng xuất, mất quyền hoặc lỗi chủ sở hữu xóa dữ liệu riêng khỏi DOM. Không đưa dữ liệu API vào innerHTML.
+
+## Callback SePay
+
+- Điền `SEPAY_FRONTEND_ORIGIN` bằng origin Frontend nằm trong `AUTH_ALLOWED_ORIGINS`.
+- Đặt `SEPAY_SUCCESS_URL`, `SEPAY_ERROR_URL`, `SEPAY_CANCEL_URL` và ba biến tương ứng `SEPAY_PRODUCTION_*` tới `https://<backend-public>/api/payments/sepay/return`. Backend tự gắn `order` vào query và ký cùng form.
+- Với môi trường local hiện tại, ngrok trỏ cổng 5000 nhận callback, rồi redirect 303 tới `http://localhost:5500/pages/customer/order-detail.html?order=<id>`. Không cần expose HTML qua cùng tunnel Backend.
+- Khi deploy, thay origin Frontend và callback bằng URL công khai tương ứng. Nếu ngrok đổi domain, cập nhật cả callback lẫn IPN rồi restart Flask.
+- Endpoint return chỉ cho phép origin đã cấu hình/allowlist, không nhận URL redirect tùy ý và không ghi database. Trang chi tiết vẫn cần đăng nhập đúng chủ đơn.
+
+## Kiểm thử
+
+- Backend: API chi tiết/ownership, giá lưu trong đơn, BIGINT, callback 303 và chống redirect ra origin lạ, không commit hoặc trừ kho khi đọc/callback.
+- Chrome fixture: điều hướng COD, quay về sau QR, bốn trạng thái/terminal state, animation/pause/reduced-motion, tải lại BIGINT, DOM an toàn, lỗi/thử lại và responsive 1440–320px. Form SePay được chặn, không giao dịch thật.
+- Chưa thực hiện giao dịch ngân hàng hoặc thanh toán SePay thật để kiểm tra callback đầu cuối.

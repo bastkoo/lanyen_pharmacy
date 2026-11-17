@@ -10,6 +10,16 @@ let fixtureOrder, paymentConfirmed = false, orderCreates = 0, orderMode = 'norma
 let gatewayInitializations = 0;
 let fixtureEnvironment = 'sandbox';
 export async function orderFixture(req, json) {
+    if (/\/detail$/.test(req.url)) {
+        if (orderMode === 'detail-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        if (orderMode === 'detail-not-found') return json(404, { code: 'ORDER_NOT_FOUND' });
+        return json(200, { code: 'ORDER_DETAIL', order: {
+            ...fixtureOrder, TongTien: '50000', TienGiamGia: '0', NgayDat: '2026-11-18T09:15:00',
+            GhiChu: 'Người nhận: Nguyễn Lan Yến · 0900000000\nGiao tận nơi: 126 Dương Văn An, Phường Vỹ Dạ, Thành phố Huế\nGọi trước khi giao hàng.',
+            ...(paymentConfirmed ? { TrangThaiThanhToan: 1, TrangThaiDonHang: 1 } : {}),
+            items: [{ MaChiTiet: '9007199254741001', MaThuoc: 1, MaDonGia: 11, TenThuoc: '<b>Vitamin tổng hợp</b>',
+                HinhAnh: 'javascript:alert(1)', DonViTinh: 'Hộp', SoLuong: 1, DonGia: '50000', ThanhTien: '50000' }] } });
+    }
     if (req.url.endsWith('/payment') && req.method === 'POST') {
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
         if (orderMode === 'initialize-error') return json(503, { code: 'GATEWAY_NOT_CONFIGURED' });
@@ -35,7 +45,16 @@ export async function orderFixture(req, json) {
     return json(200, { code: 'ORDER_READ', order: paymentConfirmed
         ? { ...fixtureOrder, TrangThaiThanhToan: 1, TrangThaiDonHang: 1 } : fixtureOrder });
 }
-export async function checkCheckout({ evaluate: run, waitFor, command, key, baseUrl, root, setScenario, requests }) {
+export async function checkCheckout({ evaluate: run, waitFor: waitInPage, command, key, baseUrl, root, setScenario, requests }) {
+    const waitFor = async expression => {
+        for (let attempt = 0; attempt < 4; attempt++) {
+            try { return await waitInPage(expression); }
+            catch (error) {
+                if (attempt === 3 || !/navigated|context.*destroyed|Cannot find context/i.test(error.message)) throw error;
+                await new Promise(resolve => setTimeout(resolve, 80));
+            }
+        }
+    };
     const click = expression => run(`${expression}.click()`);
     const $ = id => `document.querySelector('#${id}')`;
     const ready = amount => waitFor(`${$('checkout-layout')}?.hidden===false && ${$('checkout-total')}.textContent===${JSON.stringify(amount)}`);
@@ -116,15 +135,51 @@ export async function checkCheckout({ evaluate: run, waitFor, command, key, base
         await navigate('checkout.html?unit=11'); await ready('50.000 ₫');
         await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
         await click($('checkout-complete'));
-        await waitFor(`${$('checkout-result')}.hidden===false && location.search.includes('order=')`);
+        await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
+        assert.equal(await run('location.pathname'), '/pages/customer/order-detail.html');
         assert.equal(orderCreates, 1);
-        assert.equal(await run(`${$('checkout-complete')}.disabled`), true);
-        assert.match(await run(`${$('checkout-result-status')}.textContent`), /Đang xử lý/);
-        assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
-        await click($('checkout-complete')); assert.equal(orderCreates, 1);
+        assert.equal(gatewayInitializations, 0);
+        assert.equal(await run(`document.querySelector('#order-status').textContent`), 'Xử lý đơn');
+        assert.equal(await run(`document.querySelector('#order-progress').children.length`), 4);
+        assert.equal(await run(`document.querySelector('#order-products b')`), null);
+        assert.equal(await run(`document.querySelector('#order-open-payment').hidden`), true);
+        assert.equal(await run(`document.querySelector('#order-number').textContent`), '#' + fixtureOrder.MaDonHang);
+        assert.equal(await run(`document.querySelector('#order-total').textContent`), '50.000 ₫');
+        await click(`document.querySelector('#order-motion')`);
+        assert.equal(await run(`getComputedStyle(document.querySelector('.is-current .order-step-flow')).animationPlayState`), 'paused');
+        await click(`document.querySelector('#order-motion')`);
+        await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+        await waitFor(`document.querySelector('#order-motion').disabled`);
+        assert.equal(await run(`getComputedStyle(document.querySelector('.is-current .order-step-flow')).animationName`), 'none');
+        await command('Emulation.setEmulatedMedia', { features: [] });
+        for (const status of [0, 1, 2, 3]) {
+            fixtureOrder.TrangThaiDonHang = status;
+            await click(`document.querySelector('#order-refresh')`);
+            await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Xử lý đơn','Đang giao','Đã giao'][status])}`);
+            assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).indexOf(document.querySelector('[aria-current="step"]'))`), status);
+            assert.equal(await run(`document.querySelector('#order-motion').hidden`), status === 3);
+        }
+        fixtureOrder.TrangThaiDonHang = 4; await click(`document.querySelector('#order-refresh')`);
+        await waitFor(`document.querySelector('#order-status').textContent==='Đã hủy'`);
+        assert.equal(await run(`document.querySelector('#order-progress').hidden`), true);
+        fixtureOrder.TrangThaiDonHang = 1; await click(`document.querySelector('#order-refresh')`);
+        await waitFor(`document.querySelector('#order-status').textContent==='Xử lý đơn'`);
+        for (const width of [1440, 1024, 768, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Order detail fits ${width}px`);
+            if ([1440, 375].includes(width)) {
+                await run(`window.scrollTo({top:0,behavior:'instant'})`);
+                const screenshot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+                await writeFile(path.join(root, 'docs', `ORDER_DETAIL_${width}.png`), Buffer.from(screenshot.data, 'base64'));
+            }
+        }
+        orderMode = 'detail-error'; await click(`document.querySelector('#order-refresh')`);
+        await waitFor(`document.querySelector('#order-retry').hidden===false`);
+        orderMode = 'normal'; await click(`document.querySelector('#order-retry')`);
+        await waitFor(`document.querySelector('#order-load-state').textContent===''`);
         const savedUrl = await run('location.pathname+location.search');
         await command('Page.navigate', { url: baseUrl + savedUrl });
-        await waitFor(`${$('checkout-result')}.hidden===false`);
+        await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
         assert.equal(orderCreates, 1, 'Reload reads existing order instead of recreating it');
         await navigate('checkout.html?unit=11'); await ready('50.000 ₫');
         await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
@@ -172,6 +227,9 @@ export async function checkCheckout({ evaluate: run, waitFor, command, key, base
         paymentConfirmed = true; await click($('checkout-payment-check'));
         await waitFor(`${$('checkout-result-status')}.textContent.includes('Đã thanh toán')`);
         assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
+        await command('Page.navigate', { url: `${baseUrl}/api/payments/sepay/return?order=${fixtureOrder.MaDonHang}&status=success` });
+        await waitFor(`document.querySelector('#order-payment-status')?.textContent.includes('Đã thanh toán')`);
+        assert.equal(await run(`document.querySelector('#order-status').textContent`), 'Xử lý đơn');
         // Production response is mocked; intercept submit before any real network request.
         fixtureEnvironment = 'production'; paymentConfirmed = false;
         resetCartFixture([], cart);
@@ -193,5 +251,6 @@ export async function checkCheckout({ evaluate: run, waitFor, command, key, base
         await click($('account-avatar-button')); await click($('logout-button'));
         await waitFor(`${$('checkout-result')}.hidden===true`);
         console.log('PASS: checkout selection, guest/login, address, pricing/errors, COD creation, QR/config failure/payment confirmation, double-click prevention, BIGINT order reload, logout privacy, responsive 1440–320px. API MOCK; no database or real payment.');
+        console.log(`Order detail screenshots: ${path.join(root, 'docs')}`);
     } finally { fixtureEnvironment = 'sandbox'; setSaleQuotes(false); setCartMode('normal'); resetCartFixture([]); resetAddressFixture([]); setScenario('anonymous'); }
 }

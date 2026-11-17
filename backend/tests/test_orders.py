@@ -1,6 +1,7 @@
 """Order and SePay tests with mocked repositories; never access real databases."""
 import unittest
 import runpy
+from datetime import datetime
 from types import SimpleNamespace as NS
 from unittest.mock import patch
 
@@ -33,6 +34,7 @@ class OrderTests(unittest.TestCase):
             'SEPAY_SECRET_KEY': 'gateway-test-secret', 'SEPAY_IPN_SECRET_KEY': 'ipn-test-secret',
             'SEPAY_CHECKOUT_URL': gateway.CHECKOUT_URL, 'SEPAY_API_BASE_URL': gateway.API_BASE_URL,
             'SEPAY_SUCCESS_URL': '', 'SEPAY_ERROR_URL': '', 'SEPAY_CANCEL_URL': '',
+            'SEPAY_FRONTEND_ORIGIN': 'https://shop.example',
             'SEPAY_PRODUCTION_ENABLED': False,
             'SEPAY_SANDBOX_MERCHANT_ID': '', 'SEPAY_SANDBOX_SECRET_KEY': '', 'SEPAY_SANDBOX_IPN_SECRET_KEY': '',
             'SEPAY_PRODUCTION_MERCHANT_ID': '', 'SEPAY_PRODUCTION_SECRET_KEY': '', 'SEPAY_PRODUCTION_IPN_SECRET_KEY': '',
@@ -281,9 +283,9 @@ class OrderTests(unittest.TestCase):
                                          'SEPAY_ERROR_URL': 'https://example.test/error',
                                          'SEPAY_CANCEL_URL': 'https://example.test/cancel'}):
             fields = self.initialize().json['payment']['fields']
-            self.assertEqual(fields['success_url'], 'https://example.test/success')
-            self.assertEqual(fields['error_url'], 'https://example.test/error')
-            self.assertEqual(fields['cancel_url'], 'https://example.test/cancel')
+            self.assertEqual(fields['success_url'], 'https://example.test/success?order=45')
+            self.assertEqual(fields['error_url'], 'https://example.test/error?order=45')
+            self.assertEqual(fields['cancel_url'], 'https://example.test/cancel?order=45')
             self.assertEqual(fields['signature'], gateway.sign_fields(fields, 'gateway-test-secret'))
 
     def test_gateway_config_missing_wrong_merchant_and_production_rejected(self):
@@ -575,6 +577,42 @@ class OrderTests(unittest.TestCase):
         self.assertIsNone(column.default)
         self.assertIsNone(column.server_default)
         execute.assert_not_called()
+
+    def test_order_detail_is_owned_and_uses_saved_line_prices_and_receipt(self):
+        self.find.return_value = self.order(NgayDat=datetime(2026, 11, 18, 9, 15), GhiChu='Người nhận: An · 0900000000\nGiao tận nơi: Nhà 1\nGọi trước')
+        rows = self.mock('app.services.order_service.orders.detail_items', return_value=[(
+            NS(MaChiTiet=9007199254741001, MaThuoc=7, MaDonGia=8, SoLuong=3, DonGia=12000),
+            NS(TenThuoc='<b>Thuốc A</b>', HinhAnh='javascript:alert(1)'), NS(DonViTinh='Vỉ', GiaBan=999999))])
+        result = self.client.get('/api/orders/45/detail')
+        self.assertEqual((result.status_code, result.json['code']), (200, 'ORDER_DETAIL'))
+        detail = result.json['order']
+        self.assertEqual(detail['NgayDat'], '2026-11-18T09:15:00')
+        self.assertIn('Gọi trước', detail['GhiChu'])
+        self.assertEqual(detail['items'][0]['MaChiTiet'], '9007199254741001')
+        self.assertEqual(detail['items'][0]['DonGia'], '12000')
+        self.assertEqual(detail['items'][0]['ThanhTien'], '36000')
+        rows.assert_called_once_with(45)
+        self.commit.assert_not_called()
+        self.deduct.assert_not_called()
+
+    def test_order_detail_does_not_query_items_for_another_owner(self):
+        self.find.return_value = self.order(MaNguoiMua=99)
+        rows = self.mock('app.services.order_service.orders.detail_items')
+        self.assertEqual(self.client.get('/api/orders/45/detail').status_code, 404)
+        self.assertEqual(self.client.get('/api/orders/9223372036854775808/detail').status_code, 404)
+        rows.assert_not_called()
+
+    def test_browser_return_redirects_only_to_allowed_frontend_without_payment_update(self):
+        result = self.client.get('/api/payments/sepay/return?order=45&status=success&next=https://evil.example')
+        self.assertEqual(result.status_code, 303)
+        self.assertEqual(result.headers['Location'], 'https://shop.example/pages/customer/order-detail.html?order=45')
+        self.commit.assert_not_called()
+        self.deduct.assert_not_called()
+        self.find.assert_not_called()
+        for query in ['', '?order=0', '?order=-1', '?order=9223372036854775808', '?order=' + '9' * 5000]:
+            self.assertEqual(self.client.get('/api/payments/sepay/return' + query).status_code, 400)
+        with patch.dict(self.app.config, {'SEPAY_FRONTEND_ORIGIN': 'https://evil.example'}):
+            self.assertEqual(self.client.get('/api/payments/sepay/return?order=45').status_code, 503)
 
 
 if __name__ == '__main__':

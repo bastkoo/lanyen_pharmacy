@@ -1,4 +1,4 @@
-from flask import current_app, g, jsonify, request
+from flask import current_app, g, jsonify, request, redirect
 
 from app.controllers.auth_controller import payload
 from app.schemas.order_schema import OrderCreateSchema
@@ -17,6 +17,26 @@ def read(order_id):
         return jsonify(code='ORDER_READ', order=order_service.read(g.current_user.MaNguoiDung, order_id))
     except AuthError as error:
         return jsonify(code=error.code), error.status
+
+
+def detail(order_id):
+    try:
+        return jsonify(code='ORDER_DETAIL', order=order_service.read_detail(g.current_user.MaNguoiDung, order_id))
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
+def payment_return():
+    # A browser return only redirects to the owned detail API's frontend. Never
+    # infer payment from query parameters, or write order/payment/stock here.
+    order_id = request.args.get('order', '')
+    if not 1 <= len(order_id) <= 19 or not order_id.isascii() or not order_id.isdigit() or not 0 < int(order_id) <= 9223372036854775807:
+        return jsonify(code='INVALID_REQUEST'), 400
+    allowed = current_app.config['AUTH_ALLOWED_ORIGINS']
+    origin = current_app.config.get('SEPAY_FRONTEND_ORIGIN') or (allowed[0] if allowed else '')
+    if not origin or origin not in allowed:
+        return jsonify(code='GATEWAY_CONFIG_INVALID'), 503
+    return redirect(f'{origin}/pages/customer/order-detail.html?order={int(order_id)}', code=303)
 
 
 def webhook():

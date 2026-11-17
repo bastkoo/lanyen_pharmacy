@@ -8,7 +8,7 @@ import hashlib
 import hmac
 import re
 from decimal import Decimal
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
 
 from flask import current_app
 
@@ -121,7 +121,10 @@ def initialize(user_id, order_id):
                   customer_id=str(order.MaNguoiMua), payment_method='BANK_TRANSFER')
     for name in ('success_url', 'error_url', 'cancel_url'):
         if config.get('SEPAY_' + name.upper()):
-            fields[name] = config['SEPAY_' + name.upper()]
+            parsed = urlsplit(config['SEPAY_' + name.upper()])
+            query = [(key, value) for key, value in parse_qsl(parsed.query) if key != 'order']
+            query.append(('order', str(order.MaDonHang)))
+            fields[name] = urlunsplit(parsed._replace(query=urlencode(query)))
     fields['signature'] = sign_fields(fields, config['SEPAY_SECRET_KEY'])
     # Release the row lock before the customer leaves for hosted checkout.
     db.session.commit()

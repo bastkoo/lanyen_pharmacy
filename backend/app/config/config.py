@@ -7,6 +7,7 @@ load_dotenv()
 
 class Config:
     SEPAY_ENV = os.getenv('SEPAY_ENV', 'sandbox')
+    SEPAY_FRONTEND_ORIGIN = os.getenv('SEPAY_FRONTEND_ORIGIN', '')
     SEPAY_PRODUCTION_ENABLED = os.getenv('SEPAY_PRODUCTION_ENABLED', 'false').lower() == 'true'
     SEPAY_SANDBOX_MERCHANT_ID = os.getenv('SEPAY_SANDBOX_MERCHANT_ID', '')
     SEPAY_SANDBOX_SECRET_KEY = os.getenv('SEPAY_SANDBOX_SECRET_KEY', '')

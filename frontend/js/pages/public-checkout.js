@@ -262,6 +262,7 @@ $('checkout-complete').addEventListener('click', async () => {
         history.replaceState(null, '', `checkout.html?order=${encodeURIComponent(activeOrderId)}`);
         $('checkout-result-title').focus(); window.dispatchEvent(new Event('cart-changed'));
         if (data.order.PhuongThucThanhToan === 1) await openPayment();
+        else location.assign(`order-detail.html?order=${encodeURIComponent(activeOrderId)}`);
     } catch (error) {
         if (disposed || account !== currentKey) return;
         const messages = { PAYMENT_NOT_CONFIGURED: 'Thanh toán QR chưa được cấu hình. Vui lòng chọn thanh toán khi nhận hàng.',
