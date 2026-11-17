@@ -29,6 +29,8 @@ def payload(schema):
 
 
 def authenticated(user):
+    from app.services.cart_service import merge_guest
+    merge_guest(user.MaNguoiDung)
     session.clear()
     session.permanent = True
     session['user_id'] = user.MaNguoiDung

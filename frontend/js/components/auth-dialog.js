@@ -7,6 +7,9 @@ const messages = {
     CSRF_FAILED: 'Phiên bảo mật đã thay đổi. Vui lòng thử lại.',
     AUTH_UNAVAILABLE: 'Dịch vụ OTP chưa sẵn sàng. Kiểm tra Redis và cấu hình máy chủ.',
     DATABASE_UNAVAILABLE: 'Chưa thể truy cập tài khoản. Vui lòng xác thực lại sau.',
+    UNIT_NOT_FOUND: 'Một đơn vị trong giỏ khách không còn tồn tại. Đóng hộp thoại, xóa sản phẩm không khả dụng trong giỏ rồi đăng nhập lại. Giỏ khách vẫn được giữ.',
+    UNIT_UNAVAILABLE: 'Một đơn vị trong giỏ khách chưa có giá hợp lệ. Xóa sản phẩm đó trong giỏ rồi đăng nhập lại. Giỏ khách vẫn được giữ.',
+    CART_QUANTITY_LIMIT: 'Tổng số lượng khi gộp giỏ vượt giới hạn lưu trữ. Xóa bớt sản phẩm trong giỏ khách rồi đăng nhập lại.',
     FORBIDDEN: 'Tài khoản chưa được phép truy cập.',
     INVALID_PHONE: 'Nhập số di động Việt Nam hợp lệ.',
     OTP_INVALID: 'Mã OTP chưa đúng. Vui lòng nhập lại.',
@@ -75,7 +78,7 @@ export function setupAuthDialog(onAuthenticated) {
                     if (sessionError.code !== "UNAUTHENTICATED") status(authMessage(sessionError), true);
                 }
             }
-            if (["VERIFICATION_EXPIRED", "DATABASE_UNAVAILABLE"].includes(error.code)) {
+            if (["VERIFICATION_EXPIRED", "DATABASE_UNAVAILABLE", "UNIT_NOT_FOUND", "UNIT_UNAVAILABLE", "CART_QUANTITY_LIMIT"].includes(error.code)) {
                 showStep("phone");
             }
             if (step === "otp" && error.code === "OTP_INVALID") {

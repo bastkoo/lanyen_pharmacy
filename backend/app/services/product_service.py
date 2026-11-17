@@ -4,7 +4,9 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from app.repositories import loai_thuoc_repository as categories
 from app.repositories import thuoc_repository as products
+from app.repositories import don_vi_gia_thuoc_repository as units
 from app.schemas.product_schema import ProductSchema
+from app.schemas.public_catalog_schema import PublicProductSchema
 from app.services.cloudinary_service import validate_product_image_url
 from app.utils.image_validator import ImageError
 
@@ -55,6 +57,23 @@ def list_products(filters):
     items, total = products.list_products(**filters)
     page, per_page = filters['page'], filters['per_page']
     return {'items': ProductSchema(many=True).dump(items), 'page': page,
+            'per_page': per_page, 'total': total, 'pages': (total + per_page - 1) // per_page}
+
+
+@database_operation
+def list_public_products(filters):
+    if 'category_id' in filters:
+        require_category(filters['category_id'])
+    items, total = products.list_products(**filters, sort_by='TenThuoc')
+    serialized = PublicProductSchema(many=True).dump(items)
+    grouped = {item['MaThuoc']: [] for item in serialized}
+    for unit in units.public_units(list(grouped)):
+        grouped[unit.MaThuoc].append({'MaDonGia': unit.MaDonGia,
+                                     'DonViTinh': unit.DonViTinh, 'GiaBan': unit.GiaBan})
+    for item in serialized:
+        item['DonViGia'] = grouped[item['MaThuoc']]
+    page, per_page = filters['page'], filters['per_page']
+    return {'items': serialized, 'page': page,
             'per_page': per_page, 'total': total, 'pages': (total + per_page - 1) // per_page}
 
 

@@ -1,11 +1,15 @@
 import { APP_CONFIG } from "../config/app.js";
 import { parseJsonIntegers } from '../utils/json-integers.js';
+import { withSessionRequest } from '../utils/session-requests.js';
 
 let csrfToken = "";
 export class ApiError extends Error {
     constructor(code, status = 0) { super(code); this.code = code; this.status = status; }
 }
-async function request(path, body) {
+function request(path, body) {
+    return withSessionRequest(() => send(path, body));
+}
+async function send(path, body) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20000);
     let response, data;

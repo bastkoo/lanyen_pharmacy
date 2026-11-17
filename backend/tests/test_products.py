@@ -342,6 +342,15 @@ class ProductRepositoryTests(unittest.TestCase):
     def compile(self, statement):
         return statement.compile(dialect=postgresql.dialect())
 
+    def test_prescription_filter_is_independent_from_counselling(self):
+        with patch.object(repository.db.session, 'execute') as execute:
+            execute.return_value.scalar_one.return_value = 0
+            execute.return_value.scalars.return_value.all.return_value = []
+            repository.list_products(ke_don=False)
+            sql = str(self.compile(execute.call_args.args[0])).split('WHERE')[1].split('ORDER BY')[0]
+            self.assertIn('"KeDon" = false', sql)
+            self.assertNotIn('"PhanLoai"', sql)
+
     def test_search_all_columns_filter_and_stable_sort(self):
         with patch.object(repository.db.session, 'execute') as execute:
             execute.return_value.scalar_one.return_value = 0

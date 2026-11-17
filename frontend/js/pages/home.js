@@ -4,15 +4,17 @@ import { setupAuthDialog, authMessage } from "../components/auth-dialog.js";
 const $ = id => document.getElementById(id);
 let checking = false;
 function renderUser(user) {
-    $("guest-content").hidden = Boolean(user);
-    $("member-content").hidden = !user;
+    // Some public pages only have the header account controls, without a profile section.
+    if ($("guest-content")) $("guest-content").hidden = Boolean(user);
+    if ($("member-content")) $("member-content").hidden = !user;
     $("login-button").hidden = Boolean(user);
     $("logout-button").hidden = !user;
     $("header-status").textContent = user ? `Xin chào, ${user.HoTen}` : "Bạn chưa đăng nhập";
-    $("account-title").textContent = user ? "Thông tin tài khoản" : "Rất vui được đón bạn";
-    $("account-name").textContent = user?.HoTen || "";
-    $("account-phone").textContent = user?.SDT || "";
-    $("account-role").textContent = user ? ({ 0: "Người mua", 1: "Nhân viên", 2: "Quản lý" }[user.VaiTro] || "") : "";
+    if ($("account-title")) $("account-title").textContent = user ? "Thông tin tài khoản" : "Rất vui được đón bạn";
+    if ($("account-name")) $("account-name").textContent = user?.HoTen || "";
+    if ($("account-phone")) $("account-phone").textContent = user?.SDT || "";
+    if ($("account-role")) $("account-role").textContent = user ? ({ 0: "Người mua", 1: "Nhân viên", 2: "Quản lý" }[user.VaiTro] || "") : "";
+    window.dispatchEvent(new Event('auth-changed'));
 }
 const openAuth = setupAuthDialog((user, warning) => {
     if (warning) { $("page-status").textContent = warning; return; }
@@ -21,12 +23,12 @@ const openAuth = setupAuthDialog((user, warning) => {
     $("retry-session").hidden = true;
     $("main").focus();
 });
-for (const id of ["login-button", "start-login"]) $(id).addEventListener("click", event => openAuth(event.currentTarget));
+for (const id of ["login-button", "start-login"]) $(id)?.addEventListener("click", event => openAuth(event.currentTarget));
 
 async function refreshSession() {
     if (checking || $("auth-dialog").open) return;
     checking = true;
-    $("refresh-account").disabled = true;
+    if ($("refresh-account")) $("refresh-account").disabled = true;
     $("retry-session").disabled = true;
     try {
         const data = await getSession();
@@ -40,7 +42,7 @@ async function refreshSession() {
         $("retry-session").hidden = error.code === "UNAUTHENTICATED";
     } finally {
         checking = false;
-        $("refresh-account").disabled = false;
+        if ($("refresh-account")) $("refresh-account").disabled = false;
         $("retry-session").disabled = false;
     }
 }
@@ -54,7 +56,7 @@ $("logout-button").addEventListener("click", async () => {
     } catch (error) { $("page-status").textContent = authMessage(error); }
     finally { $("logout-button").disabled = false; }
 });
-$("refresh-account").addEventListener("click", refreshSession);
+$("refresh-account")?.addEventListener("click", refreshSession);
 $("retry-session").addEventListener("click", refreshSession);
 window.addEventListener("focus", refreshSession);
 refreshSession();

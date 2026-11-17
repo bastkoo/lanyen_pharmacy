@@ -3,63 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Đăng nhập tài khoản Lan Yến Pharmacy bằng số điện thoại.">
+    <meta name="description" content="Lan Yến Pharmacy — Khám phá sản phẩm chăm sóc sức khỏe và những kiến thức hữu ích dành cho bạn và gia đình.">
     <meta name="theme-color" content="#16865B">
-    <title>Trang chủ · Lan Yến Pharmacy</title>
+    <title>Lan Yến Pharmacy · Chăm sóc sức khỏe, bắt đầu từ sự an tâm</title>
+    <link rel="icon" href="../../assets/images/LY-removebg-preview.png">
+    <link rel="preload" href="../../assets/fonts/be-vietnam-pro-400.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="stylesheet" href="../../css/base/variables.css">
     <link rel="stylesheet" href="../../css/base/reset.css">
     <link rel="stylesheet" href="../../css/base/global.css">
     <link rel="stylesheet" href="../../css/pages/home.css">
     <link rel="stylesheet" href="../../css/components/auth.css">
     <script type="module" src="../../js/pages/home.js"></script>
+    <script type="module" src="../../js/pages/public-home.js"></script>
 </head>
-<body>
+<body class="public-home">
     <a class="skip-link" href="#main">Đến nội dung chính</a>
     <header class="site-header">
-        <a class="brand" href="home.html" aria-label="Lan Yến Pharmacy — Trang chủ">
-            <img src="../../assets/images/LY-removebg-preview.png" alt="" width="64" height="64">
-            <span>Lan Yến<span class="brand-caption">PHARMACY</span></span>
-        </a>
-        <div class="header-account">
-            <span id="header-status">Đang kiểm tra phiên…</span>
-            <button type="button" class="button button-outline" id="login-button" aria-haspopup="dialog">Đăng nhập</button>
-            <button type="button" class="button button-outline" id="logout-button" hidden>Đăng xuất</button>
+        <div class="header-inner">
+            <a class="brand" href="home.html" aria-label="Lan Yến Pharmacy — Trang chủ">
+                <img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56">
+                <span>Lan Yến<span class="brand-caption">PHARMACY</span></span>
+            </a>
+            <div class="header-search">
+                <form id="public-search-form" class="public-search" role="search" action="products.html" method="get" novalidate>
+                    <label class="sr-only" for="public-search">Tìm thuốc và sản phẩm chăm sóc sức khỏe</label>
+                    <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 5 5"></path></svg>
+                    <input id="public-search" name="search" type="search" placeholder="Tìm tên thuốc, vitamin, sản phẩm chăm sóc sức khỏe..." aria-describedby="public-search-status" maxlength="255" autocomplete="off">
+                    <button class="button button-primary" type="submit">Tìm kiếm</button>
+                </form>
+                <p id="public-search-status" class="search-status" role="status"></p>
+            </div>
+            <div class="header-account">
+                <span id="header-status" class="sr-only">Đang kiểm tra phiên…</span>
+                <button type="button" class="account-button" id="login-button" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>Đăng nhập</span></button>
+                <button type="button" class="account-button" id="logout-button" hidden>Đăng xuất</button>
+                <span class="header-divider" aria-hidden="true"></span>
+                <button class="account-button" type="button" data-cart aria-haspopup="dialog"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12h11l2-8H6"></path><circle cx="9" cy="20" r="1"></circle><circle cx="18" cy="20" r="1"></circle></svg><span>Giỏ hàng</span></button>
+            </div>
         </div>
     </header>
-    <main id="main" class="home-main" tabindex="-1">
-        <section class="welcome" aria-labelledby="welcome-title">
-            <p class="eyebrow">LAN YẾN PHARMACY / TÀI KHOẢN</p>
-            <h1 id="welcome-title">Chào bạn,<br>Lan Yến luôn ở đây.</h1>
-            <p class="welcome-copy">Bắt đầu bằng số điện thoại của bạn.<br>Một mã xác thực, một tài khoản riêng.</p>
-            <p class="privacy-note">Không cần ghi nhớ mật khẩu. Mã OTP giúp xác minh số điện thoại mỗi khi bạn đăng nhập.</p>
-        </section>
-        <section class="account-section" aria-labelledby="account-title">
-            <p class="eyebrow">TÀI KHOẢN CỦA BẠN</p>
-            <h2 id="account-title">Rất vui được đón bạn</h2>
-            <div id="guest-content">
-                <p>Đăng nhập hoặc tạo tài khoản ngay trong cùng một luồng xác thực.</p>
-                <button type="button" class="button button-primary" id="start-login" aria-haspopup="dialog">Đăng nhập bằng số điện thoại <span aria-hidden="true">→</span></button>
-                <ol class="journey" aria-label="Các bước đăng nhập">
-                    <li><span aria-hidden="true">01</span> Nhập số điện thoại</li>
-                    <li><span aria-hidden="true">02</span> Xác thực mã OTP</li>
-                    <li><span aria-hidden="true">03</span> Hoàn tất hồ sơ nếu là lần đầu</li>
-                </ol>
-            </div>
-            <div id="member-content" hidden>
-                <p class="member-state">Đã đăng nhập</p>
-                <dl class="account-details">
-                    <div><dt>Họ tên</dt><dd id="account-name"></dd></div>
-                    <div><dt>Số điện thoại</dt><dd id="account-phone"></dd></div>
-                    <div><dt>Vai trò</dt><dd id="account-role"></dd></div>
-                </dl>
-                <button type="button" class="button button-outline" id="refresh-account">Kiểm tra phiên đăng nhập</button>
+    <main id="main" tabindex="-1">
+        <section class="hero" aria-labelledby="welcome-title">
+            <div class="page-width hero-grid">
+                <div class="hero-copy">
+                    <p class="eyebrow"><span aria-hidden="true"></span> LAN YẾN PHARMACY</p>
+                    <h1 id="welcome-title">Chăm sóc sức khỏe, <br>bắt đầu từ<br><em>sự an tâm.</em></h1>
+                    <p class="hero-description">Khám phá sản phẩm chăm sóc sức khỏe và những kiến thức hữu ích dành cho bạn và gia đình.</p>
+                    <div class="hero-actions"><a class="button button-primary" href="#categories">Khám phá sản phẩm <svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-right"></use></svg></a><a class="quiet-link" href="#about">Tìm hiểu thêm <span aria-hidden="true">↗</span></a></div>
+                    <p class="hero-signature">Sự quan tâm bắt đầu từ những điều nhỏ nhất.</p>
+                </div>
+                <figure class="hero-visual"><img src="../../assets/images/home-care-illustration.svg" alt="Minh họa một góc chăm sóc sức khỏe với hộp sản phẩm, chai và cành lá." width="680" height="540" fetchpriority="high"><figcaption>Hình ảnh minh họa · Không phải sản phẩm đang bán</figcaption></figure>
             </div>
         </section>
-        <p id="page-status" class="page-status" role="status" aria-live="polite"></p>
-        <button type="button" id="retry-session" class="button button-outline" hidden>Thử kết nối lại</button>
-        <noscript><p>Bạn cần bật JavaScript để đăng nhập bằng số điện thoại.</p></noscript>
+        <section class="brand-principles page-width" aria-label="Tinh thần Lan Yến">
+            <div><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg><p><strong>Rõ ràng trong thông tin</strong><span>Để bạn tìm hiểu trước khi lựa chọn.</span></p></div>
+            <div><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#pill"></use></svg><p><strong>Quan tâm đúng nhu cầu</strong><span>Bắt đầu từ sức khỏe của bạn và gia đình.</span></p></div>
+            <div><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s-9-5.5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.5-9 12-9 12Z"></path></svg><p><strong>Đồng hành mỗi ngày</strong><span>Trân trọng từng sự quan tâm nhỏ.</span></p></div>
+        </section>
+        <section id="categories" class="catalog-section page-width section-space" aria-labelledby="categories-title" tabindex="-1">
+            <div class="section-heading"><div><p class="eyebrow">BẮT ĐẦU TỪ NHU CẦU CỦA BẠN</p><h2 id="categories-title">Danh mục sản phẩm</h2><p>Khám phá sản phẩm theo nhu cầu chăm sóc sức khỏe.</p></div><span class="section-index" aria-hidden="true">01 / KHÁM PHÁ</span></div>
+            <div id="public-categories-state" class="catalog-empty" role="status"><span class="empty-icon"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg></span><div><h3 id="public-categories-state-title">Đang tải danh mục…</h3><p id="public-categories-state-description">Các nhóm sản phẩm của Lan Yến sẽ hiển thị tại đây.</p><button id="public-categories-retry" class="quiet-link" type="button" hidden>Thử tải danh mục lại</button></div></div>
+            <ul id="public-categories-grid" class="catalog-grid" aria-label="Chọn danh mục sản phẩm" hidden></ul>
+        </section>
+        <section id="about" class="about-section" aria-labelledby="about-title" tabindex="-1"><div class="page-width about-grid">
+            <div><p class="eyebrow">MỘT CHÚT VỀ LAN YẾN</p><h2 id="about-title">Sức khỏe là chuyện<br>của <em>mỗi ngày.</em></h2></div>
+            <div class="about-copy"><p>Giữa nhiều lựa chọn, một thông tin rõ ràng luôn là điểm bắt đầu tốt.</p><p>Lan Yến Pharmacy hướng đến một không gian để bạn tìm hiểu sản phẩm chăm sóc sức khỏe và khám phá kiến thức hữu ích cho bản thân, gia đình.</p><a class="quiet-link" href="#health-journal">Ghé góc sức khỏe <span aria-hidden="true">↗</span></a></div>
+        </div></section>
+        <section id="health-journal" class="journal-section page-width section-space" aria-labelledby="journal-title" tabindex="-1">
+            <div class="section-heading"><div><p class="eyebrow">HIỂU THÊM ĐỂ CHĂM SÓC TỐT HƠN</p><h2 id="journal-title">Góc kiến thức sức khỏe</h2><p>Thông tin và chia sẻ hữu ích từ đội ngũ dược sĩ.</p></div><span class="section-index" aria-hidden="true">02 / TÌM HIỂU</span></div>
+            <div class="journal-empty" data-public-state="unavailable"><svg class="journal-mark" aria-hidden="true" viewBox="0 0 120 100"><path d="M60 23C43 12 23 12 7 19v67c16-7 36-7 53 4 17-11 37-11 53-4V19c-16-7-36-7-53 4Zm0 0v67M22 34c8-2 15-1 23 2M22 48c8-2 15-1 23 2M76 36c8-3 15-4 23-2M76 50c8-3 15-4 23-2"/></svg><div><p class="eyebrow">HẸN BẠN Ở NHỮNG CHIA SẺ SẮP TỚI</p><h3>Những trang kiến thức đang được chuẩn bị.</h3><p>Chưa có bài viết công khai để hiển thị. Nội dung sẽ xuất hiện tại đây khi được đăng tải.</p></div></div>
+        </section>
+        <section class="account-section page-width" aria-labelledby="account-title">
+            <div><p class="eyebrow">KẾT NỐI CÙNG LAN YẾN</p><h2 id="account-title">Rất vui được đón bạn</h2><p>Một tài khoản riêng cho hành trình chăm sóc sức khỏe của bạn.</p></div>
+            <div id="guest-content"><button type="button" class="button button-primary" id="start-login" aria-haspopup="dialog">Đăng nhập bằng số điện thoại <svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-right"></use></svg></button><p class="account-note">Sử dụng mã OTP · Không cần ghi nhớ mật khẩu</p></div>
+            <div id="member-content" hidden><p class="member-state">Đã đăng nhập</p><dl class="account-details"><div><dt>Họ tên</dt><dd id="account-name"></dd></div><div><dt>Số điện thoại</dt><dd id="account-phone"></dd></div><div><dt>Vai trò</dt><dd id="account-role"></dd></div></dl><button type="button" class="quiet-link" id="refresh-account">Kiểm tra phiên đăng nhập</button></div>
+            <div class="session-feedback"><p id="page-status" role="status" aria-live="polite"></p><button type="button" id="retry-session" class="quiet-link" hidden>Thử kết nối lại</button></div>
+        </section>
+        <noscript><p class="page-width no-script">Bạn vẫn có thể xem trang giới thiệu. Bật JavaScript để mở menu thu gọn, tìm kiếm và đăng nhập.</p></noscript>
     </main>
-    <footer class="site-footer"><span>Lan Yến Pharmacy</span><span>Kết nối tài khoản bằng số điện thoại của bạn.</span></footer>
+    <footer id="contact" class="site-footer" tabindex="-1">
+        <div class="page-width footer-grid">
+            <div class="footer-brand"><a href="home.html" class="brand" aria-label="Lan Yến Pharmacy — Trang chủ"><img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56" loading="lazy"><span>Lan Yến<span class="brand-caption">PHARMACY</span></span></a><p>Chăm sóc sức khỏe, <br>bắt đầu từ sự an tâm.</p></div>
+            <div><h2>Khám phá</h2><nav aria-label="Điều hướng cuối trang"><a href="home.html">Trang chủ</a><a href="#categories">Danh mục</a><a href="#health-journal">Góc sức khỏe</a><a href="#contact">Liên hệ</a></nav></div>
+            <div><h2>Hỗ trợ khách hàng</h2><ul><li><button type="button" data-coming="shopping" aria-haspopup="dialog">Hướng dẫn mua hàng <span>Sắp có</span></button></li><li><button type="button" data-coming="privacy" aria-haspopup="dialog">Chính sách bảo mật <span>Sắp có</span></button></li><li><button type="button" data-coming="terms" aria-haspopup="dialog">Điều khoản sử dụng <span>Sắp có</span></button></li></ul></div>
+            <div><h2>Liên hệ Lan Yến</h2><p>Thông tin liên hệ đang được cập nhật.</p><p class="footer-note">Địa chỉ, số điện thoại và email sẽ được công bố tại đây khi có thông tin chính thức.</p></div>
+        </div>
+        <div class="page-width footer-bottom"><span>© Lan Yến Pharmacy.</span><span>Quan tâm mỗi ngày. An tâm mỗi lựa chọn.</span></div>
+    </footer>
+    <dialog id="feature-dialog" class="feature-dialog" aria-labelledby="feature-title" aria-describedby="feature-description"><button id="feature-close" class="icon-button" type="button" aria-label="Đóng thông báo"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button><p class="eyebrow">LAN YẾN PHARMACY</p><h2 id="feature-title">Chức năng đang được phát triển</h2><p id="feature-description"></p><button id="feature-done" class="button button-primary" type="button">Đã hiểu</button></dialog>
     <div id="auth-backdrop" hidden aria-hidden="true"></div>
     <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
         <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>

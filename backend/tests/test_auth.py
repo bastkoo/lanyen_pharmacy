@@ -86,6 +86,28 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(result.headers['Cache-Control'], 'no-store')
         self.assertEqual(list(self.redis.scan_iter('lanyen:proof:*')), [])
 
+    def test_existing_customer_otp_and_new_profile_both_merge_guest_cart(self):
+        for new_customer in (False, True):
+            with self.subTest(new_customer=new_customer):
+                self.redis.flushall()
+                self.client = self.app.test_client()
+                self.csrf = self.client.get('/api/auth/me').json['csrf_token']
+                with self.client.session_transaction() as state:
+                    state['guest_cart'] = [[7, 8, 2]]
+                self.find.return_value = None if new_customer else user()
+                with patch('app.services.cart_service.add_database') as merge:
+                    self.issue()
+                    response = self.verify()
+                    if new_customer:
+                        self.assertEqual(response.json['code'], 'PROFILE_REQUIRED')
+                        merge.assert_not_called()
+                        response = self.post('register', {'ho_ten': 'An'})
+                    self.assertEqual(response.json['code'], 'AUTHENTICATED')
+                    merge.assert_called_once_with(12, [[7, 8, 2]])
+                    with self.client.session_transaction() as state:
+                        self.assertNotIn('guest_cart', state)
+                        self.assertEqual(state['user_id'], 12)
+
     def test_wrong_attempt_limit(self):
         self.issue()
         for _ in range(4):

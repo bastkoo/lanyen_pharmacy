@@ -13,6 +13,7 @@ import { unitFixture, checkUnits } from './browser_units.mjs';
 import { stockFixture, checkStock } from './browser_stock.mjs';
 import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
 import { accountFixture, accountActor, checkAccounts } from './browser_accounts.mjs';
+import { checkHomepage, publicCatalogFixture, cartFixture, mergeCartFixture } from './browser_home.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -24,6 +25,9 @@ const unitTest = process.argv.includes('--units');
 const stockTest = process.argv.includes('--stock');
 const promotionTest = process.argv.includes('--promotions');
 const accountTest = process.argv.includes('--accounts');
+const homepageTest = process.argv.includes('--homepage');
+let checkingHomepage = false;
+const homepageRequests = [];
 let checkingAccounts = false;
 let checkingPromotions = false;
 let checkingStock = false;
@@ -57,7 +61,10 @@ function dashboardFixture(pathname, params) {
 const fixtureUser = { MaNguoiDung: 12, HoTen: 'Nguyễn Lan Yến', SDT: '+84900000000', VaiTro: 2, TrangThai: false };
 const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
+    if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (checkingHomepage && (pathname === '/api/categories' || pathname === '/api/products')) return publicCatalogFixture(req, json);
+    if (checkingHomepage && pathname.startsWith('/api/cart')) return cartFixture(req, json, scenario === 'manager');
     if (checkingAccounts && pathname.startsWith('/api/manager/accounts')) return accountFixture(req, json);
     if (checkingPromotions && (pathname.startsWith('/api/manager/promotions') || pathname.startsWith('/api/manager/products'))) return promotionFixture(req, json);
     if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory') || pathname === '/api/manager/categories')) return stockFixture(req, json);
@@ -79,6 +86,7 @@ const server = createServer(async (req, res) => {
     }
     if (pathname === '/api/auth/otp/request' && req.method === 'POST') return json(200, { code: 'OTP_SENT', retry_after: 60 });
     if (pathname === '/api/auth/otp/verify' && req.method === 'POST') {
+        if (checkingHomepage) mergeCartFixture();
         scenario = 'manager';
         return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: fixtureUser });
     }
@@ -94,10 +102,10 @@ const server = createServer(async (req, res) => {
         return res.end(`export const APP_CONFIG = {API_BASE_URL: 'http://127.0.0.1:${server.address().port}/api'};`);
     }
     try {
-        const filename = path.resolve(frontend, '.' + decodeURIComponent(pathname));
+        const filename = path.resolve(frontend, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
         if (!filename.startsWith(frontend + path.sep)) return json(403, {});
         let bytes = await readFile(filename);
-        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html')) {
+        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html') || (checkingHomepage && /[\\/]customer[\\/](?:home|products)\.html$/.test(filename))) {
             const mark = '<div aria-label="Môi trường kiểm thử" style="position:fixed;bottom:6px;right:8px;z-index:90;padding:3px 8px;background:#fff7e5;color:#785313;font:10px Arial;pointer-events:none">KIỂM THỬ GIAO DIỆN · AUTH/API MOCK</div>';
             bytes = Buffer.from(bytes.toString('utf8').replace('</body>', mark + '</body>'));
         }
@@ -173,7 +181,7 @@ try {
     };
     await command('Page.enable');
     await command('Runtime.enable');
-    if (productTest) await command('Fetch.enable', { patterns: [{ urlPattern: 'https://example.invalid/*' }] });
+    if (productTest || homepageTest) await command('Fetch.enable', { patterns: [{ urlPattern: 'https://example.invalid/*' }] });
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await navigate('manager');
     await evaluate('document.fonts.ready');
@@ -363,6 +371,11 @@ try {
     await waitFor(`!document.querySelector('#main').inert`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), false);
     assert.equal(await evaluate('document.activeElement.id'), 'start-login');
+    if (homepageTest) {
+        checkingHomepage = true;
+        await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });
+        checkingHomepage = false;
+    }
     assert.deepEqual(errors, []);
     console.log('PASS: manager navigation, real CSS/fonts, 1440/1280/1024/768/375/320 widths, no overflow, drawer/keyboard/focus, account Escape, long name, anonymous/forbidden/locked/network/retry/expired, OTP UI flow, CSRF logout, customer auth dialog regression.');
     console.log(`Auth responses mocked by isolated test server (${sessionCount} checks). No production API or database used.`);
