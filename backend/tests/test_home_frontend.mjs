@@ -45,7 +45,7 @@ test('public data states are honest and no manager client, invented contacts or 
     assert.match(html, /alt="Minh họa/);
     assert.ok(html.includes('id="auth-dialog"'));
     assert.ok(html.includes('id="login-button"'));
-    assert.match(ui, /location\.assign\(publicProductsUrl/);
+    assert.ok(ui.includes('window.location.assign(`../customer/${publicProductsUrl('));
 });
 
 test('separate product page has accessible filters, local assets and header search without homepage promotions', () => {

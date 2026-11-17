@@ -29,7 +29,7 @@ $('public-search-form').addEventListener('submit', event => {
         input.setAttribute('aria-invalid', 'true'); input.focus(); return;
     }
     input.removeAttribute('aria-invalid');
-    window.location.assign(publicProductsUrl({ search: value }));
+    window.location.assign(`../customer/${publicProductsUrl({ search: value })}`);
 });
 $('public-search').addEventListener('input', () => { $('public-search').removeAttribute('aria-invalid'); $('public-search-status').textContent = ''; });
 const comingSoon = {

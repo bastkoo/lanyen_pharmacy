@@ -16,10 +16,10 @@ export function setupCustomerAccount() {
     const trigger = document.createElement('button'); trigger.type = 'button'; trigger.id = 'account-avatar-button'; trigger.className = 'customer-avatar';
     trigger.setAttribute('aria-expanded', 'false'); trigger.setAttribute('aria-controls', 'customer-account-menu');
     const menu = document.createElement('nav'); menu.id = 'customer-account-menu'; menu.className = 'customer-account-menu'; menu.hidden = true; menu.setAttribute('aria-label', 'Tài khoản của tôi');
-    const profile = document.createElement('a'); profile.href = 'profile.html'; profile.textContent = 'Thông tin cá nhân'; menu.append(profile);
-    for (const [key, text] of [['orders', 'Đơn hàng của tôi'], ['addresses', 'Địa chỉ nhận hàng']]) {
-        const button = document.createElement('button'); button.type = 'button'; button.dataset.coming = key; button.textContent = text; button.setAttribute('aria-haspopup', 'dialog'); menu.append(button);
+    for (const [file, text] of [['profile.html', 'Thông tin cá nhân'], ['points.html', 'Điểm tích lũy'], ['orders.html', 'Đơn hàng của tôi'], ['addresses.html', 'Địa chỉ nhận hàng']]) {
+        const link = document.createElement('a'); link.href = `../customer/${file}`; link.textContent = text; menu.append(link);
     }
+    const management = document.createElement('a'); management.textContent = 'Quản lý'; management.hidden = true; management.dataset.management = ''; menu.append(management);
     logout.replaceWith(wrapper); wrapper.append(trigger, menu); menu.append(logout); logout.className = 'customer-logout';
     function close(returnFocus = false) { menu.hidden = true; trigger.setAttribute('aria-expanded', 'false'); if (returnFocus) trigger.focus(); }
     trigger.addEventListener('click', () => { menu.hidden = !menu.hidden; trigger.setAttribute('aria-expanded', String(!menu.hidden)); });
@@ -29,6 +29,9 @@ export function setupCustomerAccount() {
     document.addEventListener('focusin', event => { if (!wrapper.contains(event.target)) close(); });
     return user => {
         wrapper.hidden = !user; logout.hidden = !user;
+        management.hidden = ![1, 2].includes(user?.VaiTro);
+        if (!management.hidden) management.href = user.VaiTro === 2 ? '../manager/index.html#overview' : '../employee/index.html';
+        else management.removeAttribute('href');
         if (!user) { close(); return; }
         renderAvatar(trigger, user); trigger.setAttribute('aria-label', `Tài khoản của ${user.HoTen}`);
     };

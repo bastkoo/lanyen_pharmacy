@@ -41,3 +41,10 @@ test('failed profile writes propagate once without an automatic retry', async ()
     await assert.rejects(api.updateProfile({ HoTen: 'An', AnhDaiDien: null }), error => error.code === 'DATABASE_UNAVAILABLE');
     assert.equal(attempts, 2);
 });
+
+test('a different signed-in owner prevents stale profile data from being written', async () => {
+    let attempts = 0;
+    globalThis.fetch = async () => { attempts++; return reply({ csrf_token: 'new-owner', user: { MaNguoiDung: 22 } }); };
+    await assert.rejects(api.updateProfile({ HoTen: 'Old owner', AnhDaiDien: null }, 12), error => error.code === 'SESSION_CHANGED');
+    assert.equal(attempts, 1);
+});

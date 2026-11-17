@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Quản lý địa chỉ nhận hàng của bạn tại Lan Yến Pharmacy.">
+    <meta name="theme-color" content="#16865B">
+    <title>Địa chỉ nhận hàng · Lan Yến Pharmacy</title>
+    <link rel="icon" href="../../assets/images/LY-removebg-preview.png">
+    <link rel="preload" href="../../assets/fonts/be-vietnam-pro-400.ttf" as="font" type="font/ttf" crossorigin>
+    <link rel="stylesheet" href="../../css/base/variables.css">
+    <link rel="stylesheet" href="../../css/base/reset.css">
+    <link rel="stylesheet" href="../../css/base/global.css">
+    <link rel="stylesheet" href="../../css/pages/home.css">
+    <link rel="stylesheet" href="../../css/components/auth.css">
+    <link rel="stylesheet" href="../../css/pages/public-profile.css">
+    <script type="module" src="../../js/pages/home.js"></script>
+    <script type="module" src="../../js/pages/public-home.js"></script>
+    <script type="module" src="../../js/pages/public-addresses.js"></script>
+</head>
+<body class="public-home public-profile">
+    <a class="skip-link" href="#main">Đến nội dung chính</a>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="home.html" aria-label="Lan Yến Pharmacy — Trang chủ">
+                <img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56">
+                <span>Lan Yến<span class="brand-caption">PHARMACY</span></span>
+            </a>
+            <div class="header-search">
+                <form id="public-search-form" class="public-search" role="search" action="products.html" method="get" novalidate>
+                    <label class="sr-only" for="public-search">Tìm thuốc và sản phẩm chăm sóc sức khỏe</label>
+                    <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 5 5"></path></svg>
+                    <input id="public-search" name="search" type="search" placeholder="Tìm tên thuốc, vitamin, sản phẩm chăm sóc sức khỏe..." aria-describedby="public-search-status" maxlength="255" autocomplete="off">
+                    <button class="button button-primary" type="submit">Tìm kiếm</button>
+                </form>
+                <p id="public-search-status" class="search-status" role="status"></p>
+            </div>
+            <div class="header-account">
+                <span id="header-status" class="sr-only">Đang kiểm tra phiên…</span>
+                <button type="button" class="account-button" id="login-button" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>Đăng nhập</span></button>
+                <button type="button" class="account-button" id="logout-button" hidden>Đăng xuất</button>
+                <span class="header-divider" aria-hidden="true"></span>
+                <a class="account-button" data-cart href="cart.html"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12h11l2-8H6"></path><circle cx="9" cy="20" r="1"></circle><circle cx="18" cy="20" r="1"></circle></svg><span>Giỏ hàng</span></a>
+            </div>
+        </div>
+    </header>
+    <main id="main" tabindex="-1" class="page-width profile-page">
+        <a href="home.html" class="quiet-link">← Trở về trang chủ</a>
+        <div class="address-heading"><div><h1>Địa chỉ nhận hàng</h1><p class="profile-intro">Chọn địa chỉ chính để nhận hàng thuận tiện hơn.</p></div><button id="address-add" class="button button-primary" type="button" hidden>+ Thêm địa chỉ</button></div>
+        <p id="address-state" role="status">Đang tải địa chỉ…</p>
+        <button id="address-retry" type="button" class="quiet-link" hidden>Thử tải lại</button>
+        <button id="address-login" type="button" class="button button-primary" hidden>Đăng nhập để tiếp tục</button>
+        <ul id="address-list" class="address-list" aria-label="Các địa chỉ nhận hàng"></ul>
+        <p id="page-status" class="sr-only" role="status"></p><button id="retry-session" class="quiet-link" type="button" hidden>Thử kiểm tra đăng nhập lại</button>
+        <dialog id="address-dialog" class="address-dialog" aria-labelledby="address-dialog-title">
+            <form id="address-form" novalidate>
+                <div class="address-dialog-header"><h2 id="address-dialog-title">Thêm địa chỉ</h2><button id="address-close" class="icon-button" type="button" aria-label="Đóng chỉnh sửa địa chỉ">×</button></div>
+                <p id="address-default-note" class="profile-intro"></p>
+                <div class="profile-field"><label for="address-province">Tỉnh / Thành phố</label><select id="address-province" name="TinhThanh" autocomplete="address-level1" required aria-describedby="address-province-error address-location-state"></select><p id="address-province-error" class="profile-error"></p></div>
+                <div class="profile-field"><label for="address-ward">Phường / Xã</label><select id="address-ward" name="PhuongXa" autocomplete="address-level2" required aria-describedby="address-ward-error address-location-state"></select><p id="address-ward-error" class="profile-error"></p></div>
+                <p id="address-location-state" role="status"></p><button id="address-location-retry" type="button" class="quiet-link" hidden>Thử tải tỉnh / phường lại</button>
+                <div class="profile-field"><label for="address-street">Địa chỉ cụ thể</label><input id="address-street" name="DiaChiCuThe" maxlength="255" autocomplete="street-address" required aria-describedby="address-street-error"><p id="address-street-error" class="profile-error"></p></div>
+                <p id="address-form-state" role="status"></p>
+                <div class="profile-actions"><button id="address-save" class="button button-primary" type="submit">Lưu địa chỉ</button><button id="address-cancel" class="button button-outline" type="button">Hủy</button></div>
+            </form>
+        </dialog>
+        <dialog id="address-delete-dialog" class="address-dialog" aria-labelledby="address-delete-title" aria-describedby="address-delete-description">
+            <h2 id="address-delete-title">Xóa địa chỉ?</h2><p id="address-delete-description"></p><p id="address-delete-state" role="status"></p>
+            <div class="profile-actions"><button id="address-delete-cancel" class="button button-outline" type="button">Hủy</button><button id="address-delete-confirm" class="button address-danger" type="button">Xóa địa chỉ</button></div>
+        </dialog>
+        <noscript><p>Bật JavaScript để quản lý địa chỉ nhận hàng.</p></noscript>
+    </main>
+    <footer id="contact" class="site-footer" tabindex="-1">
+        <div class="page-width footer-grid">
+            <div class="footer-brand"><a href="home.html" class="brand" aria-label="Lan Yến Pharmacy — Trang chủ"><img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56" loading="lazy"><span>Lan Yến<span class="brand-caption">PHARMACY</span></span></a><p>Chăm sóc sức khỏe, <br>bắt đầu từ sự an tâm.</p></div>
+            <div><h2>Khám phá</h2><nav aria-label="Điều hướng cuối trang"><a href="home.html">Trang chủ</a><a href="home.html#categories">Danh mục</a><a href="home.html#health-journal">Góc sức khỏe</a><a href="#contact">Liên hệ</a></nav></div>
+            <div><h2>Hỗ trợ khách hàng</h2><ul><li><button type="button" data-coming="shopping" aria-haspopup="dialog">Hướng dẫn mua hàng</button></li><li><button type="button" data-coming="privacy" aria-haspopup="dialog">Chính sách bảo mật</button></li><li><button type="button" data-coming="terms" aria-haspopup="dialog">Điều khoản sử dụng</button></li></ul></div>
+            <div><h2>Liên hệ Lan Yến</h2><p>Thông tin liên hệ đang được cập nhật.</p><p class="footer-note">Địa chỉ, số điện thoại và email sẽ được công bố tại đây khi có thông tin chính thức.</p></div>
+        </div>
+        <div class="page-width footer-bottom"><span>© Lan Yến Pharmacy.</span><span>Quan tâm mỗi ngày. An tâm mỗi lựa chọn.</span></div>
+    </footer>
+    <dialog id="feature-dialog" class="feature-dialog" aria-labelledby="feature-title" aria-describedby="feature-description"><button id="feature-close" class="icon-button" type="button" aria-label="Đóng thông báo"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button><p class="eyebrow">LAN YẾN PHARMACY</p><h2 id="feature-title">Chức năng đang được phát triển</h2><p id="feature-description"></p><button id="feature-done" class="button button-primary" type="button">Đã hiểu</button></dialog>
+    <div id="auth-backdrop" hidden aria-hidden="true"></div>
+    <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
+        <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
+        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
+        <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
+        <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
+        <form id="phone-form" novalidate>
+            <label for="phone">Số điện thoại</label>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
+            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <p id="phone-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Gửi mã OTP</button>
+            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
+        </form>
+        <form id="otp-form" hidden novalidate>
+            <label for="otp">Mã OTP gồm 6 chữ số</label>
+            <input id="otp" name="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required spellcheck="false" aria-describedby="otp-help otp-error">
+            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã vào ô này.</p>
+            <p id="otp-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
+            <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>
+        </form>
+        <form id="profile-form" hidden novalidate>
+            <label for="full-name">Họ và tên</label>
+            <input id="full-name" name="ho_ten" type="text" autocomplete="name" maxlength="255" required aria-describedby="name-help name-error">
+            <p id="name-help" class="field-help">Tên này sẽ hiển thị trong tài khoản của bạn.</p>
+            <p id="name-error" class="field-error" aria-live="polite"></p>
+            <button type="submit" class="button button-primary">Hoàn tất và đăng nhập</button>
+        </form>
+    </dialog>
+</body>
+</html>

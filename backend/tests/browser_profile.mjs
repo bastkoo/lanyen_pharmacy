@@ -22,19 +22,20 @@ export async function profileFixture(req, json, user) {
 export async function checkProfile({ evaluate: run, waitFor, command, key, baseUrl, root, setScenario, user }) {
     const original = { ...user };
     const click = id => run(`document.querySelector('#${id}').focus();document.querySelector('#${id}').click()`);
-    const ready = () => waitFor(`!document.querySelector('#profile-form')?.hidden && !document.querySelector('#profile-save').disabled`);
+    const ready = () => waitFor(`document.querySelector('#profile-form')?.hidden===false && !document.querySelector('#profile-save').disabled`);
     const navigate = async file => { await command('Page.navigate', { url: `${baseUrl}/pages/customer/${file}` }); await new Promise(resolve => setTimeout(resolve, 50)); };
     try {
         setScenario('manager'); await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-        await navigate('home.html'); await waitFor(`!document.querySelector('.customer-account')?.hidden`);
+        await navigate('home.html'); await waitFor(`document.querySelector('.customer-account')?.hidden===false`);
         assert.equal(await run(`document.querySelector('#account-avatar-button').textContent`), 'Y');
         await click('account-avatar-button');
-        assert.deepEqual(await run(`Array.from(document.querySelector('#customer-account-menu').children).map(item=>item.textContent.trim())`), ['Thông tin cá nhân', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng', 'Đăng xuất']);
+        assert.deepEqual(await run(`Array.from(document.querySelector('#customer-account-menu').children).map(item=>item.textContent.trim())`), ['Thông tin cá nhân', 'Điểm tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng', 'Quản lý', 'Đăng xuất']);
+        assert.equal(await run(`document.querySelector('[data-management]').getAttribute('href')`), '../manager/index.html#overview');
         await key('Escape', 27);
         assert.equal(await run(`document.querySelector('#customer-account-menu').hidden && document.activeElement.id==='account-avatar-button'`), true);
-        await click('account-avatar-button'); await run(`document.querySelector('#customer-account-menu [data-coming="addresses"]').click()`);
-        await waitFor(`document.querySelector('#feature-dialog').open`); await key('Escape', 27);
-        assert.equal(await run(`document.activeElement.id`), 'account-avatar-button');
+        await click('account-avatar-button'); await run(`document.querySelector('#customer-account-menu a[href$="addresses.html"]').click()`);
+        await waitFor(`document.querySelector('.customer-account-sidebar a[aria-current]')?.getAttribute('href')==='addresses.html'`);
+        await waitFor(`document.querySelector('.customer-account')?.hidden===false`);
         await click('account-avatar-button'); await run(`document.querySelector('#customer-account-menu a').click()`); await ready();
         assert.equal(await run('location.pathname'), '/pages/customer/profile.html');
         assert.equal(await run(`document.querySelector('#profile-phone').readOnly`), true);

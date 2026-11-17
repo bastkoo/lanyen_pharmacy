@@ -3,6 +3,9 @@ import { authMessage } from '../components/auth-dialog.js';
 import { renderAvatar } from '../components/customer-account.js';
 import { notify } from '../components/customer-notice.js';
 import { validateImageFile, productErrorMessage } from '../utils/product-validation.js';
+import { setupAccountSidebar } from '../components/customer-account-sidebar.js';
+
+setupAccountSidebar();
 
 const $ = id => document.getElementById(id);
 let user, avatar = null, dirty = false, busy = false, version = 0, disposed = false;

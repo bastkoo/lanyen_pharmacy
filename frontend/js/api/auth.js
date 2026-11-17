@@ -45,6 +45,29 @@ export function uploadAvatar(file, expectedUserId) {
         return send('me/avatar', body);
     });
 }
+export function getAddresses(expectedUserId) {
+    return withSessionRequest(async () => {
+        if (expectedUserId !== undefined) requireSameOwner(await send('me'), expectedUserId);
+        return send('me/addresses');
+    });
+}
+export function getPoints(page = 1, expectedUserId) {
+    return withSessionRequest(async () => {
+        if (expectedUserId !== undefined) requireSameOwner(await send('me'), expectedUserId);
+        return send(`me/points?page=${page}&per_page=20`);
+    });
+}
+function writeAddress(path, method, data, expectedUserId) {
+    return withSessionRequest(async () => {
+        requireSameOwner(await send('me'), expectedUserId);
+        return send(path, data, method);
+    });
+}
+const addressFields = values => ({ TinhThanh: values.TinhThanh, PhuongXa: values.PhuongXa, DiaChiCuThe: values.DiaChiCuThe });
+export const createAddress = (values, owner) => writeAddress('me/addresses', 'POST', addressFields(values), owner);
+export const updateAddress = (id, values, owner) => writeAddress(`me/addresses/${id}`, 'PUT', addressFields(values), owner);
+export const deleteAddress = (id, owner) => writeAddress(`me/addresses/${id}`, 'DELETE', {}, owner);
+export const makePrimaryAddress = (id, owner) => writeAddress(`me/addresses/${id}/primary`, 'PATCH', {}, owner);
 export async function getCsrfToken() {
     await getSession();
     if (!csrfToken) throw new ApiError('CSRF_FAILED', 403);
