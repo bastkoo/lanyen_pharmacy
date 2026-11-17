@@ -14,6 +14,7 @@ from app.services.auth_service import AuthError
 from app.services.cart_service import get_cart, operation, require_unit
 from app.services.inventory_service import usable_stock, deduct_order_stock
 from app.services.sepay_gateway_service import gateway_config
+from app.schemas.order_schema import ORDER_FILTERS
 
 
 def payment_config():
@@ -124,13 +125,38 @@ def read_detail(user_id, order_id):
     result = serialize(order, legacy_payment=False)
     result['NgayDat'] = order.NgayDat.isoformat()
     result['GhiChu'] = order.GhiChu
-    result['items'] = [dict(
+    result['items'] = [serialize_item(detail, product, unit)
+                       for detail, product, unit in orders.detail_items(order_id)]
+    return result
+
+
+def serialize_item(detail, product, unit):
+    return dict(
         MaChiTiet=str(detail.MaChiTiet), MaThuoc=detail.MaThuoc, MaDonGia=detail.MaDonGia,
         SoLuong=detail.SoLuong, DonGia=str(detail.DonGia), ThanhTien=str(detail.SoLuong * detail.DonGia),
         TenThuoc=product.TenThuoc if product else 'Sản phẩm không còn trong danh mục',
         HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '')
-        for detail, product, unit in orders.detail_items(order_id)]
-    return result
+
+
+@operation
+def list_owned(user_id, status, page, per_page):
+    items, total, processing_count, previews = orders.list_owned(user_id, ORDER_FILTERS[status], page, per_page)
+    result = []
+    for order in items:
+        value = serialize(order, legacy_payment=False)
+        value['NgayDat'] = order.NgayDat.isoformat()
+        lines = (order.GhiChu or '').split('\n')
+        receipt = lines[1] if len(lines) > 1 and lines[0].startswith('Người nhận: ') else ''
+        value['HinhThucNhanHang'] = ('pickup' if receipt.startswith('Nhận tại nhà thuốc: ') else
+                                    'delivery' if receipt.startswith('Giao tận nơi: ') else None)
+        preview = previews.get(order.MaDonHang)
+        value['item_count'] = preview[0] if preview else 0
+        value['preview'] = serialize_item(*preview[1:]) if preview else None
+        value['can_pay'] = (order.PhuongThucThanhToan == 1 and order.TrangThaiThanhToan == 0
+                            and order.TrangThaiDonHang == 0 and order.MoiTruongThanhToan in ('sandbox', 'production'))
+        result.append(value)
+    return {'items': result, 'total': total, 'processing_count': processing_count,
+            'page': page, 'per_page': per_page, 'status': status}
 
 
 @operation

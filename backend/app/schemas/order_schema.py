@@ -1,5 +1,14 @@
 from marshmallow import Schema, fields, validate, validates_schema, ValidationError
 
+ORDER_FILTERS = {'all': None, 'processing': (0, 1), 'shipping': (2,),
+                 'delivered': (3,), 'cancelled': (4,), 'returns': (5,)}
+
+
+class OrderListQuerySchema(Schema):
+    status = fields.String(load_default='all', validate=validate.OneOf(ORDER_FILTERS))
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1, max=2147483647))
+    per_page = fields.Integer(load_default=10, validate=validate.Range(min=1, max=50))
+
 
 class OrderCreateSchema(Schema):
     MaDonGia = fields.List(fields.Integer(strict=True, validate=validate.Range(min=1, max=2147483647)),

@@ -21,4 +21,5 @@ async function request(path, method = 'GET', body, token) {
 export const createOrder = (values, owner) => withAuthenticatedSession(owner, token => request('', 'POST', values, token));
 export const getOrder = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}`));
 export const getOrderDetail = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}/detail`));
+export const getOrders = (status = 'all', page = 1) => withSessionRequest(() => request(`?${new URLSearchParams({ status, page: String(page), per_page: '10' })}`));
 export const initializePayment = (id, owner) => withAuthenticatedSession(owner, token => request(`/${encodeURIComponent(id)}/payment`, 'POST', undefined, token));

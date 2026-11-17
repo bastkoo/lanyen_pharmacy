@@ -26,9 +26,9 @@
 
 ## Callback và cookie
 
-Các biến `SEPAY_SUCCESS_URL`, `SEPAY_ERROR_URL`, `SEPAY_CANCEL_URL` là tùy chọn. Để trống vẫn có thể kiểm tra IPN rồi tự quay lại URL đơn đã lưu.
+Các biến `SEPAY_SUCCESS_URL`, `SEPAY_ERROR_URL`, `SEPAY_CANCEL_URL` và bộ Production tương ứng có thể trỏ tới `https://<backend-public>/api/payments/sepay/return`. Backend tự gắn mã đơn, callback redirect 303 về trang chi tiết tại Frontend đã cấu hình bằng `SEPAY_FRONTEND_ORIGIN` (phải nằm trong AUTH_ALLOWED_ORIGINS). Xem [trang chi tiết đơn](MODULE_03_10_ORDER_DETAIL.md).
 
-Nếu cần redirect tự động, phải cấu hình URL Frontend công khai hợp lệ và giữ mã đơn để trang kết quả đọc API. Ngrok đang forward cổng **5000**, vì vậy URL ngrok hiện tại không tự phục vụ HTML của cổng **5500**. Không đặt callback tới đường dẫn HTML Frontend trên tunnel Backend này khi chưa cấu hình phục vụ/proxy phù hợp. Không đổi sang gọi API qua ngrok từ Frontend localhost mà chưa xử lý cookie/CORS.
+Ngrok đang forward cổng **5000**, vì vậy URL ngrok không tự phục vụ HTML của cổng **5500**. Route return trên Backend giải quyết việc này bằng redirect tới Frontend, không cần giả định tunnel phục vụ HTML. Không đổi sang gọi API qua ngrok từ Frontend localhost mà chưa xử lý cookie/CORS. Với host local, redirect localhost chỉ phù hợp khi trình duyệt chạy trên máy có Frontend.
 
 Tham số `status=success`, `paid=1` trên URL không được phép cập nhật đơn. Callback chỉ là điều hướng; IPN hợp lệ mới xác nhận thanh toán.
 

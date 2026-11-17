@@ -9,7 +9,24 @@ const addresses = [{ MaDiaChi: 1, DiaChiGiao: true, TinhThanh: 'Thành phố Hu�
 let fixtureOrder, paymentConfirmed = false, orderCreates = 0, orderMode = 'normal';
 let gatewayInitializations = 0;
 let fixtureEnvironment = 'sandbox';
+let listMode = 'normal';
 export async function orderFixture(req, json) {
+    if (req.method === 'GET' && new URL(req.url, 'http://fixture').pathname === '/api/orders') {
+        if (listMode === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        const query = new URL(req.url, 'http://fixture').searchParams;
+        const status = query.get('status') || 'all', page = Number(query.get('page') || 1);
+        const filters = { all: [0, 1, 2, 3, 4, 5], processing: [0, 1], shipping: [2], delivered: [3], cancelled: [4], returns: [5] };
+        const items = listMode === 'empty' ? [] : filters[status].map(state => ({
+            ...fixtureOrder, MaDonHang: state === 0 ? fixtureOrder.MaDonHang : String(100 + state),
+            NgayDat: '2026-11-18T09:15:00', HinhThucNhanHang: 'delivery',
+            TrangThaiDonHang: state, TrangThaiThanhToan: 0, can_pay: state === 0,
+            TongTien: '60000', TienGiamGia: '10000', item_count: 2,
+            preview: { TenThuoc: '<b>Vitamin tổng hợp</b>', HinhAnh: 'javascript:alert(1)',
+                DonViTinh: 'Hộp', SoLuong: 1, ThanhTien: '50000' }
+        }));
+        return json(200, { code: 'ORDERS_LISTED', items: page === 1 ? items : [], total: items.length,
+            processing_count: listMode === 'empty' ? 0 : 2, page, per_page: 10, status });
+    }
     if (/\/detail$/.test(req.url)) {
         if (orderMode === 'detail-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
         if (orderMode === 'detail-not-found') return json(404, { code: 'ORDER_NOT_FOUND' });
@@ -139,31 +156,33 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         assert.equal(await run('location.pathname'), '/pages/customer/order-detail.html');
         assert.equal(orderCreates, 1);
         assert.equal(gatewayInitializations, 0);
-        assert.equal(await run(`document.querySelector('#order-status').textContent`), 'Xử lý đơn');
+        assert.equal(await run(`document.querySelector('#order-status').textContent`), 'Đang xử lý đơn');
+        assert.equal(await run(`document.querySelectorAll('#order-progress .is-complete').length`), 1);
+        assert.equal(await run(`document.querySelector('#order-progress .is-current').classList.contains('is-complete')`), false);
         assert.equal(await run(`document.querySelector('#order-progress').children.length`), 4);
         assert.equal(await run(`document.querySelector('#order-products b')`), null);
         assert.equal(await run(`document.querySelector('#order-open-payment').hidden`), true);
         assert.equal(await run(`document.querySelector('#order-number').textContent`), '#' + fixtureOrder.MaDonHang);
         assert.equal(await run(`document.querySelector('#order-total').textContent`), '50.000 ₫');
-        await click(`document.querySelector('#order-motion')`);
-        assert.equal(await run(`getComputedStyle(document.querySelector('.is-current .order-step-flow')).animationPlayState`), 'paused');
-        await click(`document.querySelector('#order-motion')`);
+        assert.equal(await run(`document.querySelector('#order-motion, #order-refresh, #order-updated')`), null);
         await command('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
-        await waitFor(`document.querySelector('#order-motion').disabled`);
-        assert.equal(await run(`getComputedStyle(document.querySelector('.is-current .order-step-flow')).animationName`), 'none');
+        assert.equal(await run(`getComputedStyle(document.querySelector('.is-approaching .order-step-flow')).animationName`), 'none');
         await command('Emulation.setEmulatedMedia', { features: [] });
         for (const status of [0, 1, 2, 3]) {
             fixtureOrder.TrangThaiDonHang = status;
-            await click(`document.querySelector('#order-refresh')`);
-            await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Xử lý đơn','Đang giao','Đã giao'][status])}`);
+            await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
+            await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Đang xử lý đơn','Đang giao','Đã giao'][status])}`);
             assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).indexOf(document.querySelector('[aria-current="step"]'))`), status);
-            assert.equal(await run(`document.querySelector('#order-motion').hidden`), status === 3);
+            assert.equal(await run(`document.querySelectorAll('.is-approaching').length`), status === 0 ? 0 : 1);
+            assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).findIndex(e=>e.classList.contains('is-approaching'))`), status - 1);
+            assert.equal(await run(`document.querySelectorAll('#order-progress .is-complete').length`), status === 3 ? 4 : status);
+            assert.equal(await run(`Array.from(document.querySelectorAll('.order-step-flow')).filter(e=>getComputedStyle(e).animationName==='order-flow').length`), status === 0 ? 0 : 1);
         }
-        fixtureOrder.TrangThaiDonHang = 4; await click(`document.querySelector('#order-refresh')`);
+        fixtureOrder.TrangThaiDonHang = 4; await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
         await waitFor(`document.querySelector('#order-status').textContent==='Đã hủy'`);
         assert.equal(await run(`document.querySelector('#order-progress').hidden`), true);
-        fixtureOrder.TrangThaiDonHang = 1; await click(`document.querySelector('#order-refresh')`);
-        await waitFor(`document.querySelector('#order-status').textContent==='Xử lý đơn'`);
+        fixtureOrder.TrangThaiDonHang = 1; await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
+        await waitFor(`document.querySelector('#order-status').textContent==='Đang xử lý đơn'`);
         for (const width of [1440, 1024, 768, 375, 320]) {
             await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
             assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Order detail fits ${width}px`);
@@ -173,7 +192,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
                 await writeFile(path.join(root, 'docs', `ORDER_DETAIL_${width}.png`), Buffer.from(screenshot.data, 'base64'));
             }
         }
-        orderMode = 'detail-error'; await click(`document.querySelector('#order-refresh')`);
+        orderMode = 'detail-error'; await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
         await waitFor(`document.querySelector('#order-retry').hidden===false`);
         orderMode = 'normal'; await click(`document.querySelector('#order-retry')`);
         await waitFor(`document.querySelector('#order-load-state').textContent===''`);
@@ -181,6 +200,11 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await command('Page.navigate', { url: baseUrl + savedUrl });
         await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
         assert.equal(orderCreates, 1, 'Reload reads existing order instead of recreating it');
+        orderMode = 'detail-not-found'; await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
+        await waitFor(`document.querySelector('#order-detail-layout').hidden===true`);
+        assert.equal(await run(`document.querySelector('#order-products').children.length`), 0);
+        assert.equal(await run(`document.querySelector('#order-recipient').textContent`), '');
+        orderMode = 'normal';
         await navigate('checkout.html?unit=11'); await ready('50.000 ₫');
         await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
         await click(`document.querySelector('input[name="payment"][value="qr"]')`);
@@ -229,7 +253,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
         await command('Page.navigate', { url: `${baseUrl}/api/payments/sepay/return?order=${fixtureOrder.MaDonHang}&status=success` });
         await waitFor(`document.querySelector('#order-payment-status')?.textContent.includes('Đã thanh toán')`);
-        assert.equal(await run(`document.querySelector('#order-status').textContent`), 'Xử lý đơn');
+        assert.equal(await run(`document.querySelector('#order-status').textContent`), 'Đang xử lý đơn');
         // Production response is mocked; intercept submit before any real network request.
         fixtureEnvironment = 'production'; paymentConfirmed = false;
         resetCartFixture([], cart);
@@ -248,8 +272,46 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await waitFor(`${$('checkout-result')}.hidden===false`);
         assert.equal(await run(`${$('checkout-open-payment')}.hidden`), true);
         assert.match(await run(`${$('checkout-transfer-details')}.textContent`), /chưa xác định môi trường/);
+        fixtureEnvironment = 'sandbox'; fixtureOrder.payment_environment = 'sandbox';
+        fixtureOrder.PhuongThucThanhToan = 1; fixtureOrder.TrangThaiDonHang = 0;
+        fixtureOrder.TrangThaiThanhToan = 0;
+        await navigate('orders.html');
+        await waitFor(`document.querySelectorAll('.orders-card').length===6`);
+        assert.equal(await run(`document.querySelectorAll('[data-pay-order]').length`), 1);
+        assert.equal(await run(`document.querySelector('.orders-preview h3 b')`), null);
+        assert.equal(await run(`document.querySelector('#orders-processing-count').textContent`), '2');
+        assert.equal(await run(`document.querySelectorAll('.orders-filters .orders-count').length`), 1);
+        for (const [filter, expected] of [['processing', [0, 1]], ['shipping', [2]], ['delivered', [3]], ['cancelled', [4]], ['returns', [5]], ['all', [0, 1, 2, 3, 4, 5]]]) {
+            await run(`document.querySelector('[data-order-filter="${filter}"]').click()`);
+            await waitFor(`document.querySelector('#orders-content').getAttribute('aria-busy')==='false' && document.querySelectorAll('.orders-card').length===${expected.length}`);
+            assert.deepEqual(await run(`Array.from(document.querySelectorAll('.orders-status')).map(e=>Number(e.dataset.status))`), expected);
+            assert.equal(await run(`document.querySelector('#orders-processing-count').textContent`), '2');
+            assert.equal(await run(`document.querySelectorAll('[data-pay-order]').length`), expected.includes(0) ? 1 : 0);
+        }
+        for (const width of [1440, 768, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Orders fits ${width}px`);
+            if (width === 1440 || width === 375) {
+                const shot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+                await writeFile(path.join(root, 'docs', `MY_ORDERS_${width}.png`), Buffer.from(shot.data, 'base64'));
+            }
+        }
+        await run(`HTMLFormElement.prototype.submit=function(){window.__listPayment={action:this.action,fields:Object.fromEntries(new FormData(this))}};document.querySelector('[data-pay-order]').click()`);
+        await waitFor(`Boolean(window.__listPayment)`);
+        assert.equal(await run('window.__listPayment.action'), 'https://pay-sandbox.sepay.vn/v1/checkout/init');
+        assert.equal(await run('window.__listPayment.fields.order_invoice_number'), `LYSGTEST${fixtureOrder.MaDonHang}`);
+        assert.equal(await run(`document.querySelector('.orders-status').dataset.status`), '0');
+        listMode = 'error'; await run(`window.dispatchEvent(new Event('focus'))`);
+        await waitFor(`document.querySelector('#orders-retry').hidden===false`);
+        assert.equal(await run(`document.querySelectorAll('.orders-card').length`), 0);
+        listMode = 'empty'; await run(`document.querySelector('#orders-retry').click()`);
+        await waitFor(`document.querySelector('#orders-empty').hidden===false`);
+        assert.equal(await run(`document.querySelector('#orders-processing-count').textContent`), '0');
+        listMode = 'normal'; await run(`window.dispatchEvent(new Event('focus'))`);
+        await waitFor(`document.querySelectorAll('.orders-card').length===6`);
         await click($('account-avatar-button')); await click($('logout-button'));
-        await waitFor(`${$('checkout-result')}.hidden===true`);
+        await waitFor(`document.querySelectorAll('.orders-card').length===0 && document.querySelector('#orders-processing-count').hidden`);
+        console.log('PASS: My Orders filters 0–5, global processing count, pending QR payment form, safe text, network retry, empty state, logout privacy, responsive 1440–320px.');
         console.log('PASS: checkout selection, guest/login, address, pricing/errors, COD creation, QR/config failure/payment confirmation, double-click prevention, BIGINT order reload, logout privacy, responsive 1440–320px. API MOCK; no database or real payment.');
         console.log(`Order detail screenshots: ${path.join(root, 'docs')}`);
     } finally { fixtureEnvironment = 'sandbox'; setSaleQuotes(false); setCartMode('normal'); resetCartFixture([]); resetAddressFixture([]); setScenario('anonymous'); }

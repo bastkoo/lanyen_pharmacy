@@ -13,12 +13,12 @@
     <link rel="stylesheet" href="../../css/base/global.css">
     <link rel="stylesheet" href="../../css/pages/home.css">
     <link rel="stylesheet" href="../../css/components/auth.css">
-    <link rel="stylesheet" href="../../css/pages/public-profile.css">
+    <link rel="stylesheet" href="../../css/pages/public-orders.css">
     <script type="module" src="../../js/pages/home.js"></script>
     <script type="module" src="../../js/pages/public-home.js"></script>
-    <script type="module" src="../../js/pages/public-account-page.js"></script>
+    <script type="module" src="../../js/pages/public-orders.js"></script>
 </head>
-<body class="public-home public-profile">
+<body class="public-home public-orders">
     <a class="skip-link" href="#main">Đến nội dung chính</a>
     <header class="site-header">
         <div class="header-inner">
@@ -44,10 +44,22 @@
             </div>
         </div>
     </header>
-    <main id="main" tabindex="-1" class="page-width profile-page">
-        <a href="home.html" class="quiet-link">← Trở về trang chủ</a><h1>Đơn hàng của tôi</h1>
-        <div class="account-placeholder"><p id="account-page-state" role="status">Đang kiểm tra tài khoản…</p><button id="account-page-login" class="button button-primary" type="button" hidden>Đăng nhập để tiếp tục</button><button id="account-page-retry" class="quiet-link" type="button" hidden>Thử lại</button></div>
+    <main id="main" tabindex="-1" class="page-width orders-page">
+        <a href="home.html" class="quiet-link">← Trang chủ</a>
+        <div class="orders-heading"><div><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><h1>Đơn hàng của tôi</h1></div><a href="products.html" class="quiet-link">Tiếp tục mua hàng →</a></div>
+        <nav class="orders-filters" aria-label="Lọc đơn hàng theo trạng thái">
+            <a href="orders.html" data-order-filter="all" aria-current="page">Tất cả</a>
+            <a href="orders.html?status=processing" data-order-filter="processing">Đang xử lý <span id="orders-processing-count" class="orders-count" hidden></span></a>
+            <a href="orders.html?status=shipping" data-order-filter="shipping">Đang giao</a>
+            <a href="orders.html?status=delivered" data-order-filter="delivered">Đã giao</a>
+            <a href="orders.html?status=cancelled" data-order-filter="cancelled">Đã hủy</a>
+            <a href="orders.html?status=returns" data-order-filter="returns">Đổi trả</a>
+        </nav>
+        <div class="orders-feedback"><p id="orders-state" role="status">Đang tải đơn hàng…</p><button id="orders-login" type="button" class="button button-primary" hidden>Đăng nhập để xem đơn hàng</button><button id="orders-retry" type="button" class="quiet-link" hidden>Thử tải lại</button><a id="orders-reset" href="orders.html" class="quiet-link" hidden>Xem tất cả đơn hàng</a></div>
+        <section id="orders-content" aria-label="Danh sách đơn hàng" aria-busy="true"><ul id="orders-list" class="orders-list"></ul><div id="orders-empty" class="orders-empty" hidden><h2>Chưa có đơn hàng</h2><p id="orders-empty-message"></p><a href="products.html" class="button button-outline">Khám phá sản phẩm</a></div></section>
+        <nav id="orders-pagination" class="orders-pagination" aria-label="Phân trang đơn hàng" hidden><button id="orders-previous" class="button button-outline" type="button">Trang trước</button><span id="orders-page-info" role="status"></span><button id="orders-next" class="button button-outline" type="button">Trang sau</button></nav>
         <p id="page-status" class="sr-only" role="status"></p><button id="retry-session" class="quiet-link" type="button" hidden>Thử kiểm tra đăng nhập lại</button>
+        <noscript><p>Bật JavaScript để xem đơn hàng của bạn.</p></noscript>
     </main>
     <footer id="contact" class="site-footer" tabindex="-1">
         <div class="page-width footer-grid">

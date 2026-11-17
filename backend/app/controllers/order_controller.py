@@ -1,7 +1,8 @@
 from flask import current_app, g, jsonify, request, redirect
 
 from app.controllers.auth_controller import payload
-from app.schemas.order_schema import OrderCreateSchema
+from app.schemas.order_schema import OrderCreateSchema, OrderListQuerySchema
+from marshmallow import ValidationError
 from app.services import order_service
 from app.services.auth_service import AuthError
 from app.services import sepay_gateway_service
@@ -10,6 +11,18 @@ from app.services import sepay_gateway_service
 @payload(OrderCreateSchema)
 def create(data):
     return jsonify(code='ORDER_CREATED', order=order_service.create(g.current_user, data)), 201
+
+
+def list_owned():
+    try:
+        if any(len(request.args.getlist(key)) != 1 for key in request.args):
+            raise ValidationError('Duplicate filters.')
+        values = OrderListQuerySchema().load(request.args.to_dict())
+        return jsonify(code='ORDERS_LISTED', **order_service.list_owned(g.current_user.MaNguoiDung, **values))
+    except ValidationError:
+        return jsonify(code='INVALID_REQUEST'), 400
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
 
 
 def read(order_id):

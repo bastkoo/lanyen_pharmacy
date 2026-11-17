@@ -1,0 +1,45 @@
+.public-orders { background: var(--background-color); }
+.orders-page { padding-block: var(--spacing-lg) var(--spacing-2xl); }
+.orders-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--spacing-md); margin: var(--spacing-md) 0 var(--spacing-lg); }
+.orders-heading h1 { font-size: var(--font-size-2xl); margin-top: 6px; }
+.orders-filters { display: flex; overflow-x: auto; background: var(--surface-color); border: 1px solid var(--home-line); border-radius: var(--radius-lg) var(--radius-lg) 0 0; margin-bottom: var(--spacing-md); scroll-padding-inline: 12px; }
+.orders-filters a { position: relative; display: flex; flex: 1 0 auto; align-items: center; justify-content: center; gap: 8px; min-height: 60px; padding: 12px 18px; color: var(--home-muted); font-size: var(--font-size-sm); white-space: nowrap; border-bottom: 3px solid transparent; }
+.orders-filters a[aria-current='page'] { color: var(--primary-dark); border-bottom-color: var(--primary-color); font-weight: 500; }
+.orders-filters a:hover { background: var(--primary-light); color: var(--primary-dark); }
+.orders-filters a:focus-visible { outline-offset: -5px; }
+.orders-count { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding-inline: 6px; border-radius: 20px; color: var(--white-color); background: var(--primary-dark); font-size: 12px; font-weight: 500; }
+.orders-feedback { color: var(--home-muted); font-size: var(--font-size-sm); }
+.orders-feedback > .button, .orders-feedback > .quiet-link { margin: 12px 12px 12px 0; }
+.orders-list { padding: 0; list-style: none; display: grid; gap: var(--spacing-md); }
+.orders-card { min-width: 0; border: 1px solid var(--home-line); border-radius: var(--radius-lg); background: var(--surface-color); }
+.orders-card-heading { display: flex; justify-content: space-between; align-items: center; gap: var(--spacing-md); padding: 16px 20px; border-bottom: 1px solid var(--home-line); }
+.orders-card-reference { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; min-width: 0; }
+.orders-card h2 { font-size: var(--font-size-md); font-weight: 600; }
+.orders-card-reference p { color: var(--home-muted); font-size: 13px; overflow-wrap: anywhere; }
+.orders-card-reference a { color: var(--text-color); }
+.orders-card-reference a:hover { color: var(--primary-dark); text-decoration: underline; }
+.orders-status { display: inline-flex; align-items: center; gap: 7px; color: var(--primary-dark); font-size: var(--font-size-sm); white-space: nowrap; }
+.orders-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+.orders-status[data-status='4'], .orders-status[data-status='5'] { color: var(--home-muted); }
+.orders-preview { padding: 20px; display: grid; grid-template-columns: 66px minmax(0, 1fr) auto auto; gap: 16px; align-items: center; }
+.orders-preview-image { width: 66px; height: 76px; display: grid; place-items: center; padding: 5px; border: 1px solid var(--home-line); border-radius: var(--radius-sm); color: var(--home-muted); font-size: 11px; text-align: center; }
+.orders-preview-image img { width: 100%; height: 100%; object-fit: contain; }
+.orders-preview h3 { font-size: var(--font-size-sm); font-weight: 500; line-height: 1.8; overflow-wrap: anywhere; }
+.orders-preview p { font-size: 13px; color: var(--home-muted); margin-top: 5px; }
+.orders-preview-price { font-size: var(--font-size-sm); font-weight: 500; text-align: right; font-variant-numeric: tabular-nums; }
+.orders-preview-quantity { color: var(--home-muted); font-size: 13px; white-space: nowrap; text-align: right; }
+.orders-card-summary { display: flex; align-items: center; justify-content: space-between; gap: var(--spacing-md); padding: 0 20px 12px; }
+.orders-card-total { text-align: right; color: var(--home-muted); font-size: 13px; }
+.orders-card-total strong { color: var(--primary-dark); font-weight: 600; font-size: var(--font-size-lg); margin-left: 8px; font-variant-numeric: tabular-nums; }
+.orders-card-discount { display: block; font-size: 12px; margin-top: 6px; }
+.orders-card-actions { border-top: 1px solid var(--home-line); margin-inline: 20px; padding-block: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.orders-card-message { color: var(--home-muted); font-size: 13px; line-height: 1.7; }
+.orders-pay-state { font-size: 13px; color: var(--home-muted); padding-inline: 20px; padding-bottom: 12px; }
+.orders-card .button { min-width: 130px; }
+.orders-empty { text-align: center; background: var(--surface-color); border: 1px solid var(--home-line); border-radius: var(--radius-lg); padding: var(--spacing-2xl) var(--spacing-lg); }
+.orders-empty h2 { font-size: var(--font-size-lg); font-weight: 500; }
+.orders-empty p { margin-block: 12px 20px; color: var(--home-muted); }
+.orders-pagination { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 18px; margin-top: var(--spacing-lg); font-size: 13px; color: var(--home-muted); }
+.orders-page button:disabled { opacity: .65; cursor: default; }
+@media (max-width: 700px) { .orders-heading { align-items: flex-start; } .orders-heading h1 { font-size: 25px; } .orders-filters a { flex: 0 0 auto; min-width: 110px; min-height: 54px; padding-inline: 14px; } .orders-card-heading { align-items: flex-start; } .orders-card-reference { display: block; } .orders-card-reference p { margin-top: 6px; } .orders-preview { grid-template-columns: 56px minmax(0, 1fr); gap: 10px 14px; } .orders-preview-image { width: 56px; height: 68px; grid-row: span 2; } .orders-preview-price { grid-column: 2; text-align: left; } .orders-preview-quantity { grid-column: 2; text-align: left; } }
+@media (max-width: 420px) { .orders-heading { flex-direction: column; gap: 4px; } .orders-card-heading { padding: 14px; flex-wrap: wrap; gap: 8px; } .orders-preview { padding: 14px; } .orders-card-summary { padding-inline: 14px; align-items: flex-start; } .orders-card-total strong { display: block; margin: 4px 0 0; } .orders-card-actions { margin-inline: 14px; align-items: flex-start; flex-wrap: wrap; } .orders-pay-state { padding-inline: 14px; } }

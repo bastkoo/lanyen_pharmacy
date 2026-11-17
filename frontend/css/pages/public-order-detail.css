@@ -21,20 +21,21 @@
 .order-reference .quiet-link { font-size: 13px; }
 .order-progress-zone { border-block: 1px solid var(--home-line); padding: var(--spacing-lg); }
 .order-progress-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-.order-progress-heading .quiet-link { font-size: 12px; }
 .order-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; padding: 0; margin: 18px 0 20px; }
 .order-step { position: relative; text-align: center; min-width: 0; padding-inline: 3px; }
 .order-step-connector { position: absolute; top: 15px; height: 2px; left: 50%; width: 100%; background: var(--home-line); overflow: hidden; }
 .order-step:last-child .order-step-connector { display: none; }
 .order-step.is-complete .order-step-connector { background: var(--primary-color); }
+.order-step.is-approaching .order-step-connector { background: var(--home-line); }
 .order-step-marker { position: relative; z-index: 1; display: grid; place-items: center; width: 32px; height: 32px; margin-inline: auto; border: 1px solid var(--home-line); border-radius: 50%; background: var(--surface-color); color: var(--home-muted); font-size: 13px; }
-.order-step.is-complete .order-step-marker, .order-step.is-current .order-step-marker { background: var(--primary-color); border-color: var(--primary-color); color: var(--white-color); }
+.order-step.is-complete .order-step-marker { background: var(--primary-color); border-color: var(--primary-color); color: var(--white-color); }
+.order-step.is-current:not(.is-complete) .order-step-marker { border: 2px solid var(--primary-color); background: var(--surface-color); }
+.order-step.is-current:not(.is-complete) .order-step-marker::after { content: ''; width: 10px; height: 10px; background: var(--primary-color); border-radius: 50%; }
 .order-step-label { display: block; margin-top: 12px; font-size: 13px; color: var(--home-muted); }
 .order-step.is-current .order-step-label { color: var(--primary-dark); font-weight: 600; }
 .order-step-caption { display: block; color: var(--home-muted); font-size: 11px; line-height: 1.5; margin-top: 6px; overflow-wrap: anywhere; }
 .order-step-flow { display: none; height: 100%; width: 38%; background: var(--primary-color); }
-.order-step.is-current .order-step-flow { display: block; animation: order-flow 1.8s linear infinite; }
-.order-progress.motion-paused .order-step-flow { animation-play-state: paused; }
+.order-step.is-approaching .order-step-flow { display: block; animation: order-flow 1.8s linear infinite; }
 @keyframes order-flow { from { transform: translateX(-110%); } to { transform: translateX(370%); } }
 .order-muted { color: var(--home-muted); font-size: 13px; line-height: 1.7; }
 .order-receipt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: var(--spacing-lg); gap: var(--spacing-md); }
@@ -67,9 +68,8 @@
 .order-payment-message { padding: var(--spacing-md); background: var(--primary-light); color: var(--primary-dark); border-radius: var(--radius-md); font-size: 13px; line-height: 1.8; }
 .order-payment .button { width: 100%; margin-top: var(--spacing-md); }
 #order-gateway-state { color: var(--home-muted); font-size: 13px; margin-top: 12px; }
-.order-payment > .quiet-link { margin-top: 8px; }
 .order-feedback:has(:not([hidden])) { margin-bottom: var(--spacing-md); }
 @media (max-width: 1050px) { .order-detail-layout { grid-template-columns: minmax(0, 1fr) 310px; } .order-receipt-grid { grid-template-columns: 1fr; gap: 18px; } .order-receipt-grid section + section { border-left: 0; border-top: 1px solid var(--home-line); padding: 16px 0 0; } }
 @media (max-width: 800px) { .order-detail-layout { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'tracking' 'payment' 'products'; } .order-payment { position: static; } .order-page-heading { align-items: flex-start; } .order-page-heading h1 { font-size: 25px; } }
 @media (max-width: 480px) { .order-page-heading { flex-direction: column; gap: 4px; } .order-panel-heading, .order-progress-zone, .order-receipt-grid, .order-payment, .order-product { padding: 18px; } .order-reference { padding-inline: 18px; } .order-step-label { font-size: 12px; } .order-step-caption { font-size: 10px; } .order-product { grid-template-columns: 56px minmax(0, 1fr); gap: 12px; } .order-product-image { width: 56px; height: 68px; } .order-product-price { grid-column: 2; } }
-@media (prefers-reduced-motion: reduce) { .order-step.is-current .order-step-flow { animation: none; transform: none; width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .order-step.is-approaching .order-step-flow { animation: none; transform: none; width: 100%; } }

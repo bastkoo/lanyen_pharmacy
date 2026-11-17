@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.extensions import db
 from app.models.don_hang import DonHang
@@ -29,3 +29,27 @@ def detail_items(order_id):
                               .outerjoin(DonViGiaThuoc, DonViGiaThuoc.MaDonGia == ChiTietDonHang.MaDonGia)
                               .where(ChiTietDonHang.MaDonHang == order_id)
                               .order_by(ChiTietDonHang.MaChiTiet)).all()
+
+
+def list_owned(user_id, statuses, page, per_page):
+    query = select(DonHang).where(DonHang.MaNguoiMua == user_id)
+    if statuses is not None:
+        query = query.where(DonHang.TrangThaiDonHang.in_(statuses))
+    total = db.session.execute(select(func.count()).select_from(query.subquery())).scalar_one()
+    processing_count = db.session.execute(select(func.count()).select_from(DonHang).where(
+        DonHang.MaNguoiMua == user_id, DonHang.TrangThaiDonHang.in_((0, 1)))).scalar_one()
+    items = db.session.execute(query.order_by(DonHang.NgayDat.desc(), DonHang.MaDonHang.desc())
+                               .offset((page - 1) * per_page).limit(per_page)).scalars().all()
+    if not items:
+        return items, total, processing_count, {}
+    # One preview per order, with a line count. Avoid an N+1 query for products.
+    first = select(ChiTietDonHang.MaDonHang,
+                   func.min(ChiTietDonHang.MaChiTiet).label('first_id'), func.count().label('item_count')).where(
+                       ChiTietDonHang.MaDonHang.in_([item.MaDonHang for item in items])).group_by(
+                           ChiTietDonHang.MaDonHang).subquery()
+    rows = db.session.execute(select(first.c.MaDonHang, first.c.item_count, ChiTietDonHang, Thuoc, DonViGiaThuoc)
+                              .select_from(first)
+                              .join(ChiTietDonHang, ChiTietDonHang.MaChiTiet == first.c.first_id)
+                              .outerjoin(Thuoc, Thuoc.MaThuoc == ChiTietDonHang.MaThuoc)
+                              .outerjoin(DonViGiaThuoc, DonViGiaThuoc.MaDonGia == ChiTietDonHang.MaDonGia)).all()
+    return items, total, processing_count, {row[0]: row[1:] for row in rows}

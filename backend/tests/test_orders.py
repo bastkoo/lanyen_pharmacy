@@ -83,6 +83,77 @@ class OrderTests(unittest.TestCase):
             'content': 'chuyen tien LYDH45', 'transferAmount': 32000, **changes},
             headers={'Authorization': key})
 
+    def test_order_list_filters_are_owned_and_processing_count_is_global(self):
+        listing = self.mock('app.services.order_service.orders.list_owned', return_value=([], 0, 17, {}))
+        for name, statuses in [('all', None), ('processing', (0, 1)), ('shipping', (2,)),
+                               ('delivered', (3,)), ('cancelled', (4,)), ('returns', (5,))]:
+            with self.subTest(name=name):
+                response = self.client.get('/api/orders', query_string={'status': name, 'page': 2})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json['processing_count'], 17)
+                self.assertEqual(response.json['items'], [])
+                listing.assert_called_with(12, statuses, 2, 10)
+        self.commit.assert_not_called()
+        self.deduct.assert_not_called()
+
+    def test_order_list_rejects_invalid_queries_and_other_roles(self):
+        listing = self.mock('app.services.order_service.orders.list_owned')
+        for query in ['status=unknown', 'page=0', 'page=-1', 'page=2147483648',
+                      'per_page=51', 'per_page=0', 'status=all&status=shipping', 'MaNguoiMua=99']:
+            with self.subTest(query=query):
+                self.assertEqual(self.client.get('/api/orders?' + query).status_code, 400)
+        listing.assert_not_called()
+        self.user.VaiTro = 2
+        self.assertEqual(self.client.get('/api/orders').status_code, 403)
+        self.user.VaiTro = 0
+        with self.client.session_transaction() as state:
+            state.clear()
+        self.assertEqual(self.client.get('/api/orders').status_code, 401)
+
+    def test_order_list_pay_button_only_for_classified_pending_unpaid_qr(self):
+        cases = [({}, True), ({'TrangThaiDonHang': 1}, False), ({'TrangThaiDonHang': 2}, False),
+                 ({'TrangThaiDonHang': 3}, False), ({'TrangThaiDonHang': 4}, False),
+                 ({'TrangThaiDonHang': 5}, False), ({'TrangThaiThanhToan': 1}, False),
+                 ({'PhuongThucThanhToan': 0}, False), ({'MoiTruongThanhToan': None}, False),
+                 ({'MoiTruongThanhToan': 'production'}, True)]
+        listing = self.mock('app.services.order_service.orders.list_owned')
+        for changes, expected in cases:
+            with self.subTest(changes=changes):
+                order = self.order(NgayDat=datetime(2026, 11, 18, 9), GhiChu='Người nhận: An\nGiao tận nơi: Huế', **changes)
+                detail = NS(MaChiTiet=100, MaThuoc=7, MaDonGia=8, SoLuong=3, DonGia=12000)
+                listing.return_value = ([order], 1, 1, {45: (2, detail, NS(TenThuoc='Vitamin', HinhAnh=None), NS(DonViTinh='Hộp'))})
+                response = self.client.get('/api/orders')
+                self.assertEqual(response.status_code, 200)
+                value = response.json['items'][0]
+                self.assertEqual(value['can_pay'], expected)
+                self.assertEqual(value['MaDonHang'], '45')
+                self.assertEqual(value['preview']['ThanhTien'], '36000')
+                self.assertEqual(value['TongThanhToan'], '32000')
+                self.assertEqual(value['item_count'], 2)
+                self.assertEqual(value['HinhThucNhanHang'], 'delivery')
+        self.commit.assert_not_called()
+        self.deduct.assert_not_called()
+
+    def test_order_list_repository_queries_compile_and_scope_owner(self):
+        from unittest.mock import MagicMock
+        from sqlalchemy.dialects import postgresql
+        execute = self.mock('app.repositories.don_hang_repository.db.session.execute')
+        responses = [MagicMock() for _ in range(4)]
+        responses[0].scalar_one.return_value = 1
+        responses[1].scalar_one.return_value = 7
+        responses[2].scalars.return_value.all.return_value = [NS(MaDonHang=45)]
+        responses[3].all.return_value = []
+        execute.side_effect = responses
+        with self.app.app_context():
+            result = don_hang_repository.list_owned(12, (0, 1), 2, 10)
+        self.assertEqual(result[1:3], (1, 7))
+        statements = [call.args[0].compile(dialect=postgresql.dialect()) for call in execute.call_args_list]
+        for statement in statements[:3]:
+            self.assertIn('MaNguoiMua', str(statement))
+            self.assertIn(12, statement.params.values())
+        self.assertIn('JOIN', str(statements[3]))
+        self.assertIn([45], statements[3].params.values())
+
     def test_cod_saves_authoritative_totals_details_and_delivery_snapshot(self):
         result = self.post()
         self.assertEqual(result.status_code, 201)

@@ -8,10 +8,9 @@ const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
 const id = new URLSearchParams(location.search).get('order');
 const validId = /^[1-9][0-9]{0,18}$/.test(id || '') && BigInt(id) <= 9223372036854775807n;
-const steps = ['Đặt hàng', 'Xử lý đơn', 'Đang giao', 'Đã giao'];
+const steps = ['Đặt hàng', 'Đang xử lý đơn', 'Đang giao', 'Đã giao'];
 const statusNames = [...steps, 'Đã hủy', 'Đổi trả'];
-const motion = matchMedia('(prefers-reduced-motion: reduce)');
-let order = null, user = null, version = 0, disposed = false, timer, opening = false, snapshot = '', paused = false;
+let order = null, user = null, version = 0, disposed = false, timer, opening = false, snapshot = '';
 
 function dateText(value) {
     const parsed = new Date(/(?:Z|[+-]\d\d:\d\d)$/i.test(value || '') ? value : `${value}+07:00`);
@@ -25,7 +24,7 @@ function clearPrivate() {
     $('order-detail-layout').hidden = true;
     for (const name of ['order-number', 'order-date', 'order-status', 'order-recipient', 'order-address',
         'order-note', 'order-subtotal', 'order-discount', 'order-total', 'order-copy-state', 'order-gateway-state',
-        'order-receipt-type', 'order-payment-method', 'order-payment-status', 'order-payment-message', 'order-updated']) $(name).textContent = '';
+        'order-receipt-type', 'order-payment-method', 'order-payment-status', 'order-payment-message']) $(name).textContent = '';
     $('order-products').replaceChildren(); $('order-progress').replaceChildren();
     document.getElementById('sepay-checkout-form')?.remove();
 }
@@ -43,16 +42,18 @@ function receiptInfo(note) {
 function renderProgress(value) {
     const current = value.TrangThaiDonHang;
     const standard = Number.isInteger(current) && current >= 0 && current <= 3;
-    $('order-progress').hidden = !standard; $('order-motion').hidden = !standard || current === 3;
+    $('order-progress').hidden = !standard;
     $('order-progress').replaceChildren();
     if (standard) steps.forEach((label, index) => {
-        const item = node('li', undefined, `order-step${index < current ? ' is-complete' : index === current ? ' is-current' : ''}`);
+        const completed = index < current || (current === 3 && index === 3);
+        const approaching = current > 0 && index === current - 1;
+        const item = node('li', undefined, `order-step${completed ? ' is-complete' : ''}${index === current ? ' is-current' : ''}${approaching ? ' is-approaching' : ''}`);
         if (index === current) item.setAttribute('aria-current', 'step');
         const connector = node('span', undefined, 'order-step-connector'); connector.setAttribute('aria-hidden', 'true'); connector.append(node('span', undefined, 'order-step-flow'));
-        const marker = node('span', index <= current ? '✓' : String(index + 1), 'order-step-marker'); marker.setAttribute('aria-hidden', 'true');
+        const marker = node('span', completed ? '✓' : '', 'order-step-marker'); marker.setAttribute('aria-hidden', 'true');
         item.append(connector, marker, node('span', label, 'order-step-label'));
         if (index === 0) item.append(node('span', dateText(value.NgayDat), 'order-step-caption'));
-        else if (index === current) item.append(node('span', 'Hiện tại', 'order-step-caption'));
+        else if (index === current) item.append(node('span', current === 3 ? 'Đã hoàn tất' : 'Đang thực hiện', 'order-step-caption'));
         $('order-progress').append(item);
     });
     const notes = [value.PhuongThucThanhToan === 1 && value.TrangThaiThanhToan === 0
@@ -60,14 +61,6 @@ function renderProgress(value) {
     'Nhà thuốc đang xử lý đơn hàng của bạn.', 'Đơn hàng đang được giao tới bạn.', 'Đơn hàng đã được giao.',
     'Đơn hàng đã hủy.', 'Đơn hàng đang được xử lý đổi trả.'];
     $('order-progress-note').textContent = notes[current] || 'Chưa xác định trạng thái đơn hàng.';
-    updateMotion();
-}
-
-function updateMotion() {
-    $('order-progress').classList.toggle('motion-paused', paused || motion.matches);
-    $('order-motion').disabled = motion.matches;
-    $('order-motion').setAttribute('aria-pressed', String(paused || motion.matches));
-    $('order-motion').textContent = motion.matches ? 'Đã giảm chuyển động' : paused ? 'Tiếp tục hiệu ứng' : 'Tạm dừng hiệu ứng';
 }
 
 function renderProducts(items) {
@@ -133,7 +126,6 @@ async function refresh() {
         const next = JSON.stringify(order);
         if (next !== snapshot) { render(order); snapshot = next; }
         $('order-load-state').textContent = '';
-        $('order-updated').textContent = `Cập nhật lúc ${new Intl.DateTimeFormat('vi-VN', { timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date())}`;
         if ([0, 1, 2].includes(order.TrangThaiDonHang)) timer = setTimeout(refresh, 5000);
     } catch (error) {
         if (disposed || attempt !== version) return;
@@ -168,11 +160,12 @@ $('order-copy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(String(order.MaDonHang)); $('order-copy-state').textContent = 'Đã sao chép mã đơn.'; }
     catch { $('order-copy-state').textContent = 'Bạn có thể chọn mã đơn phía trên để sao chép.'; }
 });
-$('order-motion').addEventListener('click', () => { paused = !paused; updateMotion(); });
-motion.addEventListener('change', updateMotion);
-$('order-refresh').addEventListener('click', refresh); $('order-retry').addEventListener('click', refresh);
+$('order-retry').addEventListener('click', refresh);
 $('order-login').addEventListener('click', () => $('login-button').click());
-window.addEventListener('auth-changed', () => { if (!disposed) { version++; clearPrivate(); refresh(); } });
+window.addEventListener('auth-changed', event => {
+    if (disposed || (user && String(event.detail?.user?.MaNguoiDung) === String(user.MaNguoiDung))) return;
+    opening = false; version++; clearPrivate(); refresh();
+});
 window.addEventListener('pagehide', () => { disposed = true; version++; clearTimeout(timer); });
 window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; refresh(); } });
 refresh();

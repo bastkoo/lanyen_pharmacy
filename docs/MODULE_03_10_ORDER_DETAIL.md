@@ -12,13 +12,15 @@
 | TrangThaiDonHang | Nhãn trên trang |
 | --- | --- |
 | 0 | Đặt hàng |
-| 1 | Xử lý đơn |
+| 1 | Đang xử lý đơn |
 | 2 | Đang giao |
 | 3 | Đã giao |
 
 Các giá trị 4/5 vẫn hiển thị Đã hủy/Đổi trả, không bị ép về tiến trình 0–3. Không đổi enum hoặc ý nghĩa trạng thái Backend.
 
-Đường nối từ bước hiện tại đến bước kế tiếp có vệt xanh chạy lặp. Khi đã giao thì dừng. Người dùng có thể tạm dừng/chạy lại hiệu ứng; `prefers-reduced-motion` tắt animation. Hiệu ứng chỉ minh họa bước kế tiếp, không tự thay đổi trạng thái đơn. Trang đọc lại API mỗi 5 giây khi đơn ở 0/1/2; có nút cập nhật thủ công và xử lý lỗi riêng.
+Bước hiện tại 0/1/2 có chấm hoạt động, chưa có dấu tích hoàn tất. Chỉ những bước trước bước hiện tại có dấu tích. Trạng thái 3 là kết thúc, cả bốn bước hoàn tất. Vì vậy trạng thái 1 nghĩa là nhà thuốc đang xử lý, chưa hoàn thành xử lý.
+
+Trạng thái 0 chưa tích Đặt hàng và không có hiệu ứng chạy. Trạng thái 1 chạy trên đoạn 0→1, trạng thái 2 trên đoạn 1→2, trạng thái 3 trên đoạn 2→3. Các đoạn đã đi qua giữ màu xanh; đoạn đang chạy có nền trung tính để thấy vệt xanh. `prefers-reduced-motion` thay animation bằng đoạn màu tĩnh. Hiệu ứng không tự thay đổi trạng thái đơn. Trang vẫn đọc API mỗi 5 giây khi đơn ở 0/1/2, giữ nút thử lại khi có lỗi. Đã bỏ nút tạm dừng, nút cập nhật thủ công và dòng thời gian cập nhật theo yêu cầu.
 
 ## Dữ liệu và bố cục
 
@@ -39,5 +41,5 @@ Thông tin nhận hàng đọc bản chụp trong GhiChu theo định dạng lu�
 ## Kiểm thử
 
 - Backend: API chi tiết/ownership, giá lưu trong đơn, BIGINT, callback 303 và chống redirect ra origin lạ, không commit hoặc trừ kho khi đọc/callback.
-- Chrome fixture: điều hướng COD, quay về sau QR, bốn trạng thái/terminal state, animation/pause/reduced-motion, tải lại BIGINT, DOM an toàn, lỗi/thử lại và responsive 1440–320px. Form SePay được chặn, không giao dịch thật.
+- Chrome fixture: điều hướng COD, quay về sau QR, bốn trạng thái/terminal state, đúng đoạn animation đi vào bước hiện tại và reduced-motion, tải lại BIGINT, DOM an toàn, lỗi/thử lại và responsive 1440–320px. Form SePay được chặn, không giao dịch thật.
 - Chưa thực hiện giao dịch ngân hàng hoặc thanh toán SePay thật để kiểm tra callback đầu cuối.
