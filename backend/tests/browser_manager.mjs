@@ -60,7 +60,7 @@ const server = createServer(async (req, res) => {
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
     if (checkingAccounts && pathname.startsWith('/api/manager/accounts')) return accountFixture(req, json);
     if (checkingPromotions && (pathname.startsWith('/api/manager/promotions') || pathname.startsWith('/api/manager/products'))) return promotionFixture(req, json);
-    if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory'))) return stockFixture(req, json);
+    if (checkingStock && (pathname.startsWith('/api/manager/products') || pathname.startsWith('/api/manager/inventory') || pathname === '/api/manager/categories')) return stockFixture(req, json);
     if (checkingUnits && (pathname.startsWith('/api/manager/products') || pathname === '/api/manager/categories')) return unitFixture(req, json);
     if (productTest && (pathname.startsWith('/api/manager/products') || pathname === '/api/manager/uploads/products' || ((!categoryTest || checkingProducts) && pathname === '/api/manager/categories'))) return productFixture(req, json);
     if (categoryTest && pathname.startsWith('/api/manager/categories')) return categoryFixture(req, json);

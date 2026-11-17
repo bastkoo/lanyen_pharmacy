@@ -1,4 +1,5 @@
 import { getProducts, getProduct } from '../api/products.js';
+import { getCategories } from '../api/categories.js';
 import { getBatches, getBatch, createBatch, updateBatch, deleteBatch } from '../api/batches.js';
 import { ApiError } from '../api/auth.js';
 import { setupLiveSearch } from '../utils/live-search.js';
@@ -9,11 +10,12 @@ import { stockNode as n, setupStockTable } from '../components/stock-table.js';
 
 export function setupBatches({ root, onAccessError }) {
     const $ = id => document.getElementById(id), dialog = $('batch-dialog');
-    let active = false, productId, product, pendingId, productsPage = 1, search = '', page = 1;
+    let active = false, productId, product, pendingId, productsPage = 1, search = '', categoryId = '', page = 1;
+    let categoryVersion = 0, categoryController;
     let pickerVersion = 0, selectionVersion = 0, listVersion = 0, dialogVersion = 0;
     let pickerController, selectionController, listController, dialogController;
     let busy = false, ready = false, mode, batchId, opener;
-    const cancelSearch = setupLiveSearch({ input: $('batch-search'), form: $('batch-product-search'), isActive: () => active });
+    const cancelSearch = setupLiveSearch({ input: $('batch-search'), form: $('batch-product-search'), isActive: () => active, filters: [$('batch-category')] });
     const count = value => new Intl.NumberFormat('vi-VN').format(value);
     function checkBatch(batch, id) {
         if (!batch || !Number.isInteger(batch.MaLo) || batch.MaThuoc !== id || typeof batch.SoLoSanXuat !== 'string' || dateValue(batch.NgaySanXuat) === null || dateValue(batch.HanSuDung) === null || ![batch.SoLuongNhap, batch.SoLuongTon, batch.GiaNhap].every(Number.isSafeInteger)) throw new ApiError('INVALID_RESPONSE');
@@ -46,18 +48,43 @@ export function setupBatches({ root, onAccessError }) {
         input.addEventListener('input', () => { error.textContent = ''; input.removeAttribute('aria-invalid'); });
         wrap.append(caption, input, error); $('batch-fields').append(wrap);
     }
+    async function loadCategories() {
+        categoryController?.abort(); categoryController = new AbortController(); const attempt = ++categoryVersion;
+        $('batch-category').disabled = true; $('batch-categories-status').textContent = 'Đang tải danh mục thuốc…'; $('batch-categories-retry').hidden = true;
+        try {
+            const categories = new Map(); let index = 1, pages = 1;
+            do {
+                const data = await getCategories({ search: '', page: index, per_page: 100 }, { signal: categoryController.signal });
+                if (!active || attempt !== categoryVersion) return;
+                if (!Array.isArray(data.items) || !Number.isSafeInteger(data.pages) || data.pages < 0) throw new ApiError('INVALID_RESPONSE');
+                for (const item of data.items) {
+                    if (!Number.isSafeInteger(item.MaLoaiThuoc) || item.MaLoaiThuoc <= 0 || typeof item.TenLoaiThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
+                    categories.set(String(item.MaLoaiThuoc), item.TenLoaiThuoc);
+                }
+                pages = data.pages; index++;
+            } while (index <= pages);
+            $('batch-category').replaceChildren(new Option('Tất cả danh mục', ''));
+            for (const [id, name] of categories) $('batch-category').append(new Option(name, id));
+            if (categoryId && !categories.has(categoryId)) { categoryId = ''; productsPage = 1; loadProducts(); }
+            $('batch-category').value = categoryId; $('batch-category').disabled = false;
+            $('batch-categories-status').textContent = categories.size ? '' : 'Chưa có danh mục. Bạn vẫn có thể tìm thuốc bằng từ khóa.';
+        } catch (error) {
+            if (!active || attempt !== categoryVersion || error.code === 'REQUEST_ABORTED') return;
+            if (!access(error)) { $('batch-categories-status').textContent = 'Chưa tải được danh mục. Bạn vẫn có thể tìm thuốc bằng từ khóa hoặc thử tải lại.'; $('batch-categories-retry').hidden = false; }
+        }
+    }
     async function loadProducts() {
         pickerController?.abort(); pickerController = new AbortController(); const attempt = ++pickerVersion;
         $('batch-picker-status').textContent = 'Đang tìm thuốc…'; $('batch-product-select').disabled = true;
         $('batch-product-select').replaceChildren(new Option('Chọn thuốc…', ''));
         $('batch-products-prev').disabled = $('batch-products-next').disabled = true;
         try {
-            const data = await getProducts({ search, page: productsPage, per_page: 20, sort_by: 'TenThuoc', sort_order: 'asc' }, { signal: pickerController.signal });
+            const data = await getProducts({ search, category_id: categoryId, page: productsPage, per_page: 20, sort_by: 'TenThuoc', sort_order: 'asc' }, { signal: pickerController.signal });
             if (!active || attempt !== pickerVersion) return;
             if (data.code !== 'PRODUCTS_LISTED' || !Array.isArray(data.items)) throw new ApiError('INVALID_RESPONSE');
             for (const item of data.items) {
                 if (!Number.isInteger(item.MaThuoc) || typeof item.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
-                $('batch-product-select').append(new Option(`${item.TenThuoc} · Mã vạch: ${item.MaVach || 'Chưa có'}`, String(item.MaThuoc)));
+                $('batch-product-select').append(new Option(`${item.TenThuoc} · Quy cách: ${item.QuyCachDongGoi || 'Chưa có thông tin'} · Mã vạch: ${item.MaVach || 'Chưa có'}`, String(item.MaThuoc)));
             }
             $('batch-product-select').value = String(productId || ''); $('batch-product-select').disabled = !data.items.length;
             $('batch-picker-status').textContent = data.total ? `${data.total} thuốc · Trang ${data.page} / ${data.pages}` : 'Không tìm thấy thuốc phù hợp.';
@@ -78,6 +105,7 @@ export function setupBatches({ root, onAccessError }) {
             if (!active || attempt !== selectionVersion) return;
             if (data.code !== 'PRODUCT_FOUND' || data.product?.MaThuoc !== id || typeof data.product.TenThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
             product = data.product; const identity = n('div'); identity.append(n('h3', product.TenThuoc), n('p', `Mã dược: ${product.MaDuoc} · SĐK: ${product.SoDangKy}`), n('p', `Mã vạch: ${product.MaVach || 'Chưa có'}`));
+            identity.append(n('p', `Quy cách đóng gói: ${product.QuyCachDongGoi || 'Chưa có thông tin'}`));
             if (validHttps(product.HinhAnh)) { const image = n('img'); image.alt = `Ảnh ${product.TenThuoc}`; image.referrerPolicy = 'no-referrer'; image.src = product.HinhAnh; image.addEventListener('error', () => { image.hidden = true; }); $('batch-product-identity').append(image); }
             $('batch-product-identity').append(identity); $('batch-product-identity').hidden = false; $('batch-add').disabled = false;
             $('batch-product-select').value = String(id); loadList(1);
@@ -188,16 +216,22 @@ export function setupBatches({ root, onAccessError }) {
         event.preventDefault(); const value = $('batch-search').value.trim();
         $('batch-search-error').textContent = [...value].length > 255 || value.includes('\0') ? 'Từ khóa tối đa 255 ký tự, không chứa NUL.' : '';
         if ($('batch-search-error').textContent) return;
-        search = value; productsPage = 1; loadProducts();
+        search = value; categoryId = $('batch-category').value; productsPage = 1; loadProducts();
     });
+    $('batch-reset').addEventListener('click', () => {
+        cancelSearch(); search = ''; categoryId = ''; productsPage = 1; $('batch-search').value = ''; $('batch-category').value = ''; $('batch-search-error').textContent = ''; loadProducts();
+    });
+    $('batch-categories-retry').addEventListener('click', loadCategories);
     $('batch-products-prev').addEventListener('click', () => { productsPage--; loadProducts(); }); $('batch-products-next').addEventListener('click', () => { productsPage++; loadProducts(); }); $('batch-products-retry').addEventListener('click', loadProducts);
-    function deactivate() { cancelSearch(); active = false; pickerVersion++; selectionVersion++; listVersion++; pickerController?.abort(); selectionController?.abort(); listController?.abort(); closeDialog(); }
+    function deactivate() { cancelSearch(); active = false; categoryVersion++; categoryController?.abort(); pickerVersion++; selectionVersion++; listVersion++; pickerController?.abort(); selectionController?.abort(); listController?.abort(); closeDialog(); }
     return {
-        activate() { if (active) return; active = true; loadProducts(); if (pendingId) selectProduct(pendingId); },
+        activate() { if (active) return; active = true; loadCategories(); loadProducts(); if (pendingId) selectProduct(pendingId); },
         openProduct(id) { pendingId = id; if (active) selectProduct(id); },
         deactivate,
         clear() {
-            deactivate(); productId = product = pendingId = undefined; productsPage = page = 1; search = '';
+            deactivate(); productId = product = pendingId = undefined; productsPage = page = 1; search = ''; categoryId = '';
+            $('batch-category').replaceChildren(new Option('Tất cả danh mục', '')); $('batch-category').disabled = true;
+            $('batch-categories-status').textContent = ''; $('batch-categories-retry').hidden = true;
             $('batch-product-search').reset(); $('batch-product-select').replaceChildren(new Option('Chọn thuốc…', '')); $('batch-product-select').disabled = true; $('batch-add').disabled = true;
             $('batch-product-identity').replaceChildren(); $('batch-product-identity').hidden = true; $('batch-form').reset(); $('batch-detail-panel').replaceChildren();
             for (const id of ['batch-picker-status', 'batch-search-error', 'batch-dialog-context', 'batch-dialog-status', 'batch-delete-name']) $(id).textContent = '';
