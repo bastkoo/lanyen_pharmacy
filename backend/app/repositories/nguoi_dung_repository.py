@@ -13,6 +13,16 @@ def find_by_id(user_id):
     return db.session.get(NguoiDung, user_id)
 
 
+def lock_by_id(user_id):
+    return db.session.execute(select(NguoiDung).where(NguoiDung.MaNguoiDung == user_id)
+                              .with_for_update().execution_options(populate_existing=True)).scalar_one_or_none()
+
+
+def update_profile(user, name, avatar):
+    user.HoTen = name
+    user.AnhDaiDien = avatar
+
+
 def create_customer(phone, name):
     # PostgreSQL waits for a concurrent insert then ignores only the SDT conflict.
     # Other constraint failures propagate to the service and roll back.

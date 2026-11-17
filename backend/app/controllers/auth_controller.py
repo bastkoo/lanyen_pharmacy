@@ -4,7 +4,7 @@ from functools import wraps
 from flask import g, jsonify, request, session
 from marshmallow import ValidationError
 
-from app.schemas.auth_schema import OtpRequestSchema, OtpVerifySchema, RegisterSchema, UserSchema
+from app.schemas.auth_schema import OtpRequestSchema, OtpVerifySchema, RegisterSchema, UserSchema, ProfileSchema
 from app.services import auth_service, otp_service
 from app.utils.auth import csrf_token
 
@@ -72,6 +72,11 @@ def register(data):
 
 def me():
     return jsonify(code='AUTHENTICATED', user=UserSchema().dump(g.current_user), csrf_token=csrf_token())
+
+
+@payload(ProfileSchema)
+def update_profile(data):
+    return jsonify(code='PROFILE_UPDATED', user=auth_service.update_profile(g.current_user.MaNguoiDung, data))
 
 
 def logout():

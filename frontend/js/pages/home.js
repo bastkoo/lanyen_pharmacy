@@ -1,23 +1,25 @@
 import { getSession, logoutSession } from "../api/auth.js";
 import { setupAuthDialog, authMessage } from "../components/auth-dialog.js";
 import { notify } from '../components/customer-notice.js';
+import { setupCustomerAccount } from '../components/customer-account.js';
 
 const $ = id => document.getElementById(id);
 const feedback = message => { if ($('page-status')) $('page-status').textContent = message; return message; };
 const retryState = (property, value) => { if ($('retry-session')) $('retry-session')[property] = value; };
 let checking = false;
+const renderAccount = setupCustomerAccount();
 function renderUser(user) {
     // Some public pages only have the header account controls, without a profile section.
     if ($("guest-content")) $("guest-content").hidden = Boolean(user);
     if ($("member-content")) $("member-content").hidden = !user;
     $("login-button").hidden = Boolean(user);
-    $("logout-button").hidden = !user;
+    renderAccount(user);
     $("header-status").textContent = user ? `Xin chào, ${user.HoTen}` : "Bạn chưa đăng nhập";
     if ($("account-title")) $("account-title").textContent = user ? "Thông tin tài khoản" : "Rất vui được đón bạn";
     if ($("account-name")) $("account-name").textContent = user?.HoTen || "";
     if ($("account-phone")) $("account-phone").textContent = user?.SDT || "";
     if ($("account-role")) $("account-role").textContent = user ? ({ 0: "Người mua", 1: "Nhân viên", 2: "Quản lý" }[user.VaiTro] || "") : "";
-    window.dispatchEvent(new Event('auth-changed'));
+    window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user } }));
 }
 const openAuth = setupAuthDialog((user, warning) => {
     if (warning) { feedback(warning); notify(warning, 'error'); return; }
@@ -64,4 +66,5 @@ $("logout-button").addEventListener("click", async () => {
 $("refresh-account")?.addEventListener("click", () => refreshSession());
 $("retry-session")?.addEventListener("click", () => refreshSession());
 window.addEventListener("focus", () => refreshSession());
+window.addEventListener('profile-updated', event => renderUser(event.detail.user));
 refreshSession();

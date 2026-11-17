@@ -33,6 +33,13 @@
 .account-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; font-size: 14px; color: var(--text-color); white-space: nowrap; }
 .account-button:hover { color: var(--primary-dark); }
 .cart-header-icon { position: relative; display: inline-flex; flex: none; }
+.customer-account { position: relative; }
+.customer-avatar { display: grid; place-items: center; width: 44px; height: 44px; flex: none; overflow: hidden; border: 1px solid var(--primary-color); border-radius: 50%; background: var(--primary-light); color: var(--primary-dark); font-size: 18px; font-weight: 600; }
+.customer-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.customer-account-menu { position: absolute; top: calc(100% + 10px); right: 0; width: 224px; max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--home-line); border-radius: var(--radius-md); background: var(--surface-color); box-shadow: var(--shadow-md); }
+.customer-account-menu a, .customer-account-menu button { display: flex; align-items: center; width: 100%; min-height: 44px; padding: 10px 12px; text-align: left; font-size: 14px; border-radius: var(--radius-sm); }
+.customer-account-menu a:hover, .customer-account-menu button:hover { background: var(--primary-light); }
+.customer-account-menu .customer-logout { color: var(--danger-color); border-top: 1px solid var(--home-line); border-radius: 0; }
 .cart-count { position: absolute; top: -10px; right: -10px; display: grid; place-items: center; min-width: 20px; height: 20px; padding-inline: 4px; border: 2px solid var(--surface-color); border-radius: 999px; background: var(--danger-color); color: var(--white-color); font-size: 11px; font-weight: 600; line-height: 1; }
 .header-divider { height: 24px; width: 1px; background: var(--home-line); }
 .public-search { display: flex; gap: 14px; align-items: center; border: 1px solid var(--primary-color); background: var(--surface-color); padding: 5px 5px 5px 20px; border-radius: var(--radius-md); color: var(--primary-dark); min-width: 0; }

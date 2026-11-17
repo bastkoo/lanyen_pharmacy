@@ -183,7 +183,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     setScenario('anonymous'); catalogMode = 'normal'; requests.length = 0;
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await navigate('/'); await guest(); await categoriesReady(); await run('document.fonts.ready');
-    assert.equal(await run(`document.querySelector('header nav')`), null);
+    assert.equal(await run(`document.querySelector('header nav:not(#customer-account-menu)')`), null);
     assert.equal(await run(`document.querySelector('#nav-toggle')`), null);
     assert.equal(await run(`document.querySelector('#catalog-products')`), null, 'Homepage has no embedded search results');
     assert.equal(await run(`document.querySelector('.site-header').contains(document.querySelector('#public-search-form'))`), true);
@@ -355,7 +355,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     setScenario('manager'); await run(`window.dispatchEvent(new Event('focus'))`);
     await waitFor(`document.querySelector('#login-button').hidden && !document.querySelector('#logout-button').hidden`);
     assert.equal(await run('location.pathname'), '/pages/customer/products.html');
-    await click('logout-button'); await guest();
+    await click('account-avatar-button'); await click('logout-button'); await guest();
     await click('login-button'); await run(`document.querySelector('#phone').value='0900000000';document.querySelector('#phone-form').requestSubmit()`);
     await waitFor(`!document.querySelector('#otp-form').hidden && !document.querySelector('#otp').disabled`);
     await run(`document.querySelector('#otp').value='123456';document.querySelector('#otp-form').requestSubmit()`);

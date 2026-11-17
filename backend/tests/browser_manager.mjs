@@ -16,6 +16,7 @@ import { accountFixture, accountActor, checkAccounts } from './browser_accounts.
 import { checkHomepage, publicCatalogFixture, cartFixture, mergeCartFixture } from './browser_home.mjs';
 import { publicSaleFixture, publicDetailFixture, checkSale } from './browser_sale.mjs';
 import { checkCartPage } from './browser_cart.mjs';
+import { checkProfile, profileFixture } from './browser_profile.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -28,6 +29,7 @@ const stockTest = process.argv.includes('--stock');
 const promotionTest = process.argv.includes('--promotions');
 const accountTest = process.argv.includes('--accounts');
 const homepageTest = process.argv.includes('--homepage');
+const profileTest = process.argv.includes('--profile');
 let checkingHomepage = false;
 const homepageRequests = [];
 let checkingAccounts = false;
@@ -65,6 +67,7 @@ const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (checkingHomepage && ((pathname === '/api/auth/me' && req.method === 'PUT') || pathname === '/api/auth/me/avatar')) return profileFixture(req, json, fixtureUser);
     if (checkingHomepage && (pathname === '/api/categories' || pathname === '/api/products')) return publicCatalogFixture(req, json);
     if (checkingHomepage && /^\/api\/products\/\d+$/.test(pathname)) return publicDetailFixture(req, json);
     if (checkingHomepage && pathname.startsWith('/api/promotions')) return publicSaleFixture(req, json);
@@ -375,11 +378,14 @@ try {
     await waitFor(`!document.querySelector('#main').inert`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), false);
     assert.equal(await evaluate('document.activeElement.id'), 'login-button');
-    if (homepageTest) {
+    if (homepageTest || profileTest) {
         checkingHomepage = true;
+        if (homepageTest) {
         await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });
         await checkSale({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}` });
         await checkCartPage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        }
+        await checkProfile({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; }, user: fixtureUser });
         checkingHomepage = false;
     }
     assert.deepEqual(errors, []);

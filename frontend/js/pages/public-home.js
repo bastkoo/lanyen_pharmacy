@@ -33,6 +33,8 @@ $('public-search-form').addEventListener('submit', event => {
 });
 $('public-search').addEventListener('input', () => { $('public-search').removeAttribute('aria-invalid'); $('public-search-status').textContent = ''; });
 const comingSoon = {
+    orders: ['Đơn hàng của tôi', 'Chức năng xem đơn hàng đang được hoàn thiện.'],
+    addresses: ['Địa chỉ nhận hàng', 'Chức năng quản lý địa chỉ nhận hàng đang được hoàn thiện.'],
     shopping: ['Hướng dẫn mua hàng', 'Hướng dẫn mua hàng đang được chuẩn bị và sẽ được công bố khi chức năng mua hàng trực tuyến sẵn sàng.'],
     privacy: ['Chính sách bảo mật', 'Nội dung chính sách bảo mật đang được chuẩn bị để công bố.'],
     terms: ['Điều khoản sử dụng', 'Nội dung điều khoản sử dụng đang được chuẩn bị để công bố.']
@@ -43,7 +45,7 @@ for (const button of document.querySelectorAll('[data-coming]')) {
     button.addEventListener('click', () => {
         const content = comingSoon[button.dataset.coming];
         if (!content) return;
-        opener = button;
+        opener = button.closest('.customer-account')?.querySelector('#account-avatar-button') || button;
         $('feature-title').textContent = content[0];
         $('feature-description').textContent = content[1];
         dialog.showModal(); $('feature-done').focus();

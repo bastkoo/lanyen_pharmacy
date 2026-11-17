@@ -1,4 +1,5 @@
-from marshmallow import Schema, ValidationError, fields, validate, validates
+from marshmallow import Schema, ValidationError, fields, validate, validates, pre_load
+from app.schemas.product_schema import https_url
 
 
 class OtpRequestSchema(Schema):
@@ -26,3 +27,21 @@ class UserSchema(Schema):
     TrangThai = fields.Boolean()
     Email = fields.String(allow_none=True)
     AnhDaiDien = fields.String(allow_none=True)
+
+
+class ProfileSchema(Schema):
+    HoTen = fields.String(required=True, validate=validate.Length(min=1, max=255))
+    AnhDaiDien = fields.String(required=True, allow_none=True, validate=https_url)
+
+    @pre_load
+    def normalize(self, data, **kwargs):
+        data = dict(data)
+        for key in ('HoTen', 'AnhDaiDien'):
+            value = data.get(key)
+            if isinstance(value, str):
+                if any(ord(char) < 32 for char in value):
+                    raise ValidationError('Invalid text')
+                data[key] = value.strip()
+        if data.get('AnhDaiDien') == '':
+            data['AnhDaiDien'] = None
+        return data
