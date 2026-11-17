@@ -1,5 +1,5 @@
 export const PRODUCT_GROUPS = [
-    { title: 'Thông tin cơ bản', fields: [['TenThuoc', 'Tên thuốc', 255], ['MaLoaiThuoc', 'Danh mục thuốc', 'category'], ['MaDuoc', 'Mã dược', 50], ['MaVach', 'Mã vạch', 255], ['SoDangKy', 'Số đăng ký', 100], ['PhanLoai', 'Phân loại thuốc', 'boolean']] },
+    { title: 'Thông tin cơ bản', fields: [['TenThuoc', 'Tên thuốc', 255], ['MaLoaiThuoc', 'Danh mục thuốc', 'category'], ['MaDuoc', 'Mã dược', 50], ['MaVach', 'Mã vạch', 255], ['SoDangKy', 'Số đăng ký', 100], ['KeDon', 'Phân loại kê đơn', 'boolean'], ['PhanLoai', 'Tư vấn dược sĩ', 'boolean']] },
     { title: 'Thông tin sản xuất', fields: [['DangBaoChe', 'Dạng bào chế', 255], ['QuyCachDongGoi', 'Quy cách đóng gói', 255], ['NhaSanXuat', 'Nhà sản xuất', 255], ['NuocSanXuat', 'Nước sản xuất', 255]] },
     { title: 'Thông tin sử dụng', fields: [['MoTa', 'Mô tả', 'text'], ['CachDung', 'Cách dùng', 'text'], ['ChongChiDinh', 'Chống chỉ định', 'text'], ['BaoQuan', 'Bảo quản', 'text']] },
     { title: 'Quản lý tồn kho', fields: [['NguongTonKho', 'Ngưỡng tồn kho', 'integer']] }
@@ -15,7 +15,7 @@ export function validateProduct(values) {
     const data = {}, errors = {};
     for (const [name, label, type] of PRODUCT_FIELDS) {
         const value = values[name];
-        if (type === 'boolean') { if (typeof value !== 'boolean') errors[name] = 'Chọn đúng phân loại thuốc.'; else data[name] = value; }
+        if (type === 'boolean') { if (typeof value !== 'boolean') errors[name] = name === 'KeDon' ? 'Vui lòng xác định thuốc kê đơn hoặc không kê đơn.' : 'Chọn đúng nhu cầu tư vấn dược sĩ.'; else data[name] = value; }
         else if (type === 'integer' || type === 'category') {
             const min = type === 'integer' ? 0 : 1;
             if ((typeof value !== 'string' && typeof value !== 'number') || !/^\d+$/u.test(String(value)) || !Number.isSafeInteger(Number(value)) || Number(value) < min || Number(value) > 2147483647) errors[name] = `${label} phải là số nguyên ${min ? 'dương' : 'không âm'}, tối đa 2147483647.`;

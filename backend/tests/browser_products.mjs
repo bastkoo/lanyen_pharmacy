@@ -5,7 +5,7 @@ import { PRODUCT_FIELDS } from '../../frontend/js/utils/product-validation.js';
 
 const data = Object.fromEntries(PRODUCT_FIELDS.map(([key, , type]) => [key, type === 'category' ? 1 : type === 'integer' ? 0 : type === 'boolean' ? false : 'Thông tin kiểm thử']));
 Object.assign(data, { HinhAnh: 'https://example.invalid/image.png', TenThuoc: 'Thuốc kiểm thử', MaDuoc: 'TEST', MaVach: '0012345678901', SoDangKy: 'TEST-REG' });
-let items = Array.from({ length: 23 }, (_, index) => ({ ...data, MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc kiểm thử ${index + 1}`, MaLoaiThuoc: index % 2 + 1, PhanLoai: index % 2 === 1 }));
+let items = Array.from({ length: 23 }, (_, index) => ({ ...data, MaThuoc: index + 1, MaVach: `00${String(index + 1).padStart(11, '0')}`, TenThuoc: `Thuốc kiểm thử ${index + 1}`, MaLoaiThuoc: index % 2 + 1, KeDon: index % 2 === 0, PhanLoai: index % 2 === 1 }));
 let mode = 'normal', nextId = 30;
 const calls = [];
 export async function productFixture(req, json) {
@@ -75,10 +75,17 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     await waitFor(`!document.querySelector('#product-details').hidden`);
     assert.match(await run(`document.querySelector('#product-details').textContent`), /Thông tin sử dụng/);
     assert.match(await run(`document.querySelector('#product-details').textContent`), /Mã vạch.*0000000000001/);
+    assert.match(await run(`document.querySelector('#product-details').textContent`), /Phân loại kê đơn.*Thuốc kê đơn/);
     await run(`document.querySelector('#product-back').click();document.querySelector('#product-add').click();document.querySelector('#product-form').requestSubmit()`);
     assert.equal(await run(`document.querySelector('#product-TenThuoc').getAttribute('aria-invalid')`), 'true');
     assert.equal(calls.filter(call => call.method === 'POST' && call.path === '/api/manager/products').length, 0);
+    assert.equal(await run(`document.querySelector('#product-KeDon').value`), '', 'New medicines require an explicit prescription classification');
+    assert.equal(await run(`document.querySelector('#product-KeDon').required`), true);
     await run(`(()=>{const data=${JSON.stringify(data)};for(const [name,value]of Object.entries(data))document.getElementById('product-'+name).value=String(value);document.querySelector('#product-TenThuoc').value='Thuốc mới'})()`);
+    await run(`document.querySelector('#product-KeDon').value='';document.querySelector('#product-form').requestSubmit()`);
+    assert.equal(await run(`document.querySelector('#product-KeDon').getAttribute('aria-invalid')`), 'true');
+    assert.equal(calls.filter(call => call.method === 'POST' && call.path === '/api/manager/products').length, 0);
+    await run(`document.querySelector('#product-KeDon').value='true'`);
     await run(`document.querySelector('#product-MaLoaiThuoc').value='2';[...document.querySelectorAll('#product-field-groups button')].find(button=>button.textContent==='Làm mới danh mục').click()`);
     await waitFor(`!document.querySelector('#product-MaLoaiThuoc').disabled && document.querySelector('#product-MaLoaiThuoc-error').textContent===''`);
     assert.equal(await run(`document.querySelector('#product-MaLoaiThuoc').value`), '2');
@@ -106,11 +113,13 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     mode = 'normal'; await run(`document.querySelector('#product-form').requestSubmit();document.querySelector('#product-form').requestSubmit()`);
     await waitFor(`document.querySelector('#product-workspace').hidden && document.querySelector('#products-feedback').textContent.includes('Đã thêm')`);
     assert.equal(items.filter(item => item.TenThuoc === 'Thuốc mới').length, 1);
+    assert.equal(items.find(item => item.TenThuoc === 'Thuốc mới').KeDon, true);
     assert.equal(calls.filter(call => call.path.includes('/uploads/')).length, uploads);
     await waitFor(`!document.querySelector('#products-table-wrap').hidden`);
     await run(`document.querySelector('[data-product-action="edit"][data-product-id="1"]').click()`);
     await waitFor(`!document.querySelector('#product-form').hidden && document.querySelector('#product-TenThuoc').value==='Thuốc kiểm thử 1'`);
-    await run(`document.querySelector('#product-TenThuoc').value='Thuốc đã sửa';document.querySelector('#product-form').requestSubmit()`);
+    assert.equal(await run(`document.querySelector('#product-KeDon').value`), 'true');
+    await run(`document.querySelector('#product-KeDon').value='false';document.querySelector('#product-TenThuoc').value='Thuốc đã sửa';document.querySelector('#product-form').requestSubmit()`);
     await waitFor(`document.querySelector('#product-workspace').hidden && document.querySelector('#products-feedback').textContent.includes('Đã cập nhật')`);
     assert.equal(calls.filter(call => call.path.includes('/uploads/')).length, uploads);
     await waitFor(`!document.querySelector('#products-table-wrap').hidden`);
@@ -146,5 +155,6 @@ export async function checkProducts({ evaluate: run, waitFor, key, command, root
     await waitFor(`!document.querySelector('#manager-gate').hidden`);
     assert.equal(await run(`document.querySelector('#products-body').children.length`), 0);
     mode = 'normal';
-    console.log('PASS: product list/search/category/classification/page/detail/CRUD, upload validation/failure/retry, retained image URL after save failure, unchanged image on edit, referenced delete, session expiry, responsive list/form. Fixture only; no real Cloudinary upload.');
+    assert.equal(items.find(item => item.MaThuoc === 1).KeDon, false);
+    console.log('PASS: required prescription classification without default, prescription detail/create/edit; product list/search/category/classification/page/CRUD, uploads, errors/retry, protected delete, session expiry, responsive list/form. Fixture only; no real Cloudinary upload.');
 }

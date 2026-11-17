@@ -28,7 +28,12 @@ Mọi request dùng cookie session. Request ghi/upload dùng CSRF từ cơ chế
 | GET | `/api/manager/categories` | Lấy đủ các trang, mỗi trang 100 mục để tên danh mục/bộ chọn không thiếu dữ liệu |
 | POST | `/api/manager/uploads/products` | FormData field image; UPLOAD_SUCCESS + data.url/data.public_id |
 
-Giữ toàn bộ trường thực tế: MaLoaiThuoc, HinhAnh, TenThuoc, MoTa, MaDuoc, MaVach, SoDangKy, DangBaoChe, QuyCachDongGoi, NhaSanXuat, NuocSanXuat, CachDung, ChongChiDinh, BaoQuan, NguongTonKho, PhanLoai. Không áp tính duy nhất cho MaDuoc/MaVach/SoDangKy.
+Giữ toàn bộ trường thực tế: MaLoaiThuoc, HinhAnh, TenThuoc, MoTa, MaDuoc, MaVach, SoDangKy, DangBaoChe, QuyCachDongGoi, NhaSanXuat, NuocSanXuat, CachDung, ChongChiDinh, BaoQuan, NguongTonKho, PhanLoai, KeDon. Không áp tính duy nhất cho MaDuoc/MaVach/SoDangKy.
+
+`KeDon` được chọn bắt buộc khi thêm/sửa: Thuốc kê đơn (`true`) hoặc Thuốc không
+kê đơn (`false`), không chọn sẵn cho thuốc mới. Danh sách và chi tiết hiển thị
+phân loại kê đơn riêng với nhu cầu tư vấn dược sĩ (`PhanLoai`). Nếu phản hồi cũ
+thiếu phân loại kê đơn, hiển thị “Chưa xác định kê đơn”, không coi là không kê đơn.
 
 ## Quy trình ảnh
 

@@ -103,6 +103,9 @@ class Thuoc(db.Model):
         nullable=False
     )
 
+    # Khớp cột BOOLEAN NOT NULL, không default đã được thêm trong PostgreSQL.
+    KeDon = db.Column(db.Boolean, nullable=False)
+
     # False: Không cần tư vấn
     # True: Cần dược sĩ tư vấn
     PhanLoai = db.Column(

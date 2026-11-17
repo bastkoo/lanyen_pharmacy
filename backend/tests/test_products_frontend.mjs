@@ -18,6 +18,8 @@ test('full product schema validates required fields, lengths, integers and boole
     for (const value of [-1, true, 1.5, '1.5', '1e2', 2147483648, '']) assert.ok(validateProduct({ ...valid, NguongTonKho: value }).errors.NguongTonKho);
     assert.equal(validateProduct({ ...valid, PhanLoai: true }).data.PhanLoai, true);
     assert.ok(validateProduct({ ...valid, PhanLoai: 'true' }).errors.PhanLoai);
+    for (const value of [true, false]) assert.equal(validateProduct({ ...valid, KeDon: value }).data.KeDon, value);
+    for (const value of ['', null, undefined, 'true', 'false', 0, 1]) assert.ok(validateProduct({ ...valid, KeDon: value }).errors.KeDon);
     for (const value of ['http://example.com/a', 'javascript:alert(1)', 'https://a.com/\n', 'https://a.com:99999/a']) assert.ok(validateProduct({ ...valid, HinhAnh: value }).errors.HinhAnh);
     assert.deepEqual(Object.keys(result.data).sort(), [...PRODUCT_FIELDS.map(x => x[0]), 'HinhAnh'].sort());
     assert.equal(result.data.MaVach, '0012345678901');

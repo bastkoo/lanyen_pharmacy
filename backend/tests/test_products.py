@@ -18,7 +18,7 @@ def valid_data():
                 TenThuoc='Thuoc A', MoTa='Mo ta', MaDuoc='MD01', MaVach='0012345678901', SoDangKy='SDK01',
                 DangBaoChe='Vien', QuyCachDongGoi='Hop', NhaSanXuat='NSX',
                 NuocSanXuat='Viet Nam', CachDung='Theo huong dan',
-                ChongChiDinh='Theo huong dan', BaoQuan='Noi kho', NguongTonKho=0)
+                ChongChiDinh='Theo huong dan', BaoQuan='Noi kho', NguongTonKho=0, KeDon=False)
 
 
 class ProductTests(unittest.TestCase):
@@ -135,8 +135,40 @@ class ProductTests(unittest.TestCase):
         self.assertEqual(self.send(json=dict(valid_data(), MaLoaiThuoc=0)).status_code, 400)
 
     def test_strict_boolean(self):
-        for value in ('true', 'false', 0, 1, None, [], {}):
-            self.assertEqual(self.send(json=dict(valid_data(), PhanLoai=value)).status_code, 400)
+        for field in ('PhanLoai', 'KeDon'):
+            for value in ('true', 'false', 0, 1, None, [], {}):
+                for method, path in (('POST', BASE), ('PUT', BASE + '/3')):
+                    self.assertEqual(self.send(method, path, json=dict(valid_data(), **{field: value})).status_code, 400)
+
+    def test_prescription_is_required_without_default(self):
+        from app.models.thuoc import Thuoc
+        column = Thuoc.__table__.c.KeDon
+        self.assertEqual(str(column.type), 'BOOLEAN')
+        self.assertFalse(column.nullable)
+        self.assertIsNone(column.default)
+        self.assertIsNone(column.server_default)
+        body = valid_data()
+        del body['KeDon']
+        for method, path in (('POST', BASE), ('PUT', BASE + '/3')):
+            self.assertEqual(self.send(method, path, json=body).status_code, 400)
+        self.repo['create'].assert_not_called()
+        self.repo['update'].assert_not_called()
+
+    def test_prescription_roundtrip_independent_from_counselling(self):
+        for prescription in (False, True):
+            for counselling in (False, True):
+                body = dict(valid_data(), KeDon=prescription, PhanLoai=counselling)
+                response = self.send(json=body)
+                self.assertEqual(response.status_code, 201)
+                self.assertIs(response.json['product']['KeDon'], prescription)
+                self.assertIs(response.json['product']['PhanLoai'], counselling)
+                self.product.KeDon = prescription
+                response = self.send('PUT', BASE + '/3', json=body)
+                self.assertEqual(response.status_code, 200)
+                self.repo['update'].assert_called_with(self.product, body)
+                self.assertIs(response.json['product']['KeDon'], prescription)
+                self.assertIs(self.send('GET', BASE + '/3').json['product']['KeDon'], prescription)
+                self.assertIs(self.send('GET', BASE).json['items'][0]['KeDon'], prescription)
 
     def test_forbid_id_and_unknown_fields(self):
         for field in ('MaThuoc', 'GhiChu', 'VaiTro', 'extra'):
