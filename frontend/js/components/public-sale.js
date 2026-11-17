@@ -31,12 +31,20 @@ export function setupPublicSale() {
             const previous = countdownStates.get(program.MaChuongTrinh);
             if (previous && previous !== countdown.state) changed = true;
             countdownStates.set(program.MaChuongTrinh, countdown.state);
-            const timer = $('sale-programs').querySelector(`[data-program-id="${program.MaChuongTrinh}"] .sale-program-countdown`);
-            if (timer) timer.textContent = countdown.state === 'ENDED' ? countdown.label : `${countdown.label} ${countdown.text}`;
             if (program.MaChuongTrinh === selectedId) {
                 const clock = $('sale-countdown');
                 clock.replaceChildren(node('span', countdown.label));
-                if (countdown.state !== 'ENDED') clock.append(node('strong', countdown.text));
+                const labels = ['Ngày', 'Giờ', 'Phút', 'Giây'];
+                clock.setAttribute('aria-label', `${countdown.label}, ${countdown.parts.map((value, index) => `${value} ${labels[index]}`).join(', ')}`);
+                if (countdown.state !== 'ENDED') {
+                    const digits = node('span', undefined, 'sale-countdown-digits'); digits.setAttribute('aria-hidden', 'true');
+                    countdown.parts.forEach((value, index) => {
+                        if (index) digits.append(node('span', ':', 'sale-countdown-separator'));
+                        const unit = node('span', undefined, 'sale-countdown-unit');
+                        unit.append(node('strong', value), node('span', labels[index], 'sale-countdown-caption')); digits.append(unit);
+                    });
+                    clock.append(digits);
+                }
             }
         }
         if (changed && !document.hidden) {
@@ -49,7 +57,7 @@ export function setupPublicSale() {
         for (const button of $('sale-programs').querySelectorAll('button')) button.setAttribute('aria-pressed', String(Number(button.dataset.programId) === selectedId));
     }
     function selectProgram(program) {
-        selectedId = program.MaChuongTrinh; page = 1; buttons(); loadProducts(true);
+        selectedId = program.MaChuongTrinh; page = 1; buttons(); loadProducts();
     }
     async function loadPrograms(manual = false) {
         listController?.abort(); listController = new AbortController(); const attempt = ++listVersion;
@@ -73,9 +81,9 @@ export function setupPublicSale() {
             for (const program of programs) {
                 const li = node('li'), button = node('button', undefined, 'sale-program'); button.type = 'button';
                 button.dataset.programId = program.MaChuongTrinh; button.setAttribute('aria-controls', 'sale-products');
+                button.dataset.state = program.TrangThai;
                 button.setAttribute('aria-label', `${program.TenChuongTrinh}, ${dateLabel(program.NgayBatDau)} đến ${dateLabel(program.NgayKetThuc)}, ${programState(program)}`);
-                button.append(node('strong', program.TenChuongTrinh), node('span', `${dateLabel(program.NgayBatDau)} – ${dateLabel(program.NgayKetThuc)}`), node('span', programState(program)));
-                const timer = node('span', '', 'sale-program-countdown'); timer.setAttribute('role', 'timer'); timer.setAttribute('aria-live', 'off'); button.append(timer);
+                button.append(node('strong', program.TenChuongTrinh), node('span', `${dateLabel(program.NgayBatDau)} – ${dateLabel(program.NgayKetThuc)}`), node('span', programState(program), 'sale-program-state'));
                 button.addEventListener('click', () => selectProgram(program)); li.append(button); $('sale-programs').append(li);
             }
             $('sale-programs').hidden = !programs.length;
@@ -103,6 +111,7 @@ export function setupPublicSale() {
         $('sale-program-title').textContent = program.TenChuongTrinh;
         $('sale-program-dates').textContent = `${dateLabel(program.NgayBatDau)} – ${dateLabel(program.NgayKetThuc)}`;
         $('sale-program-status').textContent = programState(program);
+        $('sale-program-status').dataset.state = program.TrangThai;
         updateCountdowns();
         $('sale-products-state').textContent = 'Đang tải sản phẩm ưu đãi…'; $('sale-products-retry').hidden = true;
         $('sale-products-grid').hidden = true; $('sale-products-grid').replaceChildren(); $('sale-pagination').hidden = true;
@@ -115,6 +124,7 @@ export function setupPublicSale() {
             pages = data.pages;
             if (manual) notify(data.items.length ? 'Đã cập nhật sản phẩm khuyến mãi.' : 'Chưa có sản phẩm trong chương trình này.', data.items.length ? 'success' : 'info');
             $('sale-program-status').textContent = programState(data.promotion);
+            $('sale-program-status').dataset.state = data.promotion.TrangThai;
             $('sale-products-state').textContent = data.items.length ? '' : 'Chưa có sản phẩm được công bố trong chương trình này.';
             $('sale-products-grid').replaceChildren(...data.items.map(product => productCard(product)));
             $('sale-products-grid').hidden = !data.items.length; $('sale-pagination').hidden = pages <= 1;
@@ -128,8 +138,8 @@ export function setupPublicSale() {
     }
     $('sale-program-retry').addEventListener('click', () => loadPrograms(true));
     $('sale-products-retry').addEventListener('click', () => loadProducts(true));
-    $('sale-products-prev').addEventListener('click', () => { if (page > 1) { page--; loadProducts(true); } });
-    $('sale-products-next').addEventListener('click', () => { if (page < pages) { page++; loadProducts(true); } });
+    $('sale-products-prev').addEventListener('click', () => { if (page > 1) { page--; loadProducts(); } });
+    $('sale-products-next').addEventListener('click', () => { if (page < pages) { page++; loadProducts(); } });
     window.addEventListener('pagehide', () => { listVersion++; productsVersion++; listController?.abort(); productsController?.abort(); });
     window.addEventListener('pageshow', event => { if (event.persisted) loadPrograms(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) loadPrograms(); });

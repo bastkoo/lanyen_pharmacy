@@ -11,11 +11,11 @@ const api = await import('../../frontend/js/api/public-catalog.js');
 test('sale countdown uses Vietnam midnight and includes the entire last day', () => {
     const program = { NgayBatDau: '2026-11-17', NgayKetThuc: '2026-11-20' };
     const read = value => promotionCountdown(program, Date.parse(value));
-    assert.deepEqual(read('2026-11-16T23:59:59+07:00'), { state: 'UPCOMING', label: 'Bắt đầu sau', text: '00:00:01' });
-    assert.deepEqual(read('2026-11-17T00:00:00+07:00'), { state: 'ACTIVE', label: 'Kết thúc sau', text: '4 ngày 00:00:00' });
+    assert.deepEqual(read('2026-11-16T23:59:59+07:00'), { state: 'UPCOMING', label: 'Bắt đầu sau', text: '00:00:01', parts: ['00', '00', '00', '01'] });
+    assert.deepEqual(read('2026-11-17T00:00:00+07:00'), { state: 'ACTIVE', label: 'Kết thúc sau', text: '4 ngày 00:00:00', parts: ['04', '00', '00', '00'] });
     assert.equal(read('2026-11-17T12:00:00+07:00').text, '3 ngày 12:00:00');
     assert.equal(read('2026-11-20T23:59:59.800+07:00').text, '00:00:01');
-    assert.deepEqual(read('2026-11-21T00:00:00+07:00'), { state: 'ENDED', label: 'Đã kết thúc', text: '00:00:00' });
+    assert.deepEqual(read('2026-11-21T00:00:00+07:00'), { state: 'ENDED', label: 'Đã kết thúc', text: '00:00:00', parts: ['00', '00', '00', '00'] });
     assert.equal(read('2026-11-21T00:00:01+07:00').text, '00:00:00');
     assert.equal(promotionCountdown({ NgayBatDau: '2026-02-30', NgayKetThuc: '2026-03-01' }), null);
     assert.equal(promotionCountdown({ NgayBatDau: '2026-11-20', NgayKetThuc: '2026-11-17' }), null);

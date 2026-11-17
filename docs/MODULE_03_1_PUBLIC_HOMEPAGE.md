@@ -5,20 +5,20 @@ Phần sale mới và các quy tắc giá trong giỏ được mô tả tại [M
 ## Thông báo thao tác khách hàng
 
 `components/customer-notice.js` hiển thị thông báo thành công, thất bại hoặc thông tin ở
-góc dưới bên trái trên cả trang chủ và trang sản phẩm. Mỗi thông báo tự mất sau 5 giây;
+góc dưới bên phải trên cả trang chủ và trang sản phẩm. Mỗi thông báo tự mất sau 5 giây;
 thông báo mới thay nội dung cũ và bắt đầu lại đủ 5 giây. Không chuyển focus.
 Nội dung dùng textContent, có nhãn/icon và role status/alert; màu dùng token hiện có.
 Popover thủ công giúp thông báo nằm trên hộp thoại giỏ hàng, chuyển về trang khi đóng hộp thoại.
 Kích thước giới hạn theo viewport và safe area, không đẩy lệch thẻ hoặc trang.
 
 Áp dụng cho thêm/xóa giỏ, lỗi tải giỏ, OTP/đăng ký/đăng nhập/đăng xuất, kiểm tra phiên
-do người dùng bấm, tìm/lọc/phân trang, tải lại danh mục và chọn/tải lại chương trình sale.
+do người dùng bấm, tìm/lọc/phân trang, tải lại danh mục và thử tải lại sale khi có lỗi. Chuyển chương trình hoặc phân trang sale không thông báo thành công.
 Các lần kiểm tra phiên tự động không hiển thị thông báo thành công. Lỗi tại form và
 trạng thái cần nút Thử lại vẫn giữ để người dùng có thể xử lý sau khi thông báo ẩn.
 Auth dialog nhận callback thông báo tùy chọn; trang quản lý giữ hành vi hiện có.
 
 Đã kiểm tra bằng browser fixture: tự ẩn sau 5 giây, thông báo liên tiếp đặt lại thời gian,
-thành công/lỗi, vị trí góc trái, không lấy focus, hiển thị trên/ngoài modal và vừa màn hình 320–1440px.
+thành công/lỗi, vị trí góc phải, không lấy focus, hiển thị trên/ngoài modal và vừa màn hình 320–1440px.
 
 ## Phạm vi và thiết kế
 

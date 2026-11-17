@@ -11,10 +11,11 @@ export function promotionCountdown(program, now = Date.now()) {
     const state = now < start ? 'UPCOMING' : now < end ? 'ACTIVE' : 'ENDED';
     const remaining = Math.max(0, Math.ceil(((state === 'UPCOMING' ? start : end) - now) / 1000));
     const days = Math.floor(remaining / 86400);
-    const clock = [Math.floor(remaining % 86400 / 3600), Math.floor(remaining % 3600 / 60), remaining % 60]
-        .map(value => String(value).padStart(2, '0')).join(':');
+    const digits = [Math.floor(remaining % 86400 / 3600), Math.floor(remaining % 3600 / 60), remaining % 60]
+        .map(value => String(value).padStart(2, '0'));
+    const clock = digits.join(':');
     return { state, label: state === 'UPCOMING' ? 'Bắt đầu sau' : state === 'ACTIVE' ? 'Kết thúc sau' : 'Đã kết thúc',
-        text: `${days ? `${days} ngày ` : ''}${clock}` };
+        text: `${days ? `${days} ngày ` : ''}${clock}`, parts: [String(days).padStart(2, '0'), ...digits] };
 }
 
 export function promotionBadge(promotion) {

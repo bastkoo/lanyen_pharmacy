@@ -22,7 +22,7 @@ export async function publicSaleFixture(req, json) {
     if (mode === 'slow' && program.MaChuongTrinh === 1) await new Promise(resolve => setTimeout(resolve, 300));
     const products = mode === 'products-empty' ? [] : catalogProducts.slice(0, 12).map(product => ({ ...product,
         KhuyenMai: { MaChuongTrinh: program.MaChuongTrinh, LoaiGiamGia: product.MaThuoc !== 2, GiaTriGiam: product.MaThuoc === 2 ? '200.00' : '20.00', SoLuong: 100, TrangThai: program.TrangThai },
-        DonViGia: product.DonViGia.map(unit => ({ ...unit, GiaKhuyenMai: unit.GiaBan * .8, SoLuongKhuyenMai: product.MaThuoc === 5 || unit.MaDonGia === 23 ? 0 : 10 })) }));
+        DonViGia: product.DonViGia.map(unit => ({ ...unit, GiaKhuyenMai: unit.GiaBan * .8, SoLuongKhuyenMai: program.TrangThai === 'UPCOMING' ? (unit.MaDonGia === 23 ? 1 : 10) : product.MaThuoc === 5 || unit.MaDonGia === 23 ? 0 : 10 })) }));
     return json(200, { code: 'PROMOTION_PRODUCTS_LISTED', promotion: program, items: products.slice((page - 1) * per_page, page * per_page),
         page, per_page, total: products.length, pages: Math.ceil(products.length / per_page), as_of: '2026-11-17' });
 }
@@ -36,6 +36,12 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     await navigate();
     assert.match(await run(`document.querySelector('#sale-countdown').textContent`), /(?:Bắt đầu sau|Kết thúc sau|Đã kết thúc)/);
     assert.equal(await run(`document.querySelector('#sale-countdown').getAttribute('aria-live')`), 'off');
+    assert.equal(await run(`document.querySelectorAll('#sale-programs [role="timer"]').length`), 0, 'Program buttons do not show duplicate countdowns');
+    assert.deepEqual(await run(`Array.from(document.querySelectorAll('#sale-countdown .sale-countdown-caption')).map(node=>node.textContent)`), ['Ngày', 'Giờ', 'Phút', 'Giây']);
+    assert.equal(await run(`document.querySelectorAll('#sale-countdown .sale-countdown-unit strong').length`), 4);
+    assert.equal(await run(`getComputedStyle(document.querySelector('#sale-countdown strong')).backgroundColor`), 'rgb(16, 107, 72)', 'Countdown is green, discount labels are red');
+    assert.equal(await run(`getComputedStyle(document.querySelector('#sale-programs [data-state="ACTIVE"] .sale-program-state')).backgroundColor`), 'rgb(16, 107, 72)');
+    assert.equal(await run(`getComputedStyle(document.querySelector('#sale-programs [data-state="UPCOMING"] .sale-program-state')).backgroundColor`), 'rgb(255, 193, 7)');
     const before = await run(`document.querySelector('#sale-countdown').textContent`);
     await run(`new Promise(resolve=>setTimeout(resolve,1100))`);
     assert.notEqual(await run(`document.querySelector('#sale-countdown').textContent`), before, 'Countdown ticks every second');
@@ -53,6 +59,7 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     assert.equal(await run(`Array.from(document.querySelectorAll('#sale-products-grid article')).find(card=>card.querySelector('h3').textContent.startsWith('Thuốc 5 ')).querySelector('.catalog-buy').textContent`), 'Hết ưu đãi');
     await run(`document.querySelector('#sale-products-next').click()`);
     await waitFor(`document.querySelector('#sale-products-grid').children.length===2`);
+    assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Paging promotions does not show a success notice');
     await run(`document.querySelector('#sale-products-prev').click()`);
     await waitFor(`document.querySelector('#sale-products-grid').children.length===10`);
     setSaleQuotes(true);
@@ -65,7 +72,9 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     await waitFor(`document.querySelector('#cart-dialog').textContent.includes('chưa có sản phẩm')`);
     await key('Escape', 27);
     await select(2); await waitFor(`document.querySelector('#sale-program-status').textContent==='Sắp diễn ra' && document.querySelector('#sale-products').getAttribute('aria-busy')==='false'`);
+    assert.equal(await run(`document.querySelector('#customer-notice')?.textContent.includes('Đã cập nhật sản phẩm khuyến mãi.') || false`), false, 'Switching programs does not announce a successful update');
     assert.match(await run(`document.querySelector('#sale-countdown').textContent`), /Bắt đầu sau/);
+    assert.equal(await run(`document.querySelector('#sale-products-grid input[value="23"]').closest('article').querySelector('.sale-quota').textContent`), 'Dự kiến 1 Hộp ưu đãi', 'Upcoming quota is previewed even when current stock cannot fill a box');
     assert.equal(await run(`Array.from(document.querySelectorAll('#sale-products-grid .catalog-buy')).every(button=>button.disabled && button.textContent==='Sắp diễn ra')`), true);
     mode = 'slow'; await select(1); await select(2); await run(`new Promise(resolve=>setTimeout(resolve,400))`);
     assert.equal(await run(`document.querySelector('#sale-program-title').textContent`), programs[1].TenChuongTrinh);
@@ -80,6 +89,7 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
         await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
         await navigate();
         assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`), true, `Sale overflow at ${width}`);
+        assert.equal(await run(`document.querySelector('#sale-countdown').scrollWidth<=document.querySelector('#sale-countdown').clientWidth`), true, `Countdown fits at ${width}`);
         await run(`document.querySelector('#public-sale').scrollIntoView({block:'start',behavior:'instant'})`);
         if (width === 1440 || width === 375) {
             const shot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });

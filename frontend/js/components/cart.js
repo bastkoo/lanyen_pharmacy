@@ -42,7 +42,7 @@ export function purchaseControls(product) {
         original.replaceChildren();
         if (discounted) original.append(node('span', 'Giá gốc: ', 'sr-only'), node('s', money(selected.GiaBan)));
         original.hidden = !sale;
-        quota.textContent = selected && sale ? `Còn ${selected.SoLuongKhuyenMai || 0} ${selected.DonViTinh} ưu đãi` : '';
+        quota.textContent = selected && sale ? `${sale.TrangThai === 'UPCOMING' ? 'Dự kiến' : 'Còn'} ${selected.SoLuongKhuyenMai || 0} ${selected.DonViTinh} ưu đãi` : '';
     };
     updatePrice();
     price.setAttribute('aria-live', 'polite');

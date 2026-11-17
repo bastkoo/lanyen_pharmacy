@@ -34,17 +34,21 @@ def list_products(promotion_id, page, per_page):
     unit_map = {unit.MaDonGia: unit for unit in raw_units}
     stock = usable_stock(product_ids)
     products = serialize_public_products([product for product, detail in records], raw_units, stock)
+    upcoming = program.NgayBatDau > today
     for product, (_, detail) in zip(products, records):
         product['KhuyenMai'] = {'MaChuongTrinh': promotion_id, 'LoaiGiamGia': detail.LoaiGiamGia,
                                'GiaTriGiam': str(detail.GiaTriGiam), 'SoLuong': detail.SoLuong,
-                               'TrangThai': 'ACTIVE' if program.NgayBatDau <= today else 'UPCOMING'}
+                               'TrangThai': 'UPCOMING' if upcoming else 'ACTIVE'}
+        quota = max(0, detail.SoLuong)
+        if not upcoming:
+            quota = min(quota, stock.get(product['MaThuoc'], 0))
         base = smallest_price([unit for unit in raw_units if unit.MaThuoc == product['MaThuoc']])
         for unit in product['DonViGia']:
             raw = unit_map[unit['MaDonGia']]
             price = sale_price(raw, detail, base)
             unit['GiaKhuyenMai'] = price
-            unit['SoLuongKhuyenMai'] = (max(0, min(detail.SoLuong, stock.get(product['MaThuoc'], 0))) // raw.SoLuongQuyDoi
-                                       if raw.SoLuongQuyDoi > 0 and price is not None and price < raw.GiaBan else 0)
+            unit['SoLuongKhuyenMai'] = (quota // raw.SoLuongQuyDoi if raw.SoLuongQuyDoi > 0 and
+                                       (upcoming or (price is not None and price < raw.GiaBan)) else 0)
     return {'promotion': public_program(program, today), 'items': products,
             'page': page, 'per_page': per_page, 'total': total,
             'pages': (total + per_page - 1) // per_page, 'as_of': today.isoformat()}

@@ -86,7 +86,7 @@ class PublicPromotionTests(unittest.TestCase):
         self.find = self.mock('app.repositories.chuong_trinh_khuyen_mai_repository.find_by_id', return_value=self.program)
         self.records = self.mock('app.repositories.chi_tiet_khuyen_mai_repository.public_products', return_value=([(self.product, self.offer)], 1))
         self.units = self.mock('app.repositories.don_vi_gia_thuoc_repository.public_units', return_value=[unit(), unit(9, 1000, 1)])
-        self.mock('app.services.public_promotion_service.usable_stock', return_value={7: 25})
+        self.stock = self.mock('app.services.public_promotion_service.usable_stock', return_value={7: 25})
         self.rollback = self.mock('app.repositories.thuoc_repository.rollback')
         self.client = self.app.test_client()
 
@@ -122,6 +122,26 @@ class PublicPromotionTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/promotions/1/products').status_code, 404)
         self.find.return_value = None
         self.assertEqual(self.client.get('/api/promotions/1/products').json['code'], 'PROMOTION_NOT_FOUND')
+
+    def test_upcoming_quota_does_not_depend_on_current_inventory(self):
+        self.program.NgayBatDau = date(2026, 11, 18)
+        self.offer.SoLuong = 25
+        for stock in ({}, {7: 0}, {7: 5}, {7: 100}):
+            self.stock.return_value = stock
+            result = self.client.get('/api/promotions/1/products').json['items'][0]
+            self.assertEqual([unit['SoLuongKhuyenMai'] for unit in result['DonViGia']], [2, 25])
+            self.assertEqual(result['KhuyenMai']['SoLuong'], 25)
+        self.stock.return_value = {}
+        self.program.NgayBatDau = date(2026, 11, 17)
+        result = self.client.get('/api/promotions/1/products').json['items'][0]
+        self.assertEqual([unit['SoLuongKhuyenMai'] for unit in result['DonViGia']], [0, 0])
+
+    def test_upcoming_quantity_smaller_than_conversion_still_shows_zero_large_units(self):
+        self.program.NgayBatDau = date(2026, 11, 18)
+        self.offer.SoLuong = 5
+        self.stock.return_value = {}
+        result = self.client.get('/api/promotions/1/products').json['items'][0]
+        self.assertEqual([unit['SoLuongKhuyenMai'] for unit in result['DonViGia']], [0, 5])
 
     def test_invalid_query_empty_and_database_failure(self):
         for path in ('/api/promotions', '/api/promotions/1/products'):

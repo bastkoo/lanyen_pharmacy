@@ -195,7 +195,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     }
     await run(`new Promise(resolve=>setTimeout(resolve,2300))`);
     assert.equal(await run(`document.querySelector('#customer-notice').hidden`), false, 'A new notice gets its own five seconds');
-    assert.equal(await run(`(() => { const rect=document.querySelector('#customer-notice').getBoundingClientRect();return Math.abs(rect.left-16)<1 && Math.abs(innerHeight-rect.bottom-16)<1; })()`), true, 'Notice is fixed at bottom left');
+    assert.equal(await run(`(() => { const rect=document.querySelector('#customer-notice').getBoundingClientRect();return Math.abs(document.documentElement.clientWidth-rect.right-16)<1 && Math.abs(innerHeight-rect.bottom-16)<1; })()`), true, 'Notice is fixed at bottom right');
     await run(`new Promise(resolve=>setTimeout(resolve,2800))`);
     assert.equal(await run(`document.querySelector('#customer-notice').hidden`), true, 'Notice disappears after five seconds');
     await run(`document.querySelector('input[name="product-unit-2"][value="22"]').click();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);

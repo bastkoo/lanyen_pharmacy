@@ -6,11 +6,22 @@ Khung ưu đãi trên trang chủ nằm dưới banner và ngay trên danh mục
 HTML/CSS/JavaScript hiện có; không thêm thư viện, bảng, cột hoặc migration.
 Danh sách chương trình đang diễn ra và sắp tới sắp theo ngày bắt đầu, ngày kết thúc,
 rồi ID tăng dần. Ngày tính theo Việt Nam, gồm cả ngày bắt đầu và kết thúc.
-Dữ liệu chỉ có DATE: không tạo giờ hoặc đồng hồ đếm ngược giả.
+Dữ liệu chỉ có DATE: bộ đếm dùng 00:00 ngày bắt đầu và 00:00 ngày sau ngày kết thúc,
+theo giờ Việt Nam, giữ nguyên quy tắc bao gồm trọn ngày kết thúc. Không thêm cột giờ.
+Chương trình sắp tới hiển thị `Bắt đầu sau`, đang diễn ra hiển thị `Kết thúc sau`,
+định dạng ngày và HH:MM:SS, cập nhật mỗi giây. Khi qua mốc, tải lại chương trình và
+gỡ các nút mua cũ; dừng bộ đếm khi rời trang và khởi tạo lại khi trở lại từ bộ nhớ trình duyệt.
+Các vùng role timer dùng aria-live off để không đọc lại mỗi giây.
+Bộ đếm chỉ xuất hiện trong phần chi tiết của chương trình được chọn, không lặp ở từng
+nút chương trình. Hiển thị bốn ô Ngày : Giờ : Phút : Giây, luôn có ô ngày kể cả 00.
+Ô đếm xanh đậm để khác nhãn giảm giá đỏ. Nhãn Đang diễn ra nền xanh/chữ trắng,
+Sắp diễn ra nền vàng/chữ đậm, giúp phân biệt ngay trên các nút chọn.
 
 Khung gồm bộ chọn chương trình cuộn ngang, tên/khoảng ngày/trạng thái, các thẻ thuốc
 thu gọn và phân trang 10 sản phẩm. Mỗi thẻ có ảnh trong khung cố định, tên kèm quy cách,
 đơn vị chia đều, giá gốc gạch ngang, giá giảm, số lượng ưu đãi còn và nút mua.
+Nhãn nền đỏ dùng token danger: giảm tiền trực tiếp ghi `Ưu đãi`; giảm phần trăm ghi
+đúng mức cấu hình như `-20%`, không suy ra từ chênh lệch giá đã làm tròn.
 Chương trình sắp tới chỉ xem trước, nút `Sắp diễn ra` bị khóa.
 Hết quota hiển thị `Hết ưu đãi`; thiếu tồn lô còn hạn hiển thị `Hết hàng`.
 Có trạng thái tải/rỗng/lỗi/thử lại và hủy phản hồi cũ khi đổi chương trình.
@@ -25,7 +36,10 @@ Tải lại khi trở lại tab hoặc qua ngày để cập nhật trạng thá
 - Giá đơn vị nhỏ nhất lấy từ đơn vị có hệ số quy đổi nhỏ nhất, quy về 1; nếu nhiều
   đơn vị cùng hệ số, lấy ID thấp nhất để kết quả ổn định. Không sửa giá niêm yết của đơn vị nào.
 - Giá kết quả không âm; làm tròn giá cuối bằng Decimal ROUND_HALF_UP đến đồng.
-- Số suất hiển thị cho đơn vị = phần nguyên của `min(quota còn, tồn khả dụng) / hệ số quy đổi`.
+- Chương trình đang diễn ra: số suất hiển thị cho đơn vị = phần nguyên của `min(quota còn, tồn khả dụng) / hệ số quy đổi`.
+  Chương trình sắp tới: hiển thị `Dự kiến` với phần nguyên của `quota đã nhập / hệ số quy đổi`,
+  không giới hạn bằng tồn hiện tại vì chưa đến thời gian bán. Ví dụ quota 25 viên cho đơn vị
+  vỉ 10 viên là 2 vỉ; quota 5 viên chỉ tương ứng 0 vỉ, vẫn hiển thị 5 khi chọn viên.
   Tồn khả dụng giữ quy tắc lô còn hạn/còn tồn hiện có. Không xuất thông tin lô hoặc giá nhập.
 - Bấm Chọn mua dùng API giỏ hiện có, không nhận giá từ trình duyệt và không giữ/trừ quota.
   Quota chỉ trừ khi bán; luồng bán/đặt hàng chưa thuộc phạm vi này.
@@ -74,7 +88,7 @@ khung hiển thị trạng thái rỗng; dữ liệu thật được quản lý 
 
 ## Kiểm chứng
 
-- 329 kiểm thử Python và 54 kiểm thử JavaScript đạt.
+- 329 kiểm thử Python đã đạt trong phần tính giá; 56 kiểm thử JavaScript đạt sau khi bổ sung bộ đếm và nhãn.
 - `node backend/tests/browser_manager.mjs --homepage --promotions` đạt: sale hiện đúng vị trí,
   đang diễn ra/sắp tới, đổi đơn vị/giá/quota, thêm giỏ với giá giảm, hết ưu đãi/hết hàng,
   phân trang, lỗi/rỗng/thử lại, phản hồi cũ và không tràn ở 320–1440px. Quản lý khuyến mãi
