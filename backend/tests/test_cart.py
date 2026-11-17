@@ -207,7 +207,7 @@ class CartTests(unittest.TestCase):
 
     def test_cart_quotes_best_active_promotion_with_partial_quota_without_writes(self):
         from decimal import Decimal
-        self.price_units.return_value = [self.unit, NS(MaThuoc=7, MaDonGia=9, GiaBan=1000, SoLuongQuyDoi=1)]
+        self.price_units.return_value = [self.unit, NS(MaThuoc=7, MaDonGia=9, DonViTinh='Viên', GiaBan=1000, SoLuongQuyDoi=1)]
         offer = NS(MaChuongTrinh=3, MaThuoc=7, LoaiGiamGia=True, GiaTriGiam=Decimal('10'), SoLuong=10)
         self.active_promotions.return_value = [(offer, NS(MaChuongTrinh=3, TenChuongTrinh='Giảm tháng 11'))]
         self.add()
@@ -215,6 +215,8 @@ class CartTests(unittest.TestCase):
         cart = self.client.get('/api/cart').json
         self.assertEqual(cart['items'][0]['GiaBan'], 11000)
         self.assertEqual(cart['items'][0]['GiaGoc'], 12000)
+        self.assertEqual(cart['items'][0]['KhuyenMai']['LoaiGiamGia'], True)
+        self.assertEqual(cart['items'][0]['KhuyenMai']['GiaTriGiam'], '10')
         self.assertEqual(cart['items'][0]['SoLuongKhuyenMai'], 1)
         self.assertEqual(cart['total'], 23000)
         self.assertEqual(offer.SoLuong, 10)
@@ -227,3 +229,66 @@ class CartTests(unittest.TestCase):
         self.assertEqual(self.add().status_code, 403)
         self.lock.assert_not_called()
         self.commit.assert_not_called()
+
+    def test_guest_quantity_update_and_stock_limit_preserve_session_on_failure(self):
+        self.add()
+        headers = {'X-CSRF-Token': self.csrf}
+        result = self.client.put('/api/cart/items/8', json={'MaDonGia': 8, 'SoLuong': 3}, headers=headers)
+        self.assertEqual(result.json['code'], 'CART_ITEM_UPDATED')
+        self.assertEqual(self.client.get('/api/cart').json['items'][0]['SoLuong'], 3)
+        self.stock.return_value = {7: 30}
+        result = self.client.put('/api/cart/items/8', json={'MaDonGia': 8, 'SoLuong': 4}, headers=headers)
+        self.assertEqual((result.status_code, result.json['code']), (409, 'OUT_OF_STOCK'))
+        with self.client.session_transaction() as state:
+            self.assertEqual(state['guest_cart'], [[7, 8, 3]])
+        self.commit.assert_not_called()
+
+    def test_unit_change_merges_destination_without_changing_product_or_owner(self):
+        small = NS(MaThuoc=7, MaDonGia=9, DonViTinh='Viên', GiaBan=1000, SoLuongQuyDoi=1)
+        self.find_unit.side_effect = lambda p, u: small if (p, u) == (7, 9) else None
+        with self.client.session_transaction() as state:
+            state['guest_cart'] = [[7, 8, 2], [7, 9, 5]]
+        response = self.client.put('/api/cart/items/8', json={'MaDonGia': 9, 'SoLuong': 2}, headers={'X-CSRF-Token': self.csrf})
+        self.assertEqual(response.status_code, 200)
+        with self.client.session_transaction() as state:
+            self.assertEqual(state['guest_cart'], [[7, 9, 7]])
+        self.login_session()
+        source, target = NS(MaThuoc=7, MaDonGia=8, SoLuong=2), NS(MaThuoc=7, MaDonGia=9, SoLuong=5)
+        self.items.return_value = [source, target]
+        response = self.client.put('/api/cart/items/8', json={'MaDonGia': 9, 'SoLuong': 2}, headers={'X-CSRF-Token': self.csrf})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual((source.MaDonGia, source.SoLuong), (9, 7))
+        self.remove.assert_called_once_with(target)
+        self.lock.assert_called_with(12)
+        self.commit.assert_called_once()
+
+    def test_update_validation_csrf_scoping_and_wrong_product_unit(self):
+        self.add()
+        headers = {'X-CSRF-Token': self.csrf}
+        for data in ({'MaDonGia': 8, 'SoLuong': 0}, {'MaDonGia': 8, 'SoLuong': True},
+                     {'MaDonGia': 8, 'SoLuong': '2'}, {'MaDonGia': 8, 'SoLuong': 2, 'MaNguoiDung': 99}):
+            self.assertEqual(self.client.put('/api/cart/items/8', json=data, headers=headers).status_code, 400)
+        self.assertEqual(self.client.put('/api/cart/items/8', json={'MaDonGia': 8, 'SoLuong': 2}).status_code, 403)
+        self.assertEqual(self.client.put('/api/cart/items/99', json={'MaDonGia': 8, 'SoLuong': 2}, headers=headers).status_code, 404)
+        self.assertEqual(self.client.put('/api/cart/items/8', json={'MaDonGia': 99, 'SoLuong': 2}, headers=headers).status_code, 404)
+
+    def test_selected_quote_reallocates_promotion_quota_without_modifying_cart(self):
+        from decimal import Decimal
+        small = NS(MaThuoc=7, MaDonGia=9, DonViTinh='Viên', GiaBan=1000, SoLuongQuyDoi=1)
+        self.price_units.return_value = [self.unit, small]
+        product = NS(TenThuoc='A', QuyCachDongGoi='Hộp 10 vỉ')
+        self.details.return_value = {(7, 8): (product, self.unit), (7, 9): (product, small)}
+        self.active_promotions.return_value = [(NS(MaChuongTrinh=1, MaThuoc=7, LoaiGiamGia=True,
+            GiaTriGiam=Decimal('10'), SoLuong=10), NS(MaChuongTrinh=1, TenChuongTrinh='Giảm 10%'))]
+        with self.client.session_transaction() as state:
+            state['guest_cart'] = [[7, 8, 1], [7, 9, 10]]
+        response = self.client.post('/api/cart/quote', json={'MaDonGia': [9]}, headers={'X-CSRF-Token': self.csrf})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['total'], 9000)
+        self.assertEqual(response.json['items'][0]['SoLuongKhuyenMai'], 10)
+        response = self.client.post('/api/cart/quote', json={'MaDonGia': [999]}, headers={'X-CSRF-Token': self.csrf})
+        self.assertEqual(response.json['items'], [])
+        with self.client.session_transaction() as state:
+            self.assertEqual(state['guest_cart'], [[7, 8, 1], [7, 9, 10]])
+        self.commit.assert_not_called()
+        self.assertEqual(self.client.post('/api/cart/quote', json={'MaDonGia': [9]}).status_code, 403)

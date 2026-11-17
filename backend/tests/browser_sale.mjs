@@ -68,7 +68,7 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     assert.equal(await run(`getComputedStyle(document.querySelector('#sale-programs [data-state="ACTIVE"] .sale-program-state')).backgroundColor`), 'rgb(16, 107, 72)');
     assert.equal(await run(`getComputedStyle(document.querySelector('#sale-programs [data-state="UPCOMING"] .sale-program-state')).backgroundColor`), 'rgb(255, 193, 7)');
     const before = await run(`document.querySelector('#sale-countdown').textContent`);
-    await run(`new Promise(resolve=>setTimeout(resolve,1100))`);
+    await waitFor(`document.querySelector('#sale-countdown').textContent !== ${JSON.stringify(before)}`);
     assert.notEqual(await run(`document.querySelector('#sale-countdown').textContent`), before, 'Countdown ticks every second');
     assert.equal(await run(`document.querySelector('#sale-products-grid .sale-label').textContent`), '-20%');
     assert.equal(await run(`document.querySelector('#sale-products-grid input[value="21"]').closest('article').querySelector('.sale-label').textContent`), 'Ưu đãi');
@@ -103,12 +103,9 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     setSaleQuotes(true);
     await run(`document.querySelector('#sale-products-grid .catalog-buy').click()`);
     await waitFor(`document.querySelector('#sale-products-grid .catalog-purchase-status').textContent.includes('Đã thêm')`);
-    await run(`document.querySelector('[data-cart]').click()`);
-    await waitFor(`document.querySelector('#cart-dialog').textContent.includes('Ưu đãi: Ưu đãi tháng 11')`);
-    assert.match(await run(`document.querySelector('#cart-dialog').textContent`), /40\.000 ₫/);
-    await run(`document.querySelector('#cart-dialog .cart-items button').click()`);
-    await waitFor(`document.querySelector('#cart-dialog').textContent.includes('chưa có sản phẩm')`);
-    await key('Escape', 27);
+    const saleCart = await run(`(async()=>{const api=await import('/js/api/cart.js');const data=await api.getCart();await api.removeCartItem(11);return data;})()`);
+    assert.equal(saleCart.items[0].KhuyenMai.TenChuongTrinh, 'Ưu đãi tháng 11');
+    assert.equal(saleCart.items[0].GiaBan, 40000);
     await select(2); await waitFor(`document.querySelector('#sale-programs [aria-pressed="true"]').dataset.state==='UPCOMING' && document.querySelector('#sale-products').getAttribute('aria-busy')==='false'`);
     assert.equal(await run(`document.querySelector('#sale-program-status')`), null, 'Program state only appears on program selector');
     assert.equal(await run(`document.querySelector('#customer-notice')?.textContent.includes('Đã cập nhật sản phẩm khuyến mãi.') || false`), false, 'Switching programs does not announce a successful update');

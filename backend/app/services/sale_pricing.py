@@ -49,7 +49,9 @@ def cart_prices(entries, catalog, all_units, programs):
             if total < best['ThanhTien']:
                 best = {'GiaBan': price, 'ThanhTien': total, 'SoLuongKhuyenMai': count,
                         'KhuyenMai': {'MaChuongTrinh': program.MaChuongTrinh,
-                                     'TenChuongTrinh': program.TenChuongTrinh}}
+                                     'TenChuongTrinh': program.TenChuongTrinh,
+                                     'LoaiGiamGia': detail.LoaiGiamGia,
+                                     'GiaTriGiam': str(detail.GiaTriGiam)}}
         if best['KhuyenMai']:
             key = (best['KhuyenMai']['MaChuongTrinh'], product_id)
             remaining[key] -= best['SoLuongKhuyenMai'] * unit.SoLuongQuyDoi

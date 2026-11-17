@@ -106,13 +106,17 @@ def add_item(product_id, unit_id):
 
 
 @operation
-def get_cart():
+def get_cart(selected_ids=None):
     user_id = owner()
     entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
                if user_id is not None else guest_items())
+    if selected_ids is not None:
+        entries = [entry for entry in entries if entry[1] in selected_ids]
     details = carts.catalog_details(entries)
     product_ids = list({entry[0] for entry in entries})
-    prices = cart_prices(entries, details, units.public_units(product_ids),
+    all_units = units.public_units(product_ids) if entries else []
+    stock = usable_stock(product_ids) if entries else {}
+    prices = cart_prices(entries, details, all_units,
                          promotion_items.active_for_products(product_ids, current_date())) if entries else []
     items = []
     for (product_id, unit_id, quantity), pricing in zip(entries, prices):
@@ -122,6 +126,12 @@ def get_cart():
                       'TenThuoc': product.TenThuoc if product else 'Sản phẩm không còn khả dụng',
                       'DonViTinh': unit.DonViTinh if unit else '',
                       'GiaBan': unit.GiaBan if available else None,
+                      'HinhAnh': getattr(product, 'HinhAnh', None),
+                      'ConHang': bool(available and unit.SoLuongQuyDoi > 0 and quantity * unit.SoLuongQuyDoi <= stock.get(product_id, 0)),
+                      'DonViGia': [{'MaDonGia': option.MaDonGia, 'DonViTinh': option.DonViTinh,
+                                    'GiaBan': option.GiaBan,
+                                    'ConHang': option.SoLuongQuyDoi > 0 and option.SoLuongQuyDoi <= stock.get(product_id, 0)}
+                                   for option in all_units if option.MaThuoc == product_id and option.GiaBan >= 0],
                       'QuyCachDongGoi': product.QuyCachDongGoi if product else '',
                       'ThanhTien': quantity * unit.GiaBan if available else None})
         if pricing and pricing['KhuyenMai']:
@@ -144,3 +154,43 @@ def remove_item(unit_id):
     else:
         session['guest_cart'] = [item for item in guest_items() if item[1] != unit_id]
     return {'code': 'CART_ITEM_REMOVED'}
+
+
+@operation
+def update_item(unit_id, destination_id, quantity):
+    check_quantity(quantity)
+    user_id = owner()
+    if user_id is not None:
+        if carts.lock_user(user_id) is None:
+            raise AuthError('UNAUTHENTICATED', 401)
+        records = carts.list_items(user_id)
+        source = next((item for item in records if item.MaDonGia == unit_id), None)
+        entries = [(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in records]
+    else:
+        entries = guest_items()
+        source = next((item for item in entries if item[1] == unit_id), None)
+    if source is None:
+        raise AuthError('CART_ITEM_NOT_FOUND', 404)
+    product_id = source.MaThuoc if user_id is not None else source[0]
+    unit = require_unit(product_id, destination_id)
+    total = quantity + sum(count for product, existing_id, count in entries
+                           if product == product_id and existing_id == destination_id and existing_id != unit_id)
+    check_quantity(total)
+    if unit.SoLuongQuyDoi <= 0 or total * unit.SoLuongQuyDoi > usable_stock([product_id]).get(product_id, 0):
+        raise AuthError('OUT_OF_STOCK', 409)
+    if user_id is None:
+        result = []
+        for entry in entries:
+            if entry is source:
+                result.append([product_id, destination_id, total])
+            elif entry[0] != product_id or entry[1] != destination_id:
+                result.append(entry)
+        session['guest_cart'] = result
+    else:
+        for record in records:
+            if record is not source and record.MaThuoc == product_id and record.MaDonGia in (unit_id, destination_id):
+                carts.remove(record)
+        source.MaDonGia = destination_id
+        source.SoLuong = total
+        db.session.commit()
+    return {'code': 'CART_ITEM_UPDATED'}

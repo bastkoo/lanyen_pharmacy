@@ -29,7 +29,7 @@ const openAuth = setupAuthDialog((user, warning) => {
 }, { notice: notify });
 for (const id of ["login-button", "start-login"]) $(id)?.addEventListener("click", event => openAuth(event.currentTarget));
 
-async function refreshSession(manual = false) {
+async function refreshSession() {
     if (checking || $("auth-dialog").open) return;
     checking = true;
     if ($("refresh-account")) $("refresh-account").disabled = true;
@@ -39,13 +39,11 @@ async function refreshSession(manual = false) {
         renderUser(data.user);
         feedback("Phiên đăng nhập đang hoạt động.");
         retryState('hidden', true);
-        if (manual) notify('Đã kiểm tra phiên đăng nhập.');
     } catch (error) {
         if (["UNAUTHENTICATED", "ACCOUNT_LOCKED", "FORBIDDEN"].includes(error.code)) renderUser(null);
         else $("header-status").textContent = "Chưa thể kiểm tra phiên";
-        const message = feedback(error.code === "UNAUTHENTICATED" ? "Bạn có thể đăng nhập bằng số điện thoại để tiếp tục." : authMessage(error));
+        feedback(error.code === "UNAUTHENTICATED" ? "Bạn có thể đăng nhập bằng số điện thoại để tiếp tục." : authMessage(error));
         retryState('hidden', error.code === "UNAUTHENTICATED");
-        if (manual) notify(message, error.code === 'UNAUTHENTICATED' ? 'info' : 'error');
     } finally {
         checking = false;
         if ($("refresh-account")) $("refresh-account").disabled = false;
@@ -63,7 +61,7 @@ $("logout-button").addEventListener("click", async () => {
     } catch (error) { notify(feedback(authMessage(error)), 'error'); }
     finally { $("logout-button").disabled = false; }
 });
-$("refresh-account")?.addEventListener("click", () => refreshSession(true));
-$("retry-session")?.addEventListener("click", () => refreshSession(true));
+$("refresh-account")?.addEventListener("click", () => refreshSession());
+$("retry-session")?.addEventListener("click", () => refreshSession());
 window.addEventListener("focus", () => refreshSession());
 refreshSession();

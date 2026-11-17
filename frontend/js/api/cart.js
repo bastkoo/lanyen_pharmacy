@@ -34,3 +34,15 @@ export function removeCartItem(unitId) {
         return request(`/items/${unitId}`, 'DELETE');
     });
 }
+export function updateCartItem(unitId, destinationId, quantity) {
+    return withSessionRequest(async () => {
+        await request();
+        return request(`/items/${unitId}`, 'PUT', { MaDonGia: destinationId, SoLuong: quantity });
+    });
+}
+export function quoteCart(unitIds) {
+    return withSessionRequest(async () => {
+        await request();
+        return request('/quote', 'POST', { MaDonGia: unitIds });
+    });
+}

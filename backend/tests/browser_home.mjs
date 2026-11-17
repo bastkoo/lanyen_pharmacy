@@ -14,6 +14,8 @@ for (const product of catalogProducts) product.DonViGia = product.MaThuoc === 3 
 ] : [{ MaDonGia: product.MaThuoc * 10 + 1, DonViTinh: 'Hộp', GiaBan: 50000 }];
 for (const product of catalogProducts) for (const unit of product.DonViGia) unit.ConHang = product.MaThuoc !== 4 && unit.MaDonGia !== 23;
 let guestCart = [], accountCart = [];
+export const setCartMode = value => { catalogMode = value; };
+export const resetCartFixture = (guest, account = []) => { guestCart = guest.map(row => ({ ...row })); accountCart = account.map(row => ({ ...row })); };
 export function mergeCartFixture() {
     for (const item of guestCart) {
         const match = accountCart.find(row => row.MaDonGia === item.MaDonGia);
@@ -24,16 +26,21 @@ export function mergeCartFixture() {
 export async function cartFixture(req, json, authenticated) {
     const url = new URL(req.url, 'http://fixture.local');
     const items = authenticated ? accountCart : guestCart;
-    if (req.method === 'GET') {
-        if (catalogMode === 'cart-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
-        const rows = items.map(item => {
+    const readRows = entries => entries.map(item => {
             const product = catalogProducts.find(product => product.MaThuoc === item.MaThuoc);
             const unit = product.DonViGia.find(unit => unit.MaDonGia === item.MaDonGia);
-            return { ...item, ...unit, TenThuoc: product.TenThuoc, QuyCachDongGoi: product.QuyCachDongGoi, ThanhTien: unit.GiaBan * item.SoLuong,
+            return { ...item, ...unit, HinhAnh: product.HinhAnh, ConHang: unit.ConHang && item.SoLuong <= 20, DonViGia: product.DonViGia,
+                TenThuoc: product.TenThuoc, QuyCachDongGoi: product.QuyCachDongGoi, ThanhTien: unit.GiaBan * item.SoLuong,
                 ...(saleQuotes && product.MaThuoc === 1 ? { GiaBan: 40000, GiaGoc: unit.GiaBan, SoLuongKhuyenMai: item.SoLuong,
-                    ThanhTien: 40000 * item.SoLuong, KhuyenMai: { MaChuongTrinh: 1, TenChuongTrinh: 'Ưu đãi tháng 11' } } : {}) };
+                    ThanhTien: 40000 * item.SoLuong, KhuyenMai: { MaChuongTrinh: 1, TenChuongTrinh: 'Ưu đãi tháng 11', LoaiGiamGia: saleQuotes !== 'direct', GiaTriGiam: saleQuotes === 'direct' ? '1000' : '20' } } : {}) };
         });
+    const reply = entries => {
+        const rows = readRows(entries);
         return json(200, { code: 'CART_LISTED', csrf_token: 'fixture-csrf', authenticated, items: rows, total_quantity: rows.reduce((s, r) => s + r.SoLuong, 0), total: rows.reduce((s, r) => s + r.ThanhTien, 0) });
+    };
+    if (req.method === 'GET') {
+        if (catalogMode === 'cart-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        return reply(items);
     }
     assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
     if (req.method === 'DELETE') {
@@ -43,6 +50,24 @@ export async function cartFixture(req, json, authenticated) {
     }
     let body = ''; for await (const chunk of req) body += chunk;
     const item = JSON.parse(body);
+    if (url.pathname.endsWith('/quote')) {
+        if (catalogMode === 'cart-quote-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        return reply(items.filter(row => item.MaDonGia.includes(row.MaDonGia)));
+    }
+    if (req.method === 'PUT') {
+        if (catalogMode === 'cart-write-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        assert.deepEqual(Object.keys(item).sort(), ['MaDonGia', 'SoLuong']);
+        const sourceId = Number(url.pathname.split('/').at(-1)), source = items.find(row => row.MaDonGia === sourceId);
+        if (!source) return json(404, { code: 'CART_ITEM_NOT_FOUND' });
+        const product = catalogProducts.find(product => product.MaThuoc === source.MaThuoc);
+        const destination = product.DonViGia.find(unit => unit.MaDonGia === item.MaDonGia);
+        if (!destination) return json(404, { code: 'UNIT_NOT_FOUND' });
+        if (!destination.ConHang || item.SoLuong > 20) return json(409, { code: 'OUT_OF_STOCK' });
+        const other = items.find(row => row !== source && row.MaThuoc === source.MaThuoc && row.MaDonGia === item.MaDonGia);
+        source.MaDonGia = item.MaDonGia; source.SoLuong = item.SoLuong + (other?.SoLuong || 0);
+        if (other) items.splice(items.indexOf(other), 1);
+        return json(200, { code: 'CART_ITEM_UPDATED' });
+    }
     assert.deepEqual(Object.keys(item).sort(), ['MaDonGia', 'MaThuoc']);
     const product = catalogProducts.find(product => product.MaThuoc === item.MaThuoc);
     assert.ok(product.DonViGia.some(unit => unit.MaDonGia === item.MaDonGia));
@@ -170,6 +195,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('#public-search').getAttribute('aria-invalid')`), 'true');
     assert.equal(await run('location.pathname'), '/pages/customer/home.html');
     await search('Thuốc 26'); await productsReady(1); await filtersReady();
+    assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Searching and loading results do not show a notice');
     assert.equal(await run('location.pathname'), '/pages/customer/products.html');
     assert.equal(await run(`document.querySelector('#public-search').value`), 'Thuốc 26');
     assert.match(await run(`document.querySelector('#catalog-products-grid').textContent`), /Thuốc 26/);
@@ -200,21 +226,10 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('#customer-notice').hidden`), true, 'Notice disappears after five seconds');
     await run(`document.querySelector('input[name="product-unit-2"][value="22"]').click();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
     await waitFor(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-purchase-status').textContent==='Đã thêm 1 Viên vào giỏ hàng.'`);
-    await run(`document.querySelector('[data-cart]').click()`);
-    await waitFor(`document.querySelectorAll('.cart-items li').length===2`);
-    assert.match(await run(`document.querySelector('#cart-dialog').textContent`), /2 Vỉ × 10\.000 ₫ = 20\.000 ₫/);
-    assert.equal(await run(`document.querySelector('.cart-dialog .catalog-price').textContent`), 'Tạm tính: 21.000 ₫');
-    await run(`document.querySelector('.cart-items li:last-child button').click()`);
-    await waitFor(`document.querySelectorAll('.cart-items li').length===1 && document.querySelector('.cart-dialog .catalog-price').textContent==='Tạm tính: 20.000 ₫'`);
-    assert.equal(await run(`document.querySelector('#cart-dialog #customer-notice')?.matches(':popover-open')`), true, 'Notice stays above the modal cart');
-    await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
-    assert.equal(await run(`document.querySelector('#customer-notice').parentElement===document.body`), true, 'Notice survives closing its modal');
-    assert.equal(await run(`document.activeElement.hasAttribute('data-cart')`), true);
-    catalogMode = 'cart-error'; await run(`document.querySelector('[data-cart]').click()`);
-    await waitFor(`!document.querySelector('#cart-retry').hidden`);
-    catalogMode = 'normal'; await run(`document.querySelector('#cart-retry').click()`);
-    await waitFor(`document.querySelectorAll('.cart-items li').length===1`);
-    await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
+    assert.equal(await run(`document.querySelector('[data-cart]').getAttribute('href')`), 'cart.html');
+    const guestCartData = await run(`(async()=>{const api=await import('/js/api/cart.js');const data=await api.getCart();await api.removeCartItem(22);return data;})()`);
+    assert.equal(guestCartData.items.length, 2); assert.equal(guestCartData.total, 21000);
+    await waitFor(`document.querySelector('.cart-count')?.textContent==='1'`, 2000);
     catalogMode = 'stock-changed';
     await run(`document.querySelector('input[name="product-unit-2"][value="21"]').click();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
     await waitFor(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').textContent==='Hết hàng' && document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-purchase-status').textContent.includes('đã hết hàng')`);
@@ -239,6 +254,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`new URLSearchParams(location.search).get('ke_don')`), 'true');
     assert.deepEqual(await run(`Array.from(document.querySelectorAll('#catalog-products-grid h3')).map(item=>item.textContent)`), catalogProducts.filter(item => item.MaLoaiThuoc === 1 && item.KeDon).sort((a,b)=>a.TenThuoc.localeCompare(b.TenThuoc,'vi')).map(item=>`${item.TenThuoc} (${item.QuyCachDongGoi})`));
     await change('catalog-filter-sort', 'desc'); await productsReady(7);
+    assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Paging, prescription filters and sorting do not show a notice');
     const names = await run(`Array.from(document.querySelectorAll('#catalog-products-grid h3')).map(node=>node.textContent)`);
     assert.deepEqual(names, [...names].sort((left,right)=>right.localeCompare(left,'vi')));
     await run('history.back()'); await waitFor(`document.querySelector('#catalog-filter-sort').value==='asc'`); await productsReady(7);
@@ -265,6 +281,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('#catalog-products-title').textContent`), categoryNames[1], 'Stale responses do not overwrite current filters');
     catalogMode = 'products-error'; await change('catalog-filter-category', '3');
     await waitFor(`!document.querySelector('#catalog-products-retry').hidden`);
+    assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Read errors stay inline without a notice');
     catalogMode = 'normal'; await click('catalog-products-retry'); await productsReady(1);
     catalogMode = 'products-empty'; await change('catalog-filter-category', '4');
     await waitFor(`document.querySelector('#catalog-products-state-title').textContent==='Chưa có sản phẩm phù hợp' && !document.querySelector('#catalog-products-state').hidden`);
@@ -312,13 +329,11 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
         await checkCardLayout();
         await checkImageFrames();
         await run(`document.querySelector('#public-search').value='';document.querySelector('#public-search-form').requestSubmit()`);
+        assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Search validation remains inline');
+        await run(`import('/js/components/customer-notice.js').then(({notify})=>notify('Notification layout check'))`);
         assert.equal(await run(`(() => {const rect=document.querySelector('#customer-notice').getBoundingClientRect();return rect.left>=0 && rect.right<=innerWidth && rect.bottom<=innerHeight && rect.width>0;})()`), true, `Notice fits viewport at ${width}`);
         if (width === 375) await shot('CUSTOMER_NOTICE_MOBILE');
-        await run(`document.querySelector('[data-cart]').click()`); await waitFor(`document.querySelector('#cart-dialog .cart-items li')!==null`);
-        assert.equal(await run(`document.querySelector('#cart-dialog').scrollWidth<=document.querySelector('#cart-dialog').clientWidth`), true, `Cart overflow at ${width}`);
-        await key('Tab', 9); assert.equal(await run(`document.querySelector('#cart-dialog').contains(document.activeElement)`), true);
-        if (width === 375) await shot('CART_MOBILE');
-        await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
+        assert.equal(await run(`document.querySelector('[data-cart]').getAttribute('href')`), 'cart.html');
         await stickySearch();
         if (width===1440 || width===375) {
             await run(`window.scrollTo({top:0,behavior:'instant'})`); await shot(`PRODUCTS_${width===1440?'DESKTOP':'MOBILE'}`);
@@ -345,10 +360,8 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     await waitFor(`!document.querySelector('#otp-form').hidden && !document.querySelector('#otp').disabled`);
     await run(`document.querySelector('#otp').value='123456';document.querySelector('#otp-form').requestSubmit()`);
     await waitFor(`!document.querySelector('#auth-dialog').open && !document.querySelector('#logout-button').hidden`);
-    await run(`document.querySelector('[data-cart]').click()`); await waitFor(`document.querySelectorAll('.cart-items li').length===1`);
-    assert.match(await run(`document.querySelector('#cart-dialog').textContent`), /Giỏ hàng được lưu trong tài khoản/);
-    assert.match(await run(`document.querySelector('#cart-dialog').textContent`), /2 Vỉ × 10\.000 ₫/);
-    await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
+    const savedCart = await run(`(async()=>{const api=await import('/js/api/cart.js');return api.getCart();})()`);
+    assert.equal(savedCart.authenticated, true); assert.equal(savedCart.items[0].SoLuong, 2);
     setScenario('error'); await run(`window.dispatchEvent(new Event('focus'))`); await waitFor(`!document.querySelector('#retry-session').hidden`);
     assert.equal(await run(`document.querySelector('#catalog-products-grid').children.length`), 7);
     setScenario('anonymous'); await click('retry-session'); await guest();

@@ -1,7 +1,6 @@
 import { getPublicProduct } from '../api/public-catalog.js';
 import { purchaseControls } from './cart.js';
 import { validHttps } from '../utils/product-validation.js';
-import { notify } from './customer-notice.js';
 
 const node = (tag, text, className) => {
     const element = document.createElement(tag);
@@ -67,7 +66,7 @@ async function load() {
         status.textContent = error.code === 'PRODUCT_NOT_FOUND' ? 'Thuốc không còn tồn tại.'
             : error.code === 'PROMOTION_NOT_FOUND' ? 'Thuốc không còn thuộc chương trình này hoặc chương trình đã kết thúc.'
             : 'Chưa tải được thông tin thuốc. Vui lòng thử lại.';
-        retry.hidden = false; notify(status.textContent, 'error');
+        retry.hidden = false;
     } finally { if (attempt === version) dialog.setAttribute('aria-busy', 'false'); }
 }
 

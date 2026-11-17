@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { resetCartFixture, setCartMode, setSaleQuotes } from './browser_home.mjs';
+
+const seed = [{ MaThuoc: 1, MaDonGia: 11, SoLuong: 1 }, { MaThuoc: 2, MaDonGia: 21, SoLuong: 1 }];
+export async function checkCartPage({ evaluate: run, waitFor, command, root, baseUrl, setScenario }) {
+    const ready = count => waitFor(`document.querySelector('#cart-lines')?.children.length===${count} && document.querySelector('#cart-summary')?.getAttribute('aria-busy')==='false'`);
+    const total = value => waitFor(`document.querySelector('#cart-final-total')?.textContent===${JSON.stringify(value)} && !document.querySelector('#cart-select-all').disabled`);
+    const navigate = async page => { await command('Page.navigate', { url: `${baseUrl}/pages/customer/${page}` }); await new Promise(resolve => setTimeout(resolve, 50)); };
+    const click = expression => run(`${expression}.click()`);
+    const row = id => `document.querySelector('#cart-lines [data-unit-id="${id}"]')`;
+    setScenario('anonymous'); setCartMode('normal'); setSaleQuotes(true); resetCartFixture(seed);
+    await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    await navigate('home.html'); await waitFor(`document.querySelector('[data-cart]')?.getAttribute('href')==='cart.html'`);
+    await click(`document.querySelector('[data-cart]')`); await ready(2); await total('50.000 ₫');
+    assert.equal(await run('location.pathname'), '/pages/customer/cart.html');
+    assert.equal(await run(`document.querySelector('.cart-checkout').disabled`), true, 'Checkout is deliberately inactive');
+    assert.equal(await run(`document.querySelector('#cart-original-total').textContent`), '60.000 ₫');
+    assert.equal(await run(`document.querySelector('#cart-discount-total').textContent`), '−10.000 ₫');
+    assert.equal(await run(`${row(11)}.querySelector('.cart-offer strong').textContent`), 'Giảm 20%');
+    assert.equal(await run(`${row(11)}.querySelectorAll('.cart-offer svg path').length`), 1, 'Voucher paths render inline without relying on a cached sprite');
+    assert.equal(await run(`${row(11)}.querySelector('.cart-offer svg').getBoundingClientRect().width`), 32);
+    await waitFor(`document.querySelector('.cart-count')?.textContent==='2' && !document.querySelector('.cart-count').hidden`);
+    assert.equal(await run(`document.querySelector('#cart-discount-total').parentElement.hidden`), false);
+    await click(`${row(11)}.querySelector('input[type="checkbox"]')`); await total('10.000 ₫');
+    assert.equal(await run(`document.querySelector('#cart-discount-total').parentElement.hidden && document.querySelector('#cart-offer-summary').hidden`), true, 'Zero discounts are hidden in the summary');
+    assert.equal(await run(`document.querySelector('#cart-select-all').indeterminate`), true);
+    await click(`document.querySelector('#cart-select-all')`); await total('50.000 ₫'); setCartMode('cart-quote-error');
+    await click(`${row(11)}.querySelector('input[type="checkbox"]')`);
+    await waitFor(`document.querySelector('#cart-final-total').textContent==='—' && !document.querySelector('#cart-retry').hidden`);
+    assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true, 'Loading, selecting and failed quotes do not show a notice');
+    setCartMode('normal'); await click(`document.querySelector('#cart-retry')`); await total('10.000 ₫');
+    await click(`document.querySelector('#cart-select-all')`); await total('50.000 ₫');
+    await click(`${row(11)}.querySelector('.cart-quantity button:last-child')`); await total('90.000 ₫');
+    assert.equal(await run(`document.querySelector('.cart-count').textContent`), '2', 'Quantity increases do not increase the distinct product count');
+    assert.equal(await run(`document.querySelector('#customer-notice')?.dataset.type`), 'success', 'Quantity writes still show a success notice');
+    assert.equal(await run(`${row(11)}.querySelector('input[type="number"]').value`), '2');
+    await command('Page.reload'); await new Promise(resolve => setTimeout(resolve, 50)); await ready(2); await total('90.000 ₫');
+    await run(`${row(21)}.querySelector('select').value='22';${row(21)}.querySelector('select').dispatchEvent(new Event('change'))`);
+    await total('81.000 ₫'); assert.equal(await run(`${row(22)}.querySelector('input[type="number"]').value`), '1');
+    await click(`${row(22)}.querySelector('.cart-remove')`); await ready(1); await total('80.000 ₫');
+    await waitFor(`document.querySelector('.cart-count').textContent==='1'`);
+    setCartMode('cart-write-error'); await click(`${row(11)}.querySelector('.cart-quantity button:last-child')`);
+    await waitFor(`document.querySelector('#customer-notice')?.dataset.type==='error' && !document.querySelector('#cart-retry').hidden`);
+    assert.equal(await run(`${row(11)}.querySelector('input[type="number"]').value`), '2');
+    setCartMode('normal'); await click(`document.querySelector('#cart-retry')`); await total('80.000 ₫');
+    await click(`document.querySelector('#cart-select-all')`); await total('0 ₫');
+    await click(`${row(11)}.querySelector('.cart-remove')`); await ready(0);
+    assert.equal(await run(`document.querySelector('#cart-empty').hidden`), false);
+    await waitFor(`document.querySelector('.cart-count').hidden`);
+    for (const width of [1440, 1280, 1024, 768, 375, 320]) {
+        resetCartFixture(seed);
+        await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+        await navigate('cart.html'); await ready(2); await total('50.000 ₫');
+        assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Cart page fits ${width}`);
+        assert.equal(await run(`document.querySelector('.cart-count').getBoundingClientRect().width>=20`), true, `Cart badge remains visible at ${width}px`);
+        assert.equal(await run(`document.querySelector('#cart-lines b')`), null, 'Product names stay plain text');
+        if (width === 1440 || width === 375) {
+            const shot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+            await writeFile(path.join(root, 'docs', `MODULE_03_4_CART_${width}.png`), Buffer.from(shot.data, 'base64'));
+        }
+    }
+    setCartMode('cart-error'); await command('Page.reload'); await waitFor(`!document.querySelector('#cart-retry')?.hidden`);
+    setCartMode('normal'); await click(`document.querySelector('#cart-retry')`); await ready(2);
+    resetCartFixture(seed, [{ MaThuoc: 2, MaDonGia: 22, SoLuong: 3 }]);
+    setScenario('manager'); await run(`window.dispatchEvent(new Event('focus'))`); await ready(1); await total('3.000 ₫');
+    assert.match(await run(`document.querySelector('#cart-account-note').textContent`), /Giỏ hàng của bạn/);
+    setScenario('anonymous'); await run(`window.dispatchEvent(new Event('focus'))`); await ready(2); await total('50.000 ₫');
+    resetCartFixture([...seed, { MaThuoc: 2, MaDonGia: 22, SoLuong: 5 }]);
+    await navigate('cart.html'); await ready(3);
+    await waitFor(`document.querySelector('.cart-count')?.textContent==='2'`);
+    assert.match(await run(`document.querySelector('[data-cart]').getAttribute('aria-label')`), /2 loại sản phẩm/);
+    resetCartFixture(seed);
+    setSaleQuotes('direct'); await navigate('cart.html'); await ready(2); await total('50.000 ₫');
+    assert.equal(await run(`${row(11)}.querySelector('.cart-offer strong').textContent`), 'Giảm 10.000 ₫ / Hộp', 'Direct reductions use the actual discount of the selected unit');
+    setSaleQuotes(false); await navigate('cart.html'); await ready(2); await total('60.000 ₫');
+    assert.equal(await run(`document.querySelector('.cart-offer')`), null, 'Full-price items have no voucher strip');
+    assert.equal(await run(`getComputedStyle(document.querySelector('#cart-discount-total').parentElement).display`), 'none', 'Zero discount rows are visually hidden');
+    setCartMode('normal');
+    console.log('PASS: dedicated cart navigation, selection/requote, totals/discounts, quantity/unit edits, remove/empty, persisted guest, owner separation, failed writes/quotes/retry, checkout inactive, 1440–320px. MOCK API; no database writes.');
+}

@@ -15,6 +15,7 @@ import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
 import { accountFixture, accountActor, checkAccounts } from './browser_accounts.mjs';
 import { checkHomepage, publicCatalogFixture, cartFixture, mergeCartFixture } from './browser_home.mjs';
 import { publicSaleFixture, publicDetailFixture, checkSale } from './browser_sale.mjs';
+import { checkCartPage } from './browser_cart.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -378,6 +379,7 @@ try {
         checkingHomepage = true;
         await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });
         await checkSale({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}` });
+        await checkCartPage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
         checkingHomepage = false;
     }
     assert.deepEqual(errors, []);

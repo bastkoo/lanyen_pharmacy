@@ -1,4 +1,4 @@
-import { getCart, addCartItem, removeCartItem } from '../api/cart.js';
+import { addCartItem, getCart } from '../api/cart.js';
 import { notify } from './customer-notice.js';
 import { promotionBadge } from '../utils/public-sale-format.js';
 
@@ -10,6 +10,7 @@ const node = (tag, text, className) => {
 };
 export const money = value => `${new Intl.NumberFormat('vi-VN').format(BigInt(value))} ₫`;
 const errorMessage = error => ({
+    CART_ITEM_NOT_FOUND: 'Sản phẩm không còn trong giỏ. Vui lòng tải lại giỏ hàng.',
     OUT_OF_STOCK: 'Đơn vị này đã hết hàng hoặc không còn lô đủ tồn và còn hạn. Vui lòng chọn đơn vị khác hoặc tải lại danh sách.',
     UNIT_NOT_FOUND: 'Đơn vị này không còn tồn tại. Hãy tải lại danh sách sản phẩm.',
     UNIT_UNAVAILABLE: 'Đơn vị này chưa có giá bán hợp lệ.',
@@ -100,53 +101,35 @@ export function purchaseControls(product, { scope = '' } = {}) {
     block.append(buy); return block;
 }
 
-export function setupCart() {
-    const triggers = document.querySelectorAll('[data-cart]');
-    if (!triggers.length) return;
-    const dialog = node('dialog', undefined, 'cart-dialog'); dialog.id = 'cart-dialog';
-    dialog.setAttribute('aria-labelledby', 'cart-title');
-    const close = node('button', 'Đóng', 'quiet-link'); close.type = 'button';
-    const title = node('h2', 'Giỏ hàng'); title.id = 'cart-title';
-    const status = node('p'); status.setAttribute('role', 'status');
-    const note = node('p', '', 'catalog-product-meta'), list = node('ul', undefined, 'cart-items');
-    const total = node('p', '', 'catalog-price'), retry = node('button', 'Tải lại giỏ hàng', 'button button-secondary'); retry.type = 'button';
-    retry.id = 'cart-retry';
-    dialog.append(close, title, status, note, list, total, retry); document.body.append(dialog);
-    let opener, version = 0;
-    async function load() {
-        const attempt = ++version; status.textContent = 'Đang tải giỏ hàng…'; retry.hidden = true;
-        list.replaceChildren(); total.textContent = ''; note.textContent = '';
-        try {
-            await queue;
-            const data = await getCart();
-            if (attempt !== version || !dialog.open) return;
-            if (!Array.isArray(data.items) || data.code !== 'CART_LISTED') throw new Error('INVALID_RESPONSE');
-            status.textContent = data.items.length ? '' : 'Giỏ hàng chưa có sản phẩm.';
-            note.textContent = data.authenticated ? 'Giỏ hàng được lưu trong tài khoản của bạn.' : 'Giỏ hàng đang lưu trong phiên truy cập. Khi đăng nhập, các sản phẩm sẽ được thêm vào giỏ tài khoản.';
-            for (const item of data.items) {
-                const row = node('li'), heading = node('h3', item.TenThuoc);
-                const remove = node('button', 'Xóa', 'quiet-link'); remove.type = 'button'; remove.setAttribute('aria-label', `Xóa ${item.TenThuoc}, ${item.DonViTinh}`);
-                remove.addEventListener('click', async () => {
-                    remove.disabled = true;
-                    try { await serialize(() => removeCartItem(item.MaDonGia)); notify('Đã xóa sản phẩm khỏi giỏ hàng.'); await load(); retry.hidden = false; retry.focus(); }
-                    catch (error) { status.textContent = errorMessage(error); notify(status.textContent, 'error'); remove.disabled = false; }
-                });
-                row.append(heading, node('p', `Quy cách đóng gói: ${item.QuyCachDongGoi || 'Chưa có thông tin'}`));
-                if (item.KhuyenMai) {
-                    row.append(node('p', `Ưu đãi: ${item.KhuyenMai.TenChuongTrinh}`));
-                    const regular = item.SoLuong - item.SoLuongKhuyenMai;
-                    row.append(node('p', `${item.SoLuongKhuyenMai} ${item.DonViTinh} × ${money(item.GiaBan)}${regular ? ` + ${regular} ${item.DonViTinh} × ${money(item.GiaGoc)} (giá gốc)` : ''} = ${money(item.ThanhTien)}`));
-                } else row.append(node('p', `${item.SoLuong} ${item.DonViTinh}${item.GiaBan === null ? ' · Không còn khả dụng' : ` × ${money(item.GiaBan)} = ${money(item.ThanhTien)}`}`));
-                row.append(remove);
-                list.append(row);
-            }
-            total.textContent = `Tạm tính: ${money(data.total)}`;
-        } catch (error) { if (attempt === version) { status.textContent = errorMessage(error); notify(status.textContent, 'error'); retry.hidden = false; } }
+export { errorMessage as cartErrorMessage };
+
+export function setupCartBadge() {
+    const link = document.querySelector('[data-cart]');
+    if (!link || link.querySelector('.cart-count')) return;
+    const icon = link.querySelector('svg');
+    const wrapper = node('span', undefined, 'cart-header-icon');
+    const badge = node('span', '', 'cart-count'); badge.hidden = true; badge.setAttribute('aria-hidden', 'true');
+    icon.replaceWith(wrapper); wrapper.append(icon, badge);
+    let version = 0, disposed = false;
+    function render(data) {
+        if (!Array.isArray(data.items)) return;
+        const count = new Set(data.items.map(item => String(item.MaThuoc))).size;
+        badge.textContent = String(count); badge.hidden = count === 0;
+        link.setAttribute('aria-label', `Giỏ hàng, ${count} loại sản phẩm`);
     }
-    for (const trigger of triggers) trigger.addEventListener('click', () => { opener = trigger; dialog.showModal(); close.focus(); load(); });
-    close.addEventListener('click', () => dialog.close());
-    retry.addEventListener('click', load);
-    dialog.addEventListener('close', () => { version++; opener?.focus(); });
-    window.addEventListener('cart-changed', () => { if (dialog.open) load(); });
-    window.addEventListener('auth-changed', () => { if (dialog.open) load(); });
+    async function refresh() {
+        const attempt = ++version;
+        try {
+            const data = await getCart();
+            if (!disposed && attempt === version) render(data);
+        } catch {
+            if (!disposed && attempt === version) { badge.hidden = true; link.setAttribute('aria-label', 'Giỏ hàng'); }
+        }
+    }
+    window.addEventListener('cart-updated', event => { if (!disposed) { version++; render(event.detail); } });
+    window.addEventListener('cart-changed', refresh);
+    window.addEventListener('auth-changed', refresh);
+    window.addEventListener('pagehide', () => { disposed = true; version++; });
+    window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; refresh(); } });
+    refresh();
 }

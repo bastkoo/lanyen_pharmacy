@@ -1,11 +1,12 @@
 import { setupPublicCatalog } from '../components/public-catalog.js';
 import { publicProductsUrl } from '../utils/public-catalog-filters.js';
-import { setupCart } from '../components/cart.js';
-import { setupPublicSale } from '../components/public-sale.js';
-import { notify } from '../components/customer-notice.js';
+import { setupCartBadge } from '../components/cart.js';
 
-setupCart();
+import { setupPublicSale } from '../components/public-sale.js';
+
+
 setupPublicSale();
+setupCartBadge();
 
 const $ = id => document.getElementById(id);
 if ($('public-categories-grid')) setupPublicCatalog();
@@ -25,7 +26,6 @@ $('public-search-form').addEventListener('submit', event => {
     const input = $('public-search'), value = input.value.trim();
     if (!value || [...value].length > 255 || value.includes('\0')) {
         $('public-search-status').textContent = 'Nhập từ khóa từ 1 đến 255 ký tự để tìm kiếm, không chứa ký tự NUL.';
-        notify($('public-search-status').textContent, 'error');
         input.setAttribute('aria-invalid', 'true'); input.focus(); return;
     }
     input.removeAttribute('aria-invalid');

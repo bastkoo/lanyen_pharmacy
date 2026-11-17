@@ -1,6 +1,5 @@
 import { getPublicPromotions, getPromotionProducts } from '../api/public-catalog.js';
 import { productCard } from './public-catalog.js';
-import { notify } from './customer-notice.js';
 import { promotionCountdown } from '../utils/public-sale-format.js';
 
 const node = (tag, text, className) => {
@@ -63,7 +62,7 @@ export function setupPublicSale() {
     function selectProgram(program) {
         selectedId = program.MaChuongTrinh; page = 1; buttons(); loadProducts();
     }
-    async function loadPrograms(manual = false) {
+    async function loadPrograms() {
         listController?.abort(); listController = new AbortController(); const attempt = ++listVersion;
         productsVersion++; productsController?.abort();
         $('sale-products').hidden = true; $('sale-programs').hidden = true;
@@ -94,20 +93,18 @@ export function setupPublicSale() {
             $('sale-program-state').textContent = programs.length ? '' : 'Chưa có chương trình khuyến mãi đang diễn ra hoặc sắp tới. Bạn có thể khám phá các danh mục bên dưới.';
             if (programs.length) {
                 const program = programs.find(program => program.MaChuongTrinh === selectedId) || programs[0];
-                selectedId = program.MaChuongTrinh; buttons(); loadProducts(manual);
+                selectedId = program.MaChuongTrinh; buttons(); loadProducts();
                 updateCountdowns();
             } else {
                 productsVersion++; productsController?.abort(); $('sale-products').hidden = true;
-                if (manual) notify('Chưa có chương trình khuyến mãi đang diễn ra hoặc sắp tới.', 'info');
             }
             if (focused) $('sale-programs').querySelector(`[data-program-id="${focused}"]`)?.focus();
         } catch (error) {
             if (attempt !== listVersion || error.code === 'REQUEST_ABORTED') return;
             $('sale-program-state').textContent = errorText(error); $('sale-program-retry').hidden = false;
-            notify(errorText(error), 'error');
         } finally { if (attempt === listVersion) $('public-sale').setAttribute('aria-busy', 'false'); }
     }
-    async function loadProducts(manual = false) {
+    async function loadProducts() {
         const focusedArrow = [$('sale-products-prev'), $('sale-products-next')].includes(document.activeElement) ? document.activeElement : null;
         productsController?.abort(); productsController = new AbortController(); const attempt = ++productsVersion;
         const program = programs.find(program => program.MaChuongTrinh === selectedId);
@@ -123,9 +120,8 @@ export function setupPublicSale() {
             if (attempt !== productsVersion) return;
             if (data.code !== 'PROMOTION_PRODUCTS_LISTED' || !Array.isArray(data.items) || data.promotion?.MaChuongTrinh !== selectedId ||
                 !Number.isSafeInteger(data.pages) || data.pages < 0 || data.page !== page) throw new Error('INVALID_RESPONSE');
-            if (page > Math.max(1, data.pages)) { page = Math.max(1, data.pages); return loadProducts(manual); }
+            if (page > Math.max(1, data.pages)) { page = Math.max(1, data.pages); return loadProducts(); }
             pages = data.pages;
-            if (manual) notify(data.items.length ? 'Đã cập nhật sản phẩm khuyến mãi.' : 'Chưa có sản phẩm trong chương trình này.', data.items.length ? 'success' : 'info');
             $('sale-products-state').textContent = data.items.length ? '' : 'Chưa có sản phẩm được công bố trong chương trình này.';
             $('sale-products-grid').replaceChildren(...data.items.map(product => productCard(product)));
             $('sale-products-grid').hidden = !data.items.length; $('sale-pagination').hidden = pages <= 1;
@@ -135,7 +131,6 @@ export function setupPublicSale() {
         } catch (error) {
             if (attempt !== productsVersion || error.code === 'REQUEST_ABORTED') return;
             $('sale-products-state').textContent = errorText(error); $('sale-products-retry').hidden = false;
-            notify(errorText(error), 'error');
         } finally {
             if (attempt === productsVersion) {
                 $('sale-products').setAttribute('aria-busy', 'false');
@@ -147,8 +142,8 @@ export function setupPublicSale() {
             }
         }
     }
-    $('sale-program-retry').addEventListener('click', () => loadPrograms(true));
-    $('sale-products-retry').addEventListener('click', () => loadProducts(true));
+    $('sale-program-retry').addEventListener('click', () => loadPrograms());
+    $('sale-products-retry').addEventListener('click', () => loadProducts());
     $('sale-products-prev').addEventListener('click', () => { if (page > 1) { page--; loadProducts(); } });
     $('sale-products-next').addEventListener('click', () => { if (page < pages) { page++; loadProducts(); } });
     window.addEventListener('resize', () => {

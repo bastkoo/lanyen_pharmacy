@@ -3,7 +3,6 @@ import { categoryIcon } from '../utils/category-icons.js';
 import { validHttps } from '../utils/product-validation.js';
 import { readCatalogFilters, publicProductsUrl } from '../utils/public-catalog-filters.js';
 import { purchaseControls } from './cart.js';
-import { notify } from './customer-notice.js';
 import { promotionBadge } from '../utils/public-sale-format.js';
 import { openProductDetail } from './public-product-detail.js';
 
@@ -41,7 +40,7 @@ async function readCategories(signal) {
 export function setupPublicCatalog() {
     const $ = id => document.getElementById(id);
     let controller, version = 0;
-    async function loadCategories(manual = false) {
+    async function loadCategories() {
         controller?.abort(); controller = new AbortController(); const attempt = ++version;
         $('categories').setAttribute('aria-busy', 'true'); $('public-categories-state').hidden = false; $('public-categories-grid').hidden = true;
         $('public-categories-state-title').textContent = 'Đang tải danh mục…'; $('public-categories-state-description').textContent = 'Các nhóm sản phẩm của Lan Yến sẽ hiển thị tại đây.'; $('public-categories-retry').hidden = true;
@@ -56,14 +55,12 @@ export function setupPublicCatalog() {
             }
             $('public-categories-state').hidden = categories.size > 0; $('public-categories-grid').hidden = !categories.size;
             if (!categories.size) { $('public-categories-state-title').textContent = 'Chưa có danh mục sản phẩm'; $('public-categories-state-description').textContent = 'Bạn vui lòng quay lại sau để khám phá các nhóm sản phẩm của Lan Yến.'; }
-            if (manual) notify('Đã cập nhật danh mục sản phẩm.');
         } catch (error) {
             if (attempt !== version || error.code === 'REQUEST_ABORTED') return;
             $('public-categories-state-title').textContent = 'Chưa tải được danh mục'; $('public-categories-state-description').textContent = readError(error); $('public-categories-retry').hidden = false;
-            notify(readError(error), 'error');
         } finally { if (attempt === version) $('categories').setAttribute('aria-busy', 'false'); }
     }
-    $('public-categories-retry').addEventListener('click', () => loadCategories(true));
+    $('public-categories-retry').addEventListener('click', () => loadCategories());
     window.addEventListener('pagehide', () => { version++; controller?.abort(); });
     window.addEventListener('pageshow', event => { if (event.persisted) loadCategories(); });
     loadCategories();
@@ -118,7 +115,7 @@ export function setupPublicProducts() {
         const url = new URL(publicProductsUrl(filters), location.href);
         if (url.href !== location.href) history[replace ? 'replaceState' : 'pushState'](null, '', url);
     }
-    async function loadCategories(manual = false) {
+    async function loadCategories() {
         categoryController?.abort(); categoryController = new AbortController(); const attempt = ++categoryVersion;
         $('catalog-filter-category').disabled = true; $('catalog-filter-category-status').textContent = 'Đang tải danh mục…'; $('catalog-filter-category-retry').hidden = true;
         try {
@@ -126,11 +123,9 @@ export function setupPublicProducts() {
             if (attempt !== categoryVersion) return;
             categories = found; fillCategories(); updateTitle(); $('catalog-filter-category').disabled = false;
             $('catalog-filter-category-status').textContent = categories.size ? '' : 'Chưa có danh mục. Bạn vẫn có thể tìm kiếm sản phẩm.';
-            if (manual) notify('Đã cập nhật bộ lọc danh mục.');
         } catch (error) {
             if (attempt !== categoryVersion || error.code === 'REQUEST_ABORTED') return;
             $('catalog-filter-category-status').textContent = 'Chưa tải được danh mục. Các bộ lọc khác vẫn sử dụng được.'; $('catalog-filter-category-retry').hidden = false;
-            notify('Chưa tải được danh mục. Các bộ lọc khác vẫn sử dụng được.', 'error');
         }
     }
     function resultsState(title, description, error = false) {
@@ -138,7 +133,7 @@ export function setupPublicProducts() {
         $('catalog-products-state-title').textContent = title; $('catalog-products-state-description').textContent = description;
         $('catalog-products-retry').hidden = !error; $('catalog-products-pagination').hidden = true;
     }
-    async function loadProducts(manual = false) {
+    async function loadProducts() {
         productController?.abort(); productController = new AbortController(); const attempt = ++productVersion;
         $('catalog-products-grid').replaceChildren(); $('catalog-products-summary').textContent = '';
         $('catalog-products-prev').disabled = $('catalog-products-next').disabled = true;
@@ -150,10 +145,9 @@ export function setupPublicProducts() {
             const data = await getPublicProducts({ ...selected, category_id: selected.category_id || undefined, ke_don: selected.ke_don || undefined, per_page: 12 }, { signal: productController.signal });
             if (attempt !== productVersion) return;
             if (data.code !== 'PRODUCTS_LISTED' || !Array.isArray(data.items) || !['page', 'pages', 'per_page', 'total'].every(key => Number.isSafeInteger(data[key]) && data[key] >= 0) || data.page !== selected.page || data.per_page < 1) throw new Error('INVALID_RESPONSE');
-            if (selected.page > Math.max(1, data.pages)) { filters.page = Math.max(1, data.pages); writeLocation(true); return loadProducts(manual); }
+            if (selected.page > Math.max(1, data.pages)) { filters.page = Math.max(1, data.pages); writeLocation(true); return loadProducts(); }
             if (!data.items.every(item => positiveId(item.MaThuoc) && positiveId(item.MaLoaiThuoc) && typeof item.TenThuoc === 'string' && (!selected.category_id || item.MaLoaiThuoc === Number(selected.category_id)) && (!selected.ke_don || item.KeDon === (selected.ke_don === 'true')))) throw new Error('INVALID_RESPONSE');
             pages = data.pages;
-            if (manual || selected.search) notify(`Đã cập nhật kết quả: ${data.total} sản phẩm.`, data.total ? 'success' : 'info');
             $('catalog-products-summary').textContent = `${new Intl.NumberFormat('vi-VN').format(data.total)} sản phẩm`;
             if (!data.items.length) { resultsState('Chưa có sản phẩm phù hợp', 'Thử thay đổi danh mục, phân loại kê đơn hoặc từ khóa tìm kiếm.'); return; }
             $('catalog-products-grid').replaceChildren(...data.items.map(productCard));
@@ -163,26 +157,25 @@ export function setupPublicProducts() {
         } catch (error) {
             if (attempt !== productVersion || error.code === 'REQUEST_ABORTED') return;
             resultsState('Chưa tải được danh sách sản phẩm', readError(error), true);
-            notify(readError(error), 'error');
         } finally { if (attempt === productVersion) $('catalog-products').setAttribute('aria-busy', 'false'); }
     }
     function changeFilters() {
         filters = { ...filters, category_id: $('catalog-filter-category').disabled ? filters.category_id : $('catalog-filter-category').value,
             ke_don: $('catalog-filter-prescription').value, sort_order: $('catalog-filter-sort').value, page: 1 };
-        validQuery = true; writeLocation(); updateTitle(); loadProducts(true);
+        validQuery = true; writeLocation(); updateTitle(); loadProducts();
     }
     for (const id of ['catalog-filter-category', 'catalog-filter-prescription', 'catalog-filter-sort']) $(id).addEventListener('change', changeFilters);
     $('catalog-filters').addEventListener('submit', event => { event.preventDefault(); changeFilters(); });
-    $('catalog-products-reset').addEventListener('click', () => { filters = { ...defaults(), search: filters.search }; validQuery = true; syncControls(); writeLocation(); loadProducts(true); });
+    $('catalog-products-reset').addEventListener('click', () => { filters = { ...defaults(), search: filters.search }; validQuery = true; syncControls(); writeLocation(); loadProducts(); });
     function changePage(next) {
         if (next < 1 || next > pages) return;
-        filters.page = next; writeLocation(); loadProducts(true);
+        filters.page = next; writeLocation(); loadProducts();
         $('catalog-products-title').focus({ preventScroll: true }); $('catalog-products-title').scrollIntoView({ block: 'start', behavior: 'instant' });
     }
     $('catalog-products-prev').addEventListener('click', () => changePage(filters.page - 1));
     $('catalog-products-next').addEventListener('click', () => changePage(filters.page + 1));
-    $('catalog-products-retry').addEventListener('click', () => loadProducts(true));
-    $('catalog-filter-category-retry').addEventListener('click', () => loadCategories(true));
+    $('catalog-products-retry').addEventListener('click', () => loadProducts());
+    $('catalog-filter-category-retry').addEventListener('click', () => loadCategories());
     window.addEventListener('popstate', () => { readLocation(); syncControls(); loadProducts(); });
     window.addEventListener('pagehide', () => { categoryVersion++; productVersion++; categoryController?.abort(); productController?.abort(); });
     window.addEventListener('pageshow', event => { if (event.persisted) { readLocation(); syncControls(); loadCategories(); loadProducts(); } });

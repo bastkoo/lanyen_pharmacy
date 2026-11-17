@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" fill="none">
   <!-- Original line icons for Lan Yen's public catalog. All symbols use a 24px grid. -->
+  <symbol id="voucher" viewBox="0 0 24 24"><path d="M3 5h18v5a2 2 0 0 0 0 4v5H3v-5a2 2 0 0 0 0-4V5Z"/><path d="m9 15 6-6"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/></symbol>
   <symbol id="medical-device" viewBox="0 0 24 24"><path d="M5 3v6a4 4 0 0 0 8 0V3M3 3h4m4 0h4M9 13v3a5 5 0 0 0 10 0v-3"/><circle cx="19" cy="10" r="3"/></symbol>
   <symbol id="skin" viewBox="0 0 24 24"><path d="M9 3c-3 2-4 6-3 9l-2 3h3v4c0 1 1 2 2 2h4v-4c4-2 6-5 5-9M14 3c0 3 4 4 4 7a4 4 0 0 1-8 0c0-3 4-4 4-7Z"/><path d="M8 12h1"/></symbol>
   <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
