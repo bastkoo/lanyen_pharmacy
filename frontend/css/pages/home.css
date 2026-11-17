@@ -107,22 +107,22 @@
 .account-details { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-block: 8px; }
 .account-details dt { font-size: 11px; color: var(--home-muted); }
 .account-details dd { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
-.site-footer { background: var(--primary-dark); color: var(--white-color); padding-top: 48px; }
-.footer-grid { display: grid; grid-template-columns: 1.1fr .8fr 1.15fr 1.2fr; gap: 44px; }
+.site-footer { background: var(--primary-dark); color: var(--white-color); padding-top: 56px; }
+.footer-grid { display: grid; grid-template-columns: 1.2fr .8fr 1.1fr 1.25fr; gap: 36px; }
+.footer-grid > div { min-width: 0; }
 .site-footer .brand, .site-footer a, .site-footer h2 { color: var(--white-color); }
-.site-footer .brand { font-size: 22px; }
+.site-footer .brand { font-size: 26px; }
 .site-footer .brand img { background: var(--white-color); border-radius: 50%; }
-.footer-brand > p { margin-top: 22px; font-size: 14px; line-height: 1.9; }
-.site-footer h2 { font-size: 14px; font-weight: 500; letter-spacing: 0; margin-block: 10px 16px; }
-.site-footer nav { display: flex; flex-direction: column; align-items: start; }
-.site-footer nav a, .site-footer li button { min-height: 44px; display: flex; align-items: center; font-size: 12px; text-align: left; }
+.site-footer .footer-brand > p { margin-top: 20px; font-size: 16px; line-height: 1.75; }
+.site-footer h2 { font-size: 17px; font-weight: 600; letter-spacing: 0; line-height: 1.5; margin-block: 4px 16px; }
+.site-footer nav { display: flex; flex-direction: column; align-items: start; gap: 2px; }
+.site-footer nav a, .site-footer li button { min-height: 44px; display: flex; align-items: center; font-size: 15px; line-height: 1.65; text-align: left; padding-block: 8px; }
 .site-footer a:hover, .site-footer button:hover { text-decoration: underline; text-underline-offset: 4px; }
 .site-footer ul { list-style: none; }
 .site-footer li button { gap: 10px; color: var(--white-color); }
-.site-footer li span { font-size: 9px; border: 1px solid currentColor; padding: 1px 5px; border-radius: 3px; }
-.site-footer p { font-size: 12px; line-height: 1.85; }
+.site-footer p { font-size: 15px; line-height: 1.8; overflow-wrap: anywhere; }
 .site-footer .footer-note { margin-top: 14px; }
-.footer-bottom { border-top: 1px solid rgb(255 255 255 / .25); margin-top: 36px; padding-block: 20px; display: flex; justify-content: space-between; gap: 16px; font-size: 11px; }
+.footer-bottom { border-top: 1px solid rgb(255 255 255 / .25); margin-top: 40px; padding-block: 24px; display: flex; justify-content: space-between; gap: 16px; font-size: 13px; line-height: 1.7; }
 .site-footer :focus-visible { outline-color: var(--white-color); }
 .feature-dialog { width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; margin: auto; padding: 32px; color: var(--text-color); background: var(--surface-color); border: 1px solid var(--home-line); border-radius: var(--radius-lg); }
 .feature-dialog::backdrop { background: rgb(0 0 0 / .4); }
@@ -225,7 +225,7 @@
     .footer-brand { grid-column: 1 / -1; }
     .site-footer .footer-grid > div:last-child { grid-column: 1 / -1; }
     .footer-bottom { flex-direction: column; gap: 8px; }
-    .site-footer .brand { font-size: 23px; }
+    .site-footer .brand { font-size: 26px; }
     .site-footer li button { flex-wrap: wrap; gap: 4px 8px; padding-block: 6px; }
     .feature-dialog { padding: 24px; }
 }

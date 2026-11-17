@@ -299,6 +299,12 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
         await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width<768 });
         await navigate('/pages/customer/home.html'); await categoriesReady();
         assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Home overflow at ${width}`);
+        assert.equal(await run(`document.querySelector('.site-footer').textContent.includes('Sắp có')`), false);
+        assert.equal(await run(`parseFloat(getComputedStyle(document.querySelector('.site-footer nav a')).fontSize)>=15 && parseFloat(getComputedStyle(document.querySelector('.site-footer h2')).fontSize)>=17`), true, 'Footer navigation and headings are comfortably readable');
+        if (width === 1440 || width === 375) {
+            await run(`document.querySelector('.site-footer').scrollIntoView({block:'start',behavior:'instant'})`);
+            await shot(`FOOTER_${width===1440?'DESKTOP':'MOBILE'}`);
+        }
         await stickySearch();
         if (width===1440 || width===375) { await run(`window.scrollTo({top:0,behavior:'instant'})`); await shot(`HOME_${width===1440?'DESKTOP':'MOBILE'}`); }
         await navigate('/pages/customer/products.html?category_id=1&ke_don=false'); await productsReady(7); await filtersReady();

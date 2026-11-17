@@ -2,6 +2,13 @@
 
 Phần sale mới và các quy tắc giá trong giỏ được mô tả tại [Module 03.2](MODULE_03_2_PUBLIC_SALE.md).
 
+## Footer
+
+Footer dùng chung trang chủ/danh sách đã tăng cỡ chữ: tiêu đề 17px, liên kết và nội dung
+15px, lời giới thiệu thương hiệu 16px, dòng cuối 13px. Cân lại bốn cột desktop và các
+nhóm trên mobile, tăng khoảng cách để dễ đọc. Bỏ nhãn Sắp có ở cả hai trang; nút hỗ trợ
+vẫn giữ luồng thông tin hiện có, không tạo liên hệ hoặc chính sách giả.
+
 ## Thông báo thao tác khách hàng
 
 `components/customer-notice.js` hiển thị thông báo thành công, thất bại hoặc thông tin ở
