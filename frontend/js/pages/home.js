@@ -3,6 +3,8 @@ import { setupAuthDialog, authMessage } from "../components/auth-dialog.js";
 import { notify } from '../components/customer-notice.js';
 
 const $ = id => document.getElementById(id);
+const feedback = message => { if ($('page-status')) $('page-status').textContent = message; return message; };
+const retryState = (property, value) => { if ($('retry-session')) $('retry-session')[property] = value; };
 let checking = false;
 function renderUser(user) {
     // Some public pages only have the header account controls, without a profile section.
@@ -18,11 +20,11 @@ function renderUser(user) {
     window.dispatchEvent(new Event('auth-changed'));
 }
 const openAuth = setupAuthDialog((user, warning) => {
-    if (warning) { $("page-status").textContent = warning; notify(warning, 'error'); return; }
+    if (warning) { feedback(warning); notify(warning, 'error'); return; }
     renderUser(user);
-    $("page-status").textContent = "Đăng nhập thành công. Chào mừng bạn đến với Lan Yến.";
+    feedback("Đăng nhập thành công. Chào mừng bạn đến với Lan Yến.");
     notify('Đăng nhập thành công. Chào mừng bạn đến với Lan Yến.');
-    $("retry-session").hidden = true;
+    retryState('hidden', true);
     $("main").focus();
 }, { notice: notify });
 for (const id of ["login-button", "start-login"]) $(id)?.addEventListener("click", event => openAuth(event.currentTarget));
@@ -31,23 +33,23 @@ async function refreshSession(manual = false) {
     if (checking || $("auth-dialog").open) return;
     checking = true;
     if ($("refresh-account")) $("refresh-account").disabled = true;
-    $("retry-session").disabled = true;
+    retryState('disabled', true);
     try {
         const data = await getSession();
         renderUser(data.user);
-        $("page-status").textContent = "Phiên đăng nhập đang hoạt động.";
-        $("retry-session").hidden = true;
+        feedback("Phiên đăng nhập đang hoạt động.");
+        retryState('hidden', true);
         if (manual) notify('Đã kiểm tra phiên đăng nhập.');
     } catch (error) {
         if (["UNAUTHENTICATED", "ACCOUNT_LOCKED", "FORBIDDEN"].includes(error.code)) renderUser(null);
         else $("header-status").textContent = "Chưa thể kiểm tra phiên";
-        $("page-status").textContent = error.code === "UNAUTHENTICATED" ? "Bạn có thể đăng nhập bằng số điện thoại để tiếp tục." : authMessage(error);
-        $("retry-session").hidden = error.code === "UNAUTHENTICATED";
-        if (manual) notify($("page-status").textContent, error.code === 'UNAUTHENTICATED' ? 'info' : 'error');
+        const message = feedback(error.code === "UNAUTHENTICATED" ? "Bạn có thể đăng nhập bằng số điện thoại để tiếp tục." : authMessage(error));
+        retryState('hidden', error.code === "UNAUTHENTICATED");
+        if (manual) notify(message, error.code === 'UNAUTHENTICATED' ? 'info' : 'error');
     } finally {
         checking = false;
         if ($("refresh-account")) $("refresh-account").disabled = false;
-        $("retry-session").disabled = false;
+        retryState('disabled', false);
     }
 }
 $("logout-button").addEventListener("click", async () => {
@@ -55,13 +57,13 @@ $("logout-button").addEventListener("click", async () => {
     try {
         await logoutSession();
         renderUser(null);
-        $("page-status").textContent = "Bạn đã đăng xuất.";
+        feedback("Bạn đã đăng xuất.");
         notify('Đăng xuất thành công.');
         $("login-button").focus();
-    } catch (error) { $("page-status").textContent = authMessage(error); notify($("page-status").textContent, 'error'); }
+    } catch (error) { notify(feedback(authMessage(error)), 'error'); }
     finally { $("logout-button").disabled = false; }
 });
 $("refresh-account")?.addEventListener("click", () => refreshSession(true));
-$("retry-session").addEventListener("click", () => refreshSession(true));
+$("retry-session")?.addEventListener("click", () => refreshSession(true));
 window.addEventListener("focus", () => refreshSession());
 refreshSession();

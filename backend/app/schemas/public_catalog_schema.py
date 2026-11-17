@@ -39,3 +39,18 @@ class PublicProductSchema(Schema):
 class PublicPromotionQuerySchema(Schema):
     page = fields.Integer(load_default=1, validate=validate.Range(min=1, max=2147483647))
     per_page = fields.Integer(load_default=12, validate=validate.Range(min=1, max=100))
+
+
+class PublicProductDetailQuerySchema(Schema):
+    promotion_id = fields.Integer(validate=validate.Range(min=1, max=2147483647))
+
+
+class PublicProductDetailSchema(PublicProductSchema):
+    MaDuoc = fields.String(dump_only=True)
+    MaVach = fields.String(dump_only=True)
+    SoDangKy = fields.String(dump_only=True)
+    DangBaoChe = fields.String(dump_only=True)
+    CachDung = fields.String(dump_only=True)
+    ChongChiDinh = fields.String(dump_only=True)
+    BaoQuan = fields.String(dump_only=True)
+    PhanLoai = fields.Boolean(dump_only=True)

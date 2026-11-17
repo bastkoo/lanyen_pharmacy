@@ -83,9 +83,12 @@ test('public sale list and program products use read-only public contracts', asy
     };
     await api.getPublicPromotions({ page: 2, per_page: 100 });
     await api.getPromotionProducts(7, { page: 1, per_page: 10 });
+    await api.getPublicProduct(9, { promotion_id: 7 });
     assert.equal(new URL(calls[0].url).pathname, '/api/promotions');
     assert.equal(new URL(calls[0].url).searchParams.get('page'), '2');
     assert.equal(new URL(calls[1].url).pathname, '/api/promotions/7/products');
+    assert.equal(new URL(calls[2].url).pathname, '/api/products/9');
+    assert.equal(new URL(calls[2].url).searchParams.get('promotion_id'), '7');
     for (const call of calls) {
         assert.equal(call.options.method, 'GET');
         assert.equal(call.options.credentials, 'omit');

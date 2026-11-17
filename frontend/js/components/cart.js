@@ -1,5 +1,6 @@
 import { getCart, addCartItem, removeCartItem } from '../api/cart.js';
 import { notify } from './customer-notice.js';
+import { promotionBadge } from '../utils/public-sale-format.js';
 
 const node = (tag, text, className) => {
     const element = document.createElement(tag);
@@ -27,15 +28,18 @@ const serialize = work => {
     queue = task.catch(() => {});
     return task;
 };
-export function purchaseControls(product) {
+export function purchaseControls(product, { scope = '' } = {}) {
     const block = node('div', undefined, 'catalog-purchase');
     const units = (product.DonViGia || []).filter(unit => Number.isSafeInteger(unit.MaDonGia) && unit.MaDonGia > 0 &&
         Number.isSafeInteger(unit.GiaBan) && unit.GiaBan >= 0 && typeof unit.DonViTinh === 'string')
         .sort((a, b) => b.GiaBan - a.GiaBan || a.MaDonGia - b.MaDonGia);
     let selected = units[0];
-    const sale = product.KhuyenMai;
+    const contextSale = product.KhuyenMai;
+    const hasSales = Boolean(contextSale || units.some(unit => unit.KhuyenMai));
+    let sale = contextSale || selected?.KhuyenMai;
     const price = node('p', '', 'catalog-price');
     const original = node('p', '', 'sale-original-price'), quota = node('p', '', 'sale-quota');
+    const promotionName = node('p', '', 'detail-promotion-name');
     const updatePrice = () => {
         const discounted = sale && Number.isSafeInteger(selected?.GiaKhuyenMai) && selected.GiaKhuyenMai < selected.GiaBan;
         price.textContent = selected ? `${money(discounted ? selected.GiaKhuyenMai : selected.GiaBan)} / ${selected.DonViTinh}` : 'Chưa có giá bán';
@@ -43,6 +47,8 @@ export function purchaseControls(product) {
         if (discounted) original.append(node('span', 'Giá gốc: ', 'sr-only'), node('s', money(selected.GiaBan)));
         original.hidden = !sale;
         quota.textContent = selected && sale ? `${sale.TrangThai === 'UPCOMING' ? 'Dự kiến' : 'Còn'} ${selected.SoLuongKhuyenMai || 0} ${selected.DonViTinh} ưu đãi` : '';
+        quota.hidden = !sale;
+        promotionName.textContent = sale ? `${promotionBadge(sale)} · ${sale.TenChuongTrinh || 'Chương trình khuyến mãi'}` : '';
     };
     updatePrice();
     price.setAttribute('aria-live', 'polite');
@@ -53,10 +59,10 @@ export function purchaseControls(product) {
         fieldset.append(node('legend', `Chọn đơn vị tính cho ${product.TenThuoc}`, 'sr-only'));
         for (const unit of units) {
             const label = node('label', undefined, 'catalog-unit-option'), radio = node('input');
-            radio.type = 'radio'; radio.name = `product-unit-${product.MaThuoc}${sale ? `-sale-${sale.MaChuongTrinh}` : ''}`; radio.value = unit.MaDonGia;
+            radio.type = 'radio'; radio.name = `${scope}product-unit-${product.MaThuoc}${contextSale ? `-sale-${contextSale.MaChuongTrinh}` : ''}`; radio.value = unit.MaDonGia;
             radio.setAttribute('aria-label', `${unit.DonViTinh}${unit.ConHang === true ? '' : ', hết hàng'}`);
             radio.checked = selected === unit;
-            radio.addEventListener('change', () => { selected = unit; updatePrice(); });
+            radio.addEventListener('change', () => { selected = unit; sale = contextSale || unit.KhuyenMai; updatePrice(); });
             label.append(radio, node('span', unit.DonViTinh)); fieldset.append(label);
         }
         block.append(fieldset);
@@ -89,7 +95,8 @@ export function purchaseControls(product) {
         finally { adding = false; updateBuy(); }
     });
     block.append(price);
-    if (sale) block.append(original, quota);
+    if (hasSales) block.append(original, quota);
+    if (scope) block.append(promotionName);
     block.append(buy); return block;
 }
 

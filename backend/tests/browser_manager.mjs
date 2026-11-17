@@ -14,7 +14,7 @@ import { stockFixture, checkStock } from './browser_stock.mjs';
 import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
 import { accountFixture, accountActor, checkAccounts } from './browser_accounts.mjs';
 import { checkHomepage, publicCatalogFixture, cartFixture, mergeCartFixture } from './browser_home.mjs';
-import { publicSaleFixture, checkSale } from './browser_sale.mjs';
+import { publicSaleFixture, publicDetailFixture, checkSale } from './browser_sale.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -65,6 +65,7 @@ const server = createServer(async (req, res) => {
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
     if (checkingHomepage && (pathname === '/api/categories' || pathname === '/api/products')) return publicCatalogFixture(req, json);
+    if (checkingHomepage && /^\/api\/products\/\d+$/.test(pathname)) return publicDetailFixture(req, json);
     if (checkingHomepage && pathname.startsWith('/api/promotions')) return publicSaleFixture(req, json);
     if (checkingHomepage && pathname.startsWith('/api/cart')) return cartFixture(req, json, scenario === 'manager');
     if (checkingAccounts && pathname.startsWith('/api/manager/accounts')) return accountFixture(req, json);
@@ -367,12 +368,12 @@ try {
     assert.equal(await evaluate(`document.querySelector('#account-full-name').textContent`), '');
     await command('Page.navigate', { url: `http://127.0.0.1:${server.address().port}/pages/customer/home.html` });
     await waitFor(`document.querySelector('#header-status')?.textContent==='Bạn chưa đăng nhập'`);
-    await evaluate(`document.querySelector('#start-login').click()`);
+    await evaluate(`document.querySelector('#login-button').click()`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), true);
     await key('Escape', 27);
     await waitFor(`!document.querySelector('#main').inert`);
     assert.equal(await evaluate(`document.querySelector('#main').inert`), false);
-    assert.equal(await evaluate('document.activeElement.id'), 'start-login');
+    assert.equal(await evaluate('document.activeElement.id'), 'login-button');
     if (homepageTest) {
         checkingHomepage = true;
         await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });

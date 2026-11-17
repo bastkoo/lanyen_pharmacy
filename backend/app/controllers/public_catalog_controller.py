@@ -4,6 +4,7 @@ from marshmallow import ValidationError
 from app.schemas.public_catalog_schema import PublicCategoryQuerySchema, PublicProductQuerySchema
 from app.services import category_service, product_service
 from app.schemas.public_catalog_schema import PublicPromotionQuerySchema
+from app.schemas.public_catalog_schema import PublicProductDetailQuerySchema
 from app.services import public_promotion_service
 
 
@@ -35,3 +36,8 @@ def list_promotions():
 def promotion_products(promotion_id):
     return jsonify(code='PROMOTION_PRODUCTS_LISTED',
                    **public_promotion_service.list_products(promotion_id, **query(PublicPromotionQuerySchema)))
+
+
+def product_detail(product_id):
+    return jsonify(code='PRODUCT_FOUND', product=product_service.get_public_product(
+        product_id, **query(PublicProductDetailQuerySchema)))

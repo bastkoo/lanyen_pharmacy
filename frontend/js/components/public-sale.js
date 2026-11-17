@@ -21,6 +21,10 @@ export function setupPublicSale() {
     const $ = id => document.getElementById(id);
     if (!$('public-sale')) return;
     let programs = [], selectedId, page = 1, pages = 0, listController, productsController;
+    const columns = () => window.matchMedia('(max-width: 600px)').matches ? 2
+        : window.matchMedia('(max-width: 900px)').matches ? 3
+        : window.matchMedia('(max-width: 1100px)').matches ? 4 : 5;
+    let pageSize = columns();
     let listVersion = 0, productsVersion = 0;
     const countdownStates = new Map();
     function updateCountdowns() {
@@ -104,44 +108,57 @@ export function setupPublicSale() {
         } finally { if (attempt === listVersion) $('public-sale').setAttribute('aria-busy', 'false'); }
     }
     async function loadProducts(manual = false) {
+        const focusedArrow = [$('sale-products-prev'), $('sale-products-next')].includes(document.activeElement) ? document.activeElement : null;
         productsController?.abort(); productsController = new AbortController(); const attempt = ++productsVersion;
         const program = programs.find(program => program.MaChuongTrinh === selectedId);
         if (!program) return;
         $('sale-products').hidden = false; $('sale-products').setAttribute('aria-busy', 'true');
         $('sale-program-title').textContent = program.TenChuongTrinh;
         $('sale-program-dates').textContent = `${dateLabel(program.NgayBatDau)} – ${dateLabel(program.NgayKetThuc)}`;
-        $('sale-program-status').textContent = programState(program);
-        $('sale-program-status').dataset.state = program.TrangThai;
         updateCountdowns();
         $('sale-products-state').textContent = 'Đang tải sản phẩm ưu đãi…'; $('sale-products-retry').hidden = true;
         $('sale-products-grid').hidden = true; $('sale-products-grid').replaceChildren(); $('sale-pagination').hidden = true;
         try {
-            const data = await getPromotionProducts(selectedId, { page, per_page: 10 }, { signal: productsController.signal });
+            const data = await getPromotionProducts(selectedId, { page, per_page: pageSize }, { signal: productsController.signal });
             if (attempt !== productsVersion) return;
             if (data.code !== 'PROMOTION_PRODUCTS_LISTED' || !Array.isArray(data.items) || data.promotion?.MaChuongTrinh !== selectedId ||
                 !Number.isSafeInteger(data.pages) || data.pages < 0 || data.page !== page) throw new Error('INVALID_RESPONSE');
             if (page > Math.max(1, data.pages)) { page = Math.max(1, data.pages); return loadProducts(manual); }
             pages = data.pages;
             if (manual) notify(data.items.length ? 'Đã cập nhật sản phẩm khuyến mãi.' : 'Chưa có sản phẩm trong chương trình này.', data.items.length ? 'success' : 'info');
-            $('sale-program-status').textContent = programState(data.promotion);
-            $('sale-program-status').dataset.state = data.promotion.TrangThai;
             $('sale-products-state').textContent = data.items.length ? '' : 'Chưa có sản phẩm được công bố trong chương trình này.';
             $('sale-products-grid').replaceChildren(...data.items.map(product => productCard(product)));
             $('sale-products-grid').hidden = !data.items.length; $('sale-pagination').hidden = pages <= 1;
+            $('sale-carousel').classList.toggle('has-controls', pages > 1 && data.items.length > 0);
             $('sale-products-page').textContent = `Trang ${page} / ${pages}`;
             $('sale-products-prev').disabled = page <= 1; $('sale-products-next').disabled = page >= pages;
         } catch (error) {
             if (attempt !== productsVersion || error.code === 'REQUEST_ABORTED') return;
             $('sale-products-state').textContent = errorText(error); $('sale-products-retry').hidden = false;
             notify(errorText(error), 'error');
-        } finally { if (attempt === productsVersion) $('sale-products').setAttribute('aria-busy', 'false'); }
+        } finally {
+            if (attempt === productsVersion) {
+                $('sale-products').setAttribute('aria-busy', 'false');
+                if (focusedArrow && document.activeElement === document.body) {
+                    const target = $('sale-pagination').hidden ? $('sale-products-retry')
+                        : focusedArrow.disabled ? (focusedArrow === $('sale-products-next') ? $('sale-products-prev') : $('sale-products-next')) : focusedArrow;
+                    if (!target.hidden && !target.disabled) target.focus({ preventScroll: true });
+                }
+            }
+        }
     }
     $('sale-program-retry').addEventListener('click', () => loadPrograms(true));
     $('sale-products-retry').addEventListener('click', () => loadProducts(true));
     $('sale-products-prev').addEventListener('click', () => { if (page > 1) { page--; loadProducts(); } });
     $('sale-products-next').addEventListener('click', () => { if (page < pages) { page++; loadProducts(); } });
+    window.addEventListener('resize', () => {
+        const size = columns();
+        if (size === pageSize) return;
+        page = Math.floor((page - 1) * pageSize / size) + 1; pageSize = size;
+        if (selectedId) loadProducts();
+    });
     window.addEventListener('pagehide', () => { listVersion++; productsVersion++; listController?.abort(); productsController?.abort(); });
-    window.addEventListener('pageshow', event => { if (event.persisted) loadPrograms(); });
+    window.addEventListener('pageshow', event => { if (event.persisted) { pageSize = columns(); loadPrograms(); } });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) loadPrograms(); });
     let day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date());
     let clock;

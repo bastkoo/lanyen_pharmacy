@@ -21,6 +21,9 @@ class PublicCatalogTests(unittest.TestCase):
         self.find_category = self.mock('app.repositories.loai_thuoc_repository.find_by_id', return_value=SimpleNamespace(MaLoaiThuoc=1))
         self.product = SimpleNamespace(MaThuoc=7, MaLoaiThuoc=1, TenThuoc='Thuốc A', HinhAnh='https://example.com/image.png', MoTa='<b>Mô tả</b>', QuyCachDongGoi='Hộp 10 viên', NhaSanXuat='NSX', NuocSanXuat='Việt Nam', KeDon=True, NguongTonKho=5, MaVach='00123', PhanLoai=False)
         self.products = self.mock('app.repositories.thuoc_repository.list_products', return_value=([self.product], 1))
+        self.mock('app.repositories.thuoc_repository.find_by_id', return_value=self.product)
+        self.mock('app.repositories.chi_tiet_khuyen_mai_repository.active_for_products', return_value=[])
+        self.find_category.return_value.TenLoaiThuoc = 'Vitamin'
         self.units = self.mock('app.repositories.don_vi_gia_thuoc_repository.public_units', return_value=[])
         self.stock = self.mock('app.services.inventory_service.usable_stock', return_value={7: 100})
         self.user = self.mock('app.repositories.nguoi_dung_repository.find_by_id')
@@ -72,6 +75,53 @@ class PublicCatalogTests(unittest.TestCase):
             {'MaDonGia': 8, 'DonViTinh': 'Hộp', 'GiaBan': 120000, 'ConHang': True}])
         self.units.assert_called_once_with([7])
 
+    def test_public_detail_exposes_only_product_information_and_live_best_unit_offer(self):
+        from datetime import date
+        from decimal import Decimal
+        for key in ('MaDuoc', 'MaVach', 'SoDangKy', 'DangBaoChe', 'CachDung', 'ChongChiDinh', 'BaoQuan'):
+            setattr(self.product, key, 'Nội dung <b>nguyên văn</b>')
+        self.units.return_value = [
+            SimpleNamespace(MaThuoc=7, MaDonGia=8, DonViTinh='Vỉ', GiaBan=9000, SoLuongQuyDoi=10),
+            SimpleNamespace(MaThuoc=7, MaDonGia=9, DonViTinh='Viên', GiaBan=1000, SoLuongQuyDoi=1)]
+        offer = SimpleNamespace(MaChuongTrinh=3, MaThuoc=7, LoaiGiamGia=True, GiaTriGiam=Decimal('10'), SoLuong=10)
+        program = SimpleNamespace(MaChuongTrinh=3, TenChuongTrinh='Ưu đãi', NgayBatDau=date(2000, 1, 1))
+        with patch('app.repositories.chi_tiet_khuyen_mai_repository.active_for_products', return_value=[(offer, program)]):
+            response = self.client.get('/api/products/7')
+        self.assertEqual(response.status_code, 200)
+        product = response.json['product']
+        self.assertEqual(product['CachDung'], 'Nội dung <b>nguyên văn</b>')
+        self.assertEqual(product['TenLoaiThuoc'], 'Vitamin')
+        self.assertEqual(product['DonViGia'][0]['GiaKhuyenMai'], 8000)
+        self.assertEqual(product['DonViGia'][1]['GiaKhuyenMai'], 900)
+        self.assertNotIn('NguongTonKho', product)
+        self.assertNotIn('SoLuongQuyDoi', product['DonViGia'][0])
+        self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+    def test_public_detail_rejects_invalid_queries_and_missing_product(self):
+        for query in ('promotion_id=0', 'promotion_id=1&promotion_id=2', 'unknown=1'):
+            self.assertEqual(self.client.get('/api/products/7?' + query).status_code, 400)
+        with patch('app.repositories.thuoc_repository.find_by_id', return_value=None):
+            self.assertEqual(self.client.get('/api/products/7').json['code'], 'PRODUCT_NOT_FOUND')
+        self.assertEqual(self.client.post('/api/products/7', json={}).status_code, 405)
+
+    def test_public_detail_preserves_selected_upcoming_promotion(self):
+        from datetime import timedelta
+        from decimal import Decimal
+        from app.services.inventory_service import current_date
+        today = current_date()
+        self.units.return_value = [SimpleNamespace(MaThuoc=7, MaDonGia=8, DonViTinh='Vỉ', GiaBan=9000, SoLuongQuyDoi=10)]
+        program = SimpleNamespace(MaChuongTrinh=3, TenChuongTrinh='Sắp tới', NgayBatDau=today + timedelta(days=1), NgayKetThuc=today + timedelta(days=2))
+        offer = SimpleNamespace(MaChuongTrinh=3, MaThuoc=7, LoaiGiamGia=False, GiaTriGiam=Decimal('100'), SoLuong=100)
+        with patch('app.repositories.chuong_trinh_khuyen_mai_repository.find_by_id', return_value=program), \
+                patch('app.repositories.chi_tiet_khuyen_mai_repository.find_by_id', return_value=offer):
+            response = self.client.get('/api/products/7?promotion_id=3')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['product']['KhuyenMai']['TrangThai'], 'UPCOMING')
+        self.assertEqual(response.json['product']['DonViGia'][0]['GiaKhuyenMai'], 8000)
+        with patch('app.repositories.chuong_trinh_khuyen_mai_repository.find_by_id', return_value=program), \
+                patch('app.repositories.chi_tiet_khuyen_mai_repository.find_by_id', return_value=None):
+            self.assertEqual(self.client.get('/api/products/7?promotion_id=3').status_code, 404)
+
     def test_public_availability_depends_on_selected_unit_and_usable_batches(self):
         self.units.return_value = [
             SimpleNamespace(MaThuoc=7, MaDonGia=8, DonViTinh='Hộp', GiaBan=120000, SoLuongQuyDoi=100),
@@ -109,7 +159,7 @@ class PublicCatalogTests(unittest.TestCase):
         for endpoint in ('categories', 'products'):
             for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
                 self.assertEqual(self.client.open('/api/' + endpoint, method=method).status_code, 405)
-            self.assertEqual(self.client.get('/api/' + endpoint + '/7').status_code, 404)
+            self.assertEqual(self.client.get('/api/' + endpoint + '/7').status_code, 200 if endpoint == 'products' else 404)
             self.assertEqual(self.client.post('/api/manager/' + endpoint, json={}).status_code, 401)
             self.assertEqual(self.client.get('/api/manager/' + endpoint).status_code, 401)
         for write in self.writes:

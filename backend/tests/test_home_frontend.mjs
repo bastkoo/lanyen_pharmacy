@@ -27,7 +27,7 @@ test('public homepage uses real local links, assets, labels and unique accessibl
     }
     assert.doesNotMatch(html, /id="nav-toggle"|id="public-nav"/);
     assert.match(html.slice(html.indexOf('<header'), html.indexOf('</header>')), /id="public-search-form"/);
-    assert.match(html, /action="products.html" method="get"/);
+    assert.match(html, /action="products.html"\s+method="get"/);
     assert.match(html, /id="public-search"[^>]*type="search"/);
     assert.match(html, /id="public-search-status"[^>]*role="status"/);
 });
@@ -42,9 +42,9 @@ test('public data states are honest and no manager client, invented contacts or 
     assert.doesNotMatch(html, /id="catalog-products-grid"/);
     assert.match(html, /Chưa có bài viết công khai/);
     assert.match(html, /Thông tin liên hệ đang được cập nhật/);
-    assert.match(html, /Không phải sản phẩm đang bán/);
+    assert.match(html, /alt="Minh họa/);
     assert.ok(html.includes('id="auth-dialog"'));
-    assert.ok(html.includes('id="start-login"'));
+    assert.ok(html.includes('id="login-button"'));
     assert.match(ui, /location\.assign\(publicProductsUrl/);
 });
 

@@ -162,7 +162,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('#nav-toggle')`), null);
     assert.equal(await run(`document.querySelector('#catalog-products')`), null, 'Homepage has no embedded search results');
     assert.equal(await run(`document.querySelector('.site-header').contains(document.querySelector('#public-search-form'))`), true);
-    for (const id of ['welcome-title', 'categories', 'about', 'health-journal', 'start-login']) assert.equal(await run(`Boolean(document.getElementById('${id}'))`), true, 'Homepage content is preserved');
+    for (const id of ['welcome-title', 'categories', 'about', 'health-journal', 'login-button']) assert.equal(await run(`Boolean(document.getElementById('${id}'))`), true, 'Homepage content is preserved');
     assert.equal(await run(`getComputedStyle(document.body).fontFamily.includes('Be Vietnam Pro')`), true);
     assert.equal(requests.some(url => url.startsWith('/api/products?')), false, 'Homepage only loads categories');
     for (let id = 1; id <= 13; id++) assert.equal(await run(`new URL(document.querySelector('#public-categories-grid [data-category-id="${id}"]').href).searchParams.get('category_id')`), String(id));
@@ -347,8 +347,8 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('#catalog-products-grid').children.length`), 7);
     setScenario('anonymous'); await click('retry-session'); await guest();
     await navigate('/pages/customer/home.html'); await guest(); await categoriesReady();
-    await click('start-login'); await key('Escape', 27); await waitFor(`!document.querySelector('#auth-dialog').open`);
-    assert.equal(await run('document.activeElement.id'), 'start-login');
+    await click('login-button'); await key('Escape', 27); await waitFor(`!document.querySelector('#auth-dialog').open`);
+    assert.equal(await run('document.activeElement.id'), 'login-button');
     assert.equal(requests.some(url=>url.startsWith('/api/manager/')), false);
     assert.equal(requests.filter(url=>url.startsWith('/api/')).every(url=>['/api/auth/','/api/categories?','/api/products?','/api/cart','/api/promotions'].some(prefix=>url.startsWith(prefix))), true);
     console.log('PASS: sticky header search without nav links; separate category/search page, combined category/prescription/sort, URL reload/back/forward, paging, reset, stale/error/empty/retry, shared OTP/session, safe DOM, 1440–320px. API/AUTH MOCK; no PostgreSQL writes.');

@@ -17,8 +17,14 @@ nút chương trình. Hiển thị bốn ô Ngày : Giờ : Phút : Giây, luôn
 Ô đếm xanh đậm để khác nhãn giảm giá đỏ. Nhãn Đang diễn ra nền xanh/chữ trắng,
 Sắp diễn ra nền vàng/chữ đậm, giúp phân biệt ngay trên các nút chọn.
 
-Khung gồm bộ chọn chương trình cuộn ngang, tên/khoảng ngày/trạng thái, các thẻ thuốc
-thu gọn và phân trang 10 sản phẩm. Mỗi thẻ có ảnh trong khung cố định, tên kèm quy cách,
+Khung gồm bộ chọn chương trình cuộn ngang, tên/khoảng ngày/trạng thái và một hàng thẻ thuốc
+thu gọn. Hai mũi tên hai bên chuyển nhóm sản phẩm; chỉ hiện khi có nhiều hơn một nhóm,
+khóa mũi tên ở đầu/cuối. Mỗi nhóm 5/4/3/2 sản phẩm theo desktop/tablet/mobile,
+dùng phân trang API hiện có, không tải tất cả hay xếp thành nhiều hàng.
+Desktop đặt nút hai bên, chừa đủ khoảng để không che thẻ; điện thoại đặt hai nút phía trên
+hàng sản phẩm để không che các lựa chọn đơn vị. Các nút có nhãn và hỗ trợ bàn phím.
+Khi đổi kích thước màn hình, tính lại nhóm dựa trên vị trí sản phẩm đang xem.
+Chuyển bằng chuột hoặc bàn phím không bật thông báo thành công. Mỗi thẻ có ảnh trong khung cố định, tên kèm quy cách,
 đơn vị chia đều, giá gốc gạch ngang, giá giảm, số lượng ưu đãi còn và nút mua.
 Nhãn nền đỏ dùng token danger: giảm tiền trực tiếp ghi `Ưu đãi`; giảm phần trăm ghi
 đúng mức cấu hình như `-20%`, không suy ra từ chênh lệch giá đã làm tròn.

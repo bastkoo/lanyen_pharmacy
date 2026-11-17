@@ -5,6 +5,7 @@ import { readCatalogFilters, publicProductsUrl } from '../utils/public-catalog-f
 import { purchaseControls } from './cart.js';
 import { notify } from './customer-notice.js';
 import { promotionBadge } from '../utils/public-sale-format.js';
+import { openProductDetail } from './public-product-detail.js';
 
 const node = (tag, text, className) => {
     const element = document.createElement(tag);
@@ -70,7 +71,8 @@ export function setupPublicCatalog() {
 
 export function productCard(product) {
     const item = node('li'), article = node('article', undefined, 'catalog-product');
-    const visual = node('div', undefined, 'catalog-product-visual'), fallback = node('span', undefined, 'catalog-product-placeholder');
+    const visual = node('button', undefined, 'catalog-product-visual'), fallback = node('span', undefined, 'catalog-product-placeholder');
+    visual.type = 'button'; visual.setAttribute('aria-label', `Xem chi tiết ${product.TenThuoc}`); visual.setAttribute('aria-haspopup', 'dialog');
     fallback.append(icon('medicine'), node('span', 'Chưa có ảnh')); visual.append(fallback);
     if (validHttps(product.HinhAnh)) {
         const image = node('img'); image.src = product.HinhAnh; image.alt = product.TenThuoc; image.width = 240; image.height = 200; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
@@ -79,7 +81,9 @@ export function productCard(product) {
     const content = node('div', undefined, 'catalog-product-content');
     if (product.KhuyenMai) visual.append(node('span', promotionBadge(product.KhuyenMai), 'sale-label'));
     const packaging = product.QuyCachDongGoi?.trim();
-    content.append(node('h3', packaging ? `${product.TenThuoc} (${packaging})` : product.TenThuoc));
+    const heading = node('h3'), trigger = node('button', packaging ? `${product.TenThuoc} (${packaging})` : product.TenThuoc, 'product-detail-trigger');
+    trigger.type = 'button'; trigger.setAttribute('aria-haspopup', 'dialog'); heading.append(trigger); content.append(heading);
+    for (const button of [visual, trigger]) button.addEventListener('click', () => openProductDetail(product.MaThuoc, product.KhuyenMai?.MaChuongTrinh, button));
     content.append(purchaseControls(product));
     article.append(visual, content); item.append(article); return item;
 }
