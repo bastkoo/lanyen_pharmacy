@@ -107,7 +107,7 @@ def add_item(product_id, unit_id):
 
 
 @operation
-def get_cart(selected_ids=None):
+def get_cart(selected_ids=None, lock_promotions=False):
     user_id = owner()
     entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
                if user_id is not None else guest_items())
@@ -117,8 +117,9 @@ def get_cart(selected_ids=None):
     product_ids = list({entry[0] for entry in entries})
     all_units = units.public_units(product_ids) if entries else []
     stock = usable_stock(product_ids) if entries else {}
-    prices = cart_prices(entries, details, all_units,
-                         promotion_items.active_for_products(product_ids, current_date())) if entries else []
+    programs = (promotion_items.active_for_products(product_ids, current_date(), for_update=True)
+                if lock_promotions else promotion_items.active_for_products(product_ids, current_date())) if entries else []
+    prices = cart_prices(entries, details, all_units, programs) if entries else []
     items = []
     for (product_id, unit_id, quantity), pricing in zip(entries, prices):
         product, unit = details.get((product_id, unit_id), (None, None))

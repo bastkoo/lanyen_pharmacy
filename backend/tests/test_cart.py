@@ -54,6 +54,20 @@ class CartTests(unittest.TestCase):
         with self.client.session_transaction() as state:
             state['user_id'] = 12
 
+    def test_checkout_quote_locks_promotions_without_consuming_them(self):
+        from decimal import Decimal
+        from flask import session
+        quota = NS(MaChuongTrinh=6, MaThuoc=7, LoaiGiamGia=True, GiaTriGiam=Decimal('10'), SoLuong=20)
+        self.active_promotions.return_value = [(quota, NS(MaChuongTrinh=6, TenChuongTrinh='Ưu đãi'))]
+        with self.app.test_request_context():
+            session['guest_cart'] = [[7, 8, 3]]
+            result = cart_service.get_cart({8}, lock_promotions=True)
+        self.assertEqual(result['items'][0]['SoLuongKhuyenMai'], 2)
+        self.assertEqual(result['total'], 33600)
+        self.assertTrue(self.active_promotions.call_args.kwargs['for_update'])
+        self.assertEqual(quota.SoLuong, 20)
+        self.commit.assert_not_called()
+
     def test_guest_add_repeat_read_reload_and_delete_without_database_writes(self):
         self.assertEqual(self.add().status_code, 200)
         self.assertEqual(self.add().status_code, 200)

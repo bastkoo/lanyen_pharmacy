@@ -15,7 +15,7 @@ def scoped_query(promotion_id, product_id):
 def find_by_id(promotion_id, product_id, for_update=False):
     query = scoped_query(promotion_id, product_id)
     if for_update:
-        query = query.with_for_update()
+        query = query.with_for_update().execution_options(populate_existing=True)
     return db.session.execute(query).scalar_one_or_none()
 
 
@@ -37,14 +37,18 @@ def public_products(promotion_id, page, per_page):
     return records, total
 
 
-def active_for_products(product_ids, today):
+def active_for_products(product_ids, today, for_update=False):
     if not product_ids:
         return []
-    return db.session.execute(select(ChiTietKhuyenMai, ChuongTrinhKhuyenMai).join(
+    query = (select(ChiTietKhuyenMai, ChuongTrinhKhuyenMai).join(
         ChuongTrinhKhuyenMai, ChuongTrinhKhuyenMai.MaChuongTrinh == ChiTietKhuyenMai.MaChuongTrinh).where(
         ChiTietKhuyenMai.MaThuoc.in_(product_ids), ChiTietKhuyenMai.SoLuong > 0,
         ChuongTrinhKhuyenMai.NgayBatDau <= today, ChuongTrinhKhuyenMai.NgayKetThuc >= today)
-        .order_by(ChuongTrinhKhuyenMai.NgayBatDau, ChuongTrinhKhuyenMai.MaChuongTrinh)).all()
+        .order_by(ChuongTrinhKhuyenMai.NgayBatDau, ChuongTrinhKhuyenMai.MaChuongTrinh,
+                  ChiTietKhuyenMai.MaThuoc))
+    if for_update:
+        query = query.with_for_update(of=ChiTietKhuyenMai).execution_options(populate_existing=True)
+    return db.session.execute(query).all()
 
 
 def create(promotion_id, data):

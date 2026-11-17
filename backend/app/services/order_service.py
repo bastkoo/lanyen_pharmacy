@@ -10,6 +10,7 @@ from app.extensions import db
 from app.repositories import don_hang_repository as orders
 from app.repositories import gio_thuoc_repository as carts
 from app.repositories import dia_chi_repository as addresses
+from app.repositories import chi_tiet_khuyen_mai_repository as promotion_items
 from app.services.auth_service import AuthError
 from app.services.cart_service import get_cart, operation, require_unit
 from app.services.inventory_service import usable_stock, deduct_order_stock
@@ -54,11 +55,14 @@ def create(user, data):
     records = [item for item in carts.list_items(user.MaNguoiDung) if item.MaDonGia in data['MaDonGia']]
     if {item.MaDonGia for item in records} != set(data['MaDonGia']):
         raise AuthError('CART_CHANGED', 409)
-    quote = get_cart(set(data['MaDonGia']))
+    # Lock quotas before pricing: a concurrent checkout must reprice after the
+    # previous order commits, rather than both using the same remaining quota.
+    quote = get_cart(set(data['MaDonGia']), lock_promotions=True)
     if not quote['items'] or any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
     # Multiple units of the same product must fit the combined base-unit stock.
     required = {}
+    promotion_required = {}
     details, original = [], 0
     for item in sorted(quote['items'], key=lambda item: item['MaDonGia']):
         unit = require_unit(item['MaThuoc'], item['MaDonGia'], for_update=True)
@@ -68,6 +72,10 @@ def create(user, data):
         original += item['SoLuong'] * unit.GiaBan
         details.append(dict(MaThuoc=item['MaThuoc'], MaDonGia=item['MaDonGia'],
                             SoLuong=item['SoLuong'], DonGia=unit.GiaBan))
+        if item.get('KhuyenMai') and item.get('SoLuongKhuyenMai', 0) > 0:
+            key = (item['KhuyenMai']['MaChuongTrinh'], item['MaThuoc'])
+            promotion_required[key] = (promotion_required.get(key, 0)
+                                       + item['SoLuongKhuyenMai'] * unit.SoLuongQuyDoi)
     stock = usable_stock(list(required))
     if any(count > stock.get(product, 0) for product, count in required.items()):
         raise AuthError('OUT_OF_STOCK', 409)
@@ -87,9 +95,17 @@ def create(user, data):
         receipt = f'Giao tận nơi: {address.DiaChiCuThe}, {address.PhuongXa}, {address.TinhThanh}'
     else:
         receipt = 'Nhận tại nhà thuốc: 126 Dương Văn An, Phường Vỹ Dạ, TP Huế'
+    quotas = []
+    for (promotion_id, product_id), quantity in sorted(promotion_required.items()):
+        detail = promotion_items.find_by_id(promotion_id, product_id, for_update=True)
+        if detail is None or detail.SoLuong < quantity:
+            raise AuthError('QUOTE_CHANGED', 409)
+        quotas.append((detail, quantity))
     # Both COD and QR debit on completion, exactly once with order/cart writes.
     # Gateway initialization and IPN only update payment status, never stock.
     deduct_order_stock(required)
+    for detail, quantity in quotas:
+        detail.SoLuong -= quantity
     order = orders.create(dict(
         MaNguoiMua=user.MaNguoiDung, MaNhanVien=None, TongTien=original,
         TienGiamGia=original - total, TongThanhToan=total,

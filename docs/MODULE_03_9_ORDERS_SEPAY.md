@@ -7,7 +7,7 @@
 - Lưu `DonHang` và `ChiTietDonHang` từ các dòng giỏ được chọn của khách hàng đăng nhập (`VaiTro=0`).
 - COD: `PhuongThucThanhToan=0`, `TrangThaiDonHang=1`, `TrangThaiThanhToan=0`.
 - QR: `PhuongThucThanhToan=1`, trạng thái đơn/thanh toán ban đầu đều bằng 0. Webhook SePay hợp lệ với số tiền đủ sẽ chuyển cả hai trạng thái thành 1.
-- Theo yêu cầu mới nhất: trừ kho ngay khi Hoàn tất cho cả COD và QR, trong cùng transaction tạo đơn. FIFO theo MaLo tăng dần, chỉ lấy lô còn hạn. QR đang chờ thanh toán vẫn đã trừ kho; IPN không trừ lần hai. Không có giữ hàng/hoàn kho 10 phút. Chưa trừ hạn mức khuyến mãi hoặc tích/đổi điểm; phí giao hàng vẫn xác nhận riêng theo luồng hiện tại.
+- Theo yêu cầu mới nhất: trừ kho và hạn mức khuyến mãi ngay khi Hoàn tất cho cả COD và QR, trong cùng transaction tạo đơn. FIFO theo MaLo tăng dần, chỉ lấy lô còn hạn. QR đang chờ thanh toán vẫn đã trừ kho/hạn mức; IPN không trừ lần hai. Không có giữ hàng/hoàn kho 10 phút. Chưa tích/đổi điểm; phí giao hàng vẫn xác nhận riêng theo luồng hiện tại.
 - Không sửa schema, model hoặc migration; không tạo đơn thử trên CSDL hiện có.
 
 ## Cấu hình local
@@ -40,6 +40,8 @@ Tài liệu chính thức: [QR SePay](https://docs.sepay.vn/tao-qr-code-vietqr-d
 ## Luồng và dữ liệu
 
 - Backend lấy số lượng/giá từ giỏ của phiên, tính lại ưu đãi theo thuật toán hiện có. Client chỉ gửi danh sách `MaDonGia`, lựa chọn nhận/thanh toán, địa chỉ, ghi chú và tổng đã xem để phát hiện thay đổi giá. Không nhận giá chi tiết, chủ đơn hoặc trạng thái từ client.
+- Khi tạo đơn, khóa các dòng khuyến mãi đang áp dụng trước khi tính giá, làm mới ORM sau khóa và giữ khóa tới commit/rollback. Giảm `ChiTietKhuyenMai.SoLuong` đúng `SoLuongKhuyenMai × SoLuongQuyDoi`, cộng gộp các dòng cùng sản phẩm/chương trình. Phần mua giá thường không tiêu hạn mức. Giỏ hàng/quote thông thường chỉ đọc. Nếu hạn mức làm thay đổi tổng tiền, trả `QUOTE_CHANGED`, không âm hạn mức hoặc tiếp tục với giá cũ.
+- Trừ hạn mức cùng giao dịch với kho, đơn, chi tiết và xóa giỏ: lỗi tạo/lưu đơn sẽ rollback. Không trừ khi mở Checkout hoặc nhận IPN; không tự động hoàn hạn mức đơn QR chưa trả tiền. Không sửa lại hạn mức của các đơn đã tạo trước thay đổi này.
 - Kiểm tra địa chỉ thuộc người đặt. Vì bảng đơn không có cột địa chỉ, `GhiChu` lưu bản chụp người nhận, điện thoại, hình thức nhận/địa chỉ và ghi chú người mua. Không đổi địa chỉ chính của tài khoản.
 - `ChiTietDonHang.DonGia` lưu giá gốc tại thời điểm đặt; `TongTien` bằng tổng `DonGia × SoLuong`, `TienGiamGia` lưu tổng giảm và `TongThanhToan=TongTien-TienGiamGia`. Cách này giữ đúng tổng ngay cả khi chỉ một phần số lượng được khuyến mãi.
 - Khóa dòng người dùng giống thao tác giỏ; lưu đơn, chi tiết và xóa các dòng giỏ đã đặt trong cùng giao dịch. Các dòng không chọn giữ nguyên. Gửi lại cùng giỏ đã tiêu thụ bị từ chối; không tự động thử lại POST khi mất mạng.

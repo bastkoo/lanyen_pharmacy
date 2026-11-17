@@ -53,6 +53,7 @@ class OrderTests(unittest.TestCase):
         self.mock('app.services.order_service.require_unit', return_value=NS(GiaBan=12000, SoLuongQuyDoi=10))
         self.stock = self.mock('app.services.order_service.usable_stock', return_value={7: 100})
         self.deduct = self.mock('app.services.order_service.deduct_order_stock')
+        self.promotion_detail = self.mock('app.services.order_service.promotion_items.find_by_id', return_value=None)
         self.mock('app.services.order_service.addresses.list_owned', return_value=[
             NS(MaDiaChi=9, DiaChiCuThe='Nhà 1', PhuongXa='Vỹ Dạ', TinhThanh='Huế')])
         self.create = self.mock('app.services.order_service.orders.create',
@@ -173,6 +174,55 @@ class OrderTests(unittest.TestCase):
         self.assertEqual(self.post().json['code'], 'CART_CHANGED')
         self.assertEqual(self.create.call_count, 1)
         self.assertEqual(self.deduct.call_count, 1)
+        self.promotion_detail.assert_not_called()
+
+    def test_cod_consumes_only_discounted_quantity_in_base_units(self):
+        quota = NS(SoLuong=50)
+        self.promotion_detail.return_value = quota
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=2)
+        self.assertEqual(self.post().status_code, 201)
+        self.quote.assert_called_once_with({8}, lock_promotions=True)
+        self.promotion_detail.assert_called_once_with(6, 7, for_update=True)
+        self.assertEqual(quota.SoLuong, 30)
+        self.commit.assert_called_once()
+
+    def test_multiple_units_share_quota_and_full_price_lines_do_not_consume(self):
+        quota = NS(SoLuong=30)
+        self.promotion_detail.return_value = quota
+        self.records.return_value = [NS(MaDonGia=8), NS(MaDonGia=9)]
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1)
+        self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=1,
+            GiaBan=12000, ConHang=True, KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1))
+        self.assertEqual(self.post(MaDonGia=[8, 9]).status_code, 201)
+        self.assertEqual(quota.SoLuong, 10)
+        self.promotion_detail.assert_called_once_with(6, 7, for_update=True)
+
+    def test_insufficient_or_removed_quota_rolls_back_before_stock_or_order(self):
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=2)
+        for quota in [None, NS(SoLuong=19)]:
+            with self.subTest(quota=quota):
+                self.promotion_detail.return_value = quota
+                response = self.post()
+                self.assertEqual((response.status_code, response.json['code']), (409, 'QUOTE_CHANGED'))
+        self.deduct.assert_not_called()
+        self.create.assert_not_called()
+        self.commit.assert_not_called()
+        self.assertEqual(self.rollback.call_count, 2)
+
+    def test_changed_quote_does_not_consume_promotion(self):
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=2)
+        self.assertEqual(self.post(TongThanhToan='1').status_code, 409)
+        self.promotion_detail.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_order_write_failure_rolls_back_quota_and_stock_transaction(self):
+        self.promotion_detail.return_value = NS(SoLuong=30)
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1)
+        self.create.side_effect = SQLAlchemyError('private')
+        response = self.post()
+        self.assertEqual((response.status_code, response.json['code']), (503, 'DATABASE_UNAVAILABLE'))
+        self.rollback.assert_called_once()
+        self.commit.assert_not_called()
 
     def test_qr_waits_and_does_not_expose_secret(self):
         result = self.post(PhuongThucThanhToan=1, HinhThucNhanHang='pickup', MaDiaChi=None)
@@ -186,7 +236,11 @@ class OrderTests(unittest.TestCase):
         self.deduct.assert_called_once_with({7: 30})
 
     def test_qr_debits_on_completion_and_never_again_on_initialize_or_repeated_ipn(self):
+        quota = NS(SoLuong=30)
+        self.promotion_detail.return_value = quota
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1)
         self.assertEqual(self.post(PhuongThucThanhToan=1).status_code, 201)
+        self.assertEqual(quota.SoLuong, 20)
         self.deduct.assert_called_once_with({7: 30})
         self.find.return_value = self.order()
         self.assertEqual(self.initialize().status_code, 200)
@@ -194,6 +248,8 @@ class OrderTests(unittest.TestCase):
         self.assertEqual(self.ipn().status_code, 200)
         self.deduct.assert_called_once_with({7: 30})
         self.assertEqual(self.find.return_value.TrangThaiDonHang, 1)
+        self.assertEqual(quota.SoLuong, 20)
+        self.promotion_detail.assert_called_once_with(6, 7, for_update=True)
 
     def test_live_stock_shortage_after_quote_rolls_back_without_order_or_cart_removal(self):
         self.deduct.side_effect = AuthError('OUT_OF_STOCK', 409)
