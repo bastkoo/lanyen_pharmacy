@@ -47,7 +47,7 @@ export function setupVietnamAddressPicker({ province, ward, status, retry, chang
             available = true;
             if (selected) { province.value = String(selected.code); await wards(selected.code, row?.PhuongXa); return; }
             legacy(province, row?.TinhThanh); legacy(ward, row?.PhuongXa);
-            status.textContent = row ? 'Đang giữ địa chỉ đã lưu. Chọn lại tỉnh/thành và phường/xã nếu cần cập nhật.' : 'Chọn tỉnh/thành phố trước để tải danh sách phường/xã.';
+            status.textContent = row ? 'Đang giữ địa chỉ đã lưu. Chọn lại tỉnh/thành và phường/xã nếu cần cập nhật.' : '';
         } catch (error) {
             if (attempt !== version || error.code === 'REQUEST_ABORTED') return;
             legacy(province, row?.TinhThanh); legacy(ward, row?.PhuongXa); available = Boolean(row);
@@ -58,7 +58,7 @@ export function setupVietnamAddressPicker({ province, ward, status, retry, chang
         saved = null; reset(ward, 'Chọn phường / xã');
         const code = Number(province.value);
         if (Number.isSafeInteger(code) && code > 0) wards(code);
-        else { controller?.abort(); version++; loading = false; status.textContent = 'Chọn tỉnh/thành phố trước để tải danh sách phường/xã.'; sync(); }
+        else { controller?.abort(); version++; loading = false; status.textContent = ''; sync(); }
     });
     retry.addEventListener('click', () => retryWork?.());
     reset(province, 'Chọn tỉnh / thành phố'); reset(ward, 'Chọn phường / xã');
