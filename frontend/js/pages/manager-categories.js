@@ -1,5 +1,6 @@
 import { getCategories, getCategory, createCategory, updateCategory, deleteCategory } from '../api/categories.js';
 import { ApiError } from '../api/auth.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { normalizeCategoryName, categoryErrorMessage } from '../utils/category-validation.js';
 
 const accessErrors = new Set(['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED']);
@@ -8,6 +9,7 @@ const element = (tag, text, className) => { const node = document.createElement(
 export function setupCategories({ root, onAccessError }) {
     const $ = id => document.getElementById(id);
     const dialog = $('category-dialog');
+    const cancelSearch = setupLiveSearch({ input: $('categories-search-input'), form: $('categories-search-form'), isActive: () => active });
     let active = false, page = 1, perPage = 20, search = '', listVersion = 0, dialogVersion = 0;
     let listController, detailController, mode = 'create', currentId = null, currentName = '', busy = false, ready = false, opener;
 
@@ -152,9 +154,9 @@ export function setupCategories({ root, onAccessError }) {
             if (action !== 'delete' && (typeof result.category?.TenLoaiThuoc !== 'string' || !Number.isInteger(result.category?.MaLoaiThuoc))) throw new ApiError('INVALID_RESPONSE');
             setBusy(false);
             const savedName = result.category?.TenLoaiThuoc || name;
-            if (action === 'create') { search = savedName; page = 1; $('categories-search-input').value = search; }
+            if (action === 'create') page = 1;
             closeDialog();
-            feedback(`${action === 'create' ? 'Đã thêm' : action === 'edit' ? 'Đã cập nhật' : 'Đã xóa'} danh mục “${savedName}”.${action === 'create' ? ' Danh sách đang tìm theo tên vừa tạo.' : ''}`);
+            feedback(`${action === 'create' ? 'Đã thêm' : action === 'edit' ? 'Đã cập nhật' : 'Đã xóa'} danh mục “${savedName}”.`);
             loadList();
         } catch (error) {
             if (!active || attempt !== dialogVersion) return;
@@ -189,7 +191,7 @@ export function setupCategories({ root, onAccessError }) {
         if ([...value].length > 255) { $('categories-search-error').textContent = 'Từ khóa tối đa 255 ký tự.'; $('categories-search-input').focus(); return; }
         $('categories-search-error').textContent = ''; search = value; page = 1; loadList();
     });
-    $('categories-clear-search').addEventListener('click', () => { search = ''; page = 1; $('categories-search-input').value = ''; $('categories-search-error').textContent = ''; loadList(); });
+    $('categories-clear-search').addEventListener('click', () => { cancelSearch(); search = ''; page = 1; $('categories-search-input').value = ''; $('categories-search-error').textContent = ''; loadList(); });
     $('categories-per-page').addEventListener('change', () => { perPage = Number($('categories-per-page').value); page = 1; loadList(); });
     $('categories-prev').addEventListener('click', () => { if (page > 1) { page--; loadList(); } });
     $('categories-next').addEventListener('click', () => { page++; loadList(); });
@@ -197,8 +199,9 @@ export function setupCategories({ root, onAccessError }) {
 
     return {
         activate() { if (!active) { active = true; loadList(); } },
-        deactivate() { active = false; listVersion++; listController?.abort(); closeDialog(); },
+        deactivate() { cancelSearch(); active = false; listVersion++; listController?.abort(); closeDialog(); },
         clear() {
+            cancelSearch();
             active = false; listVersion++; listController?.abort(); opener = null; closeDialog();
             page = 1; search = ''; perPage = 20;
             $('categories-search-input').value = ''; $('categories-per-page').value = '20';

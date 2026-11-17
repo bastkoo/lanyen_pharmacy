@@ -5,6 +5,13 @@ VARCHAR(255) NOT NULL đã được người dùng thêm trực tiếp vào Post
 chạy DDL/migration để thêm lại cột. Migration gốc chưa có cột mới này. Không có `GhiChu`.
 Không triển khai upload Cloudinary, CRUD đơn vị giá hoặc lô thuốc.
 
+Cập nhật 17/11/2026: đồng bộ `Thuoc.KeDon` với cột PostgreSQL đã được người dùng
+thêm: BOOLEAN NOT NULL, không default (đã kiểm tra metadata chỉ đọc). Không chạy
+DDL hoặc thêm lại cột. Migration gốc chưa có `MaVach` và `KeDon`.
+`KeDon=true` là thuốc kê đơn; `false` là thuốc không kê đơn. Trường này độc lập
+với `PhanLoai` (nhu cầu tư vấn dược sĩ), bắt buộc gửi trên POST/PUT và xuất hiện
+trong danh sách/chi tiết. Không suy ra phân loại từ tên thuốc hoặc nhu cầu tư vấn.
+
 ## API và bảo mật
 
 Cả năm API chỉ dành cho `VaiTro=2`. Guard Module 01 đọc lại tài khoản, vai trò,
@@ -43,7 +50,8 @@ thì mặc định false; khi PUT bỏ qua thì giữ nguyên giá trị hiện 
   "ChongChiDinh": "Dữ liệu kiểm thử",
   "BaoQuan": "Dữ liệu kiểm thử",
   "NguongTonKho": 0,
-  "PhanLoai": false
+  "PhanLoai": false,
+  "KeDon": true
 }
 ```
 
@@ -63,6 +71,7 @@ không tải URL hoặc xác minh nội dung ảnh trên server bên ngoài.
 - NguongTonKho là integer 0–2147483647 theo kiểu Integer PostgreSQL, không nhận
   boolean, float hoặc chuỗi số.
 - PhanLoai chỉ nhận boolean JSON true/false, không nhận 0/1 hoặc chuỗi.
+- KeDon bắt buộc là boolean JSON true/false; thiếu, null, 0/1 và chuỗi bị từ chối.
 - Từ chối trường ngoài schema, kể cả MaThuoc, GhiChu hoặc VaiTro.
 - MaVach là chuỗi bắt buộc trên POST/PUT, giữ số 0 ở đầu, không tự ép thành số.
 - Không kiểm tra duy nhất MaDuoc/MaVach/SoDangKy hoặc tên thuốc vì CSDL/yêu cầu chưa có ràng buộc này.

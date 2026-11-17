@@ -1,6 +1,7 @@
 import { getProducts, getProduct, createProduct, updateProduct, deleteProduct, uploadProductImage } from '../api/products.js';
 import { getCategories } from '../api/categories.js';
 import { ApiError } from '../api/auth.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { PRODUCT_GROUPS, PRODUCT_FIELDS, validateProduct, validateImageFile, validHttps, productErrorMessage } from '../utils/product-validation.js';
 
 const node = (tag, text, className) => {
@@ -10,6 +11,7 @@ const node = (tag, text, className) => {
     return value;
 };
 const classifications = value => value ? 'Cần dược sĩ tư vấn' : 'Không cần tư vấn';
+const prescriptionLabel = value => value === true ? 'Thuốc kê đơn' : value === false ? 'Thuốc không kê đơn' : 'Chưa xác định kê đơn';
 
 export function setupProducts({ root, onAccessError }) {
     const $ = id => document.getElementById(id);
@@ -20,6 +22,7 @@ export function setupProducts({ root, onAccessError }) {
     let listController, detailController, categoryController, deleteController;
     let mode = 'list', currentId, currentProduct, busy = false, ready = false, deleteReady = false, deleting = false, deleteId, opener;
     let selectedFile, objectUrl;
+    const cancelSearch = setupLiveSearch({ input: $('products-search'), form: $('products-filters'), isActive: () => active && mode === 'list', filters: [$('products-category'), $('products-classification'), $('products-sort')] });
 
     // Static schema metadata generates labelled controls; API content is never interpreted as HTML.
     for (const group of PRODUCT_GROUPS) {
@@ -28,16 +31,17 @@ export function setupProducts({ root, onAccessError }) {
         const grid = node('div', undefined, 'product-form-grid');
         for (const [name, label, type] of group.fields) {
             const wrap = node('div', undefined, 'products-field');
-            const caption = node('label', `${label}${type === 'boolean' ? '' : ' *'}`); caption.htmlFor = `product-${name}`;
+            const caption = node('label', `${label}${type === 'boolean' && name !== 'KeDon' ? '' : ' *'}`); caption.htmlFor = `product-${name}`;
             const input = node(type === 'text' ? 'textarea' : ['category', 'boolean'].includes(type) ? 'select' : 'input');
             input.className = 'categories-input';
             input.id = `product-${name}`; input.name = name;
             if (input.tagName === 'INPUT') input.type = type === 'integer' ? 'number' : 'text';
             if (type === 'integer') { input.min = '0'; input.max = '2147483647'; input.step = '1'; input.inputMode = 'numeric'; }
             if (type === 'boolean') {
-                for (const value of [false, true]) { const option = node('option', classifications(value)); option.value = String(value); input.append(option); }
+                if (name === 'KeDon') { const option = node('option', 'Chọn phân loại kê đơn…'); option.value = ''; input.append(option); }
+                for (const value of [false, true]) { const option = node('option', name === 'KeDon' ? prescriptionLabel(value) : classifications(value)); option.value = String(value); input.append(option); }
             }
-            input.required = type !== 'boolean';
+            input.required = type !== 'boolean' || name === 'KeDon';
             input.setAttribute('aria-describedby', `${input.id}-error`);
             const error = node('p', '', 'category-dialog__error'); error.id = `${input.id}-error`; error.setAttribute('role', 'status');
             input.addEventListener('input', () => { error.textContent = ''; input.removeAttribute('aria-invalid'); });
@@ -174,7 +178,8 @@ export function setupProducts({ root, onAccessError }) {
                     button.type = 'button'; button.dataset.productAction = action; button.dataset.productId = product.MaThuoc;
                     button.setAttribute('aria-label', `${label} thuốc ${product.TenThuoc}`); actionWrap.append(button);
                 }
-                actions.append(actionWrap); row.append(node('td', String((page - 1) * perPage + index + 1)), identity, identifiers, node('td', categoryName(product.MaLoaiThuoc)), node('td', classifications(product.PhanLoai)), actions); body.append(row);
+                const classification = node('td'); classification.append(node('strong', prescriptionLabel(product.KeDon)), node('span', classifications(product.PhanLoai), 'product-row-meta'));
+                actions.append(actionWrap); row.append(node('td', String((page - 1) * perPage + index + 1)), identity, identifiers, node('td', categoryName(product.MaLoaiThuoc)), classification, actions); body.append(row);
             }
             $('products-result-count').textContent = `${new Intl.NumberFormat('vi-VN').format(data.total)} thuốc${[filters.search, filters.category_id, filters.phan_loai].some(value => value !== undefined && value !== '') ? ' theo bộ lọc' : ' trong danh sách'}`;
             $('products-page-status').textContent = data.total ? `Trang ${data.page} / ${data.pages}` : 'Chưa có kết quả';
@@ -208,7 +213,7 @@ export function setupProducts({ root, onAccessError }) {
         for (const group of PRODUCT_GROUPS) {
             const section = node('section', undefined, 'product-form-group'), list = node('dl'); section.append(node('h3', group.title));
             for (const [name, label] of group.fields) {
-                const value = name === 'MaLoaiThuoc' ? categoryName(product[name]) : name === 'PhanLoai' ? classifications(product[name]) : String(product[name]);
+                const value = name === 'MaLoaiThuoc' ? categoryName(product[name]) : name === 'PhanLoai' ? classifications(product[name]) : name === 'KeDon' ? prescriptionLabel(product[name]) : String(product[name]);
                 list.append(node('dt', label), node('dd', value));
             }
             section.append(list); layout.append(section);
@@ -217,6 +222,7 @@ export function setupProducts({ root, onAccessError }) {
     }
     async function openWorkspace(nextMode, id) {
         if (!active || busy) return;
+        cancelSearch();
         detailController?.abort(); const attempt = ++detailVersion;
         mode = nextMode; currentId = id; currentProduct = undefined; ready = nextMode === 'create';
         feedback(''); resetSelection(); $('product-form').reset(); clearErrors();
@@ -226,7 +232,7 @@ export function setupProducts({ root, onAccessError }) {
         $('product-workspace-description').textContent = mode === 'view' ? 'Thông tin được lấy trực tiếp từ hồ sơ hiện tại.' : 'Hoàn thiện hồ sơ, kiểm tra ảnh trước khi lưu. Không bao gồm đơn vị giá hoặc lô thuốc.';
         $('product-detail-edit').hidden = true; $('product-details').hidden = true;
         $('product-detail-status').textContent = ready ? '' : 'Đang tải thông tin thuốc…'; $('product-detail-retry').hidden = true;
-        $('product-form').hidden = !ready; field('NguongTonKho').value = '0'; field('PhanLoai').value = 'false'; field('MaLoaiThuoc').value = '';
+        $('product-form').hidden = !ready; field('NguongTonKho').value = '0'; field('PhanLoai').value = 'false'; field('KeDon').value = ''; field('MaLoaiThuoc').value = '';
         setBusy(false); showImage(''); $('product-workspace-title').focus();
         if (ready) { field('TenThuoc').focus(); return; }
         detailController = new AbortController();
@@ -272,7 +278,7 @@ export function setupProducts({ root, onAccessError }) {
         event.preventDefault(); if (!active || busy || !ready) return;
         clearErrors();
         const values = { HinhAnh: field('HinhAnh').value.trim() };
-        for (const [name, , type] of PRODUCT_FIELDS) values[name] = type === 'boolean' ? field(name).value === 'true' : field(name).value;
+        for (const [name, , type] of PRODUCT_FIELDS) values[name] = type === 'boolean' ? (['true', 'false'].includes(field(name).value) ? field(name).value === 'true' : null) : field(name).value;
         const { data, errors } = validateProduct(values);
         if (!categoriesReady) errors.MaLoaiThuoc = 'Chưa tải được danh mục. Nhấn Làm mới danh mục và chọn lại; các trường khác được giữ nguyên.';
         else if (!categories.has(data.MaLoaiThuoc)) errors.MaLoaiThuoc = 'Danh mục không còn tồn tại. Vui lòng chọn danh mục hợp lệ.';
@@ -369,7 +375,7 @@ export function setupProducts({ root, onAccessError }) {
         const [sort_by, sort_order] = $('products-sort').value.split(':');
         filters = { search, category_id: $('products-category').value, phan_loai: $('products-classification').value, sort_by, sort_order }; page = 1; loadList();
     });
-    $('products-reset').addEventListener('click', () => { $('products-filters').reset(); filters = { sort_by: 'MaThuoc', sort_order: 'desc' }; page = 1; $('products-filter-error').textContent = ''; loadList(); });
+    $('products-reset').addEventListener('click', () => { cancelSearch(); $('products-filters').reset(); filters = { sort_by: 'MaThuoc', sort_order: 'desc' }; page = 1; $('products-filter-error').textContent = ''; loadList(); });
     $('products-per-page').addEventListener('change', () => { perPage = Number($('products-per-page').value); page = 1; loadList(); });
     $('products-prev').addEventListener('click', () => { if (page > 1) { page--; loadList(); } });
     $('products-next').addEventListener('click', () => { page++; loadList(); });
@@ -377,6 +383,7 @@ export function setupProducts({ root, onAccessError }) {
     $('products-categories-retry').addEventListener('click', async () => { await loadCategories(); if (active) loadList(); });
 
     function deactivate() {
+        cancelSearch();
         active = false; listVersion++; detailVersion++; categoryVersion++;
         listController?.abort(); detailController?.abort(); categoryController?.abort(); closeDelete();
         resetSelection(); busy = false; ready = false;

@@ -1,6 +1,8 @@
 import { getProducts, getProduct } from '../api/products.js';
+import { getCategories } from '../api/categories.js';
 import { getUnits, getUnit, createUnit, updateUnit, deleteUnit } from '../api/units.js';
 import { ApiError } from '../api/auth.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { validHttps } from '../utils/product-validation.js';
 import { validateUnit, formatUnitPrice, unitErrorMessage } from '../utils/unit-validation.js';
 
@@ -17,10 +19,12 @@ const validUnit = (unit, productId) => unit && integer(unit.MaDonGia) && unit.Ma
 
 export function setupUnits({ root, onAccessError }) {
     const $ = id => document.getElementById(id), dialog = $('unit-dialog');
-    let active = false, productId, product, productPage = 1, search = '', page = 1;
+    let active = false, productId, product, productPage = 1, search = '', categoryId = '', page = 1;
+    let categoryVersion = 0, categoryController;
     let pickerVersion = 0, selectionVersion = 0, listVersion = 0, dialogVersion = 0;
     let pickerController, selectionController, listController, dialogController;
     let mode, unitId, opener, busy = false, ready = false;
+    const cancelSearch = setupLiveSearch({ input: $('units-search'), form: $('units-search-form'), isActive: () => active, filters: [$('units-category')] });
 
     function access(error) {
         if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; }
@@ -37,13 +41,39 @@ export function setupUnits({ root, onAccessError }) {
     function markSelection() {
         for (const button of $('units-products').querySelectorAll('button')) button.setAttribute('aria-pressed', String(Number(button.dataset.id) === productId));
     }
+    async function loadCategories() {
+        categoryController?.abort(); categoryController = new AbortController(); const attempt = ++categoryVersion;
+        $('units-category').disabled = true; $('units-categories-status').textContent = 'Đang tải loại thuốc…'; $('units-categories-retry').hidden = true;
+        try {
+            const categories = new Map(); let index = 1, pages = 1;
+            do {
+                const data = await getCategories({ search: '', page: index, per_page: 100 }, { signal: categoryController.signal });
+                if (!active || attempt !== categoryVersion) return;
+                if (!Array.isArray(data.items) || !Number.isSafeInteger(data.pages) || data.pages < 0) throw new ApiError('INVALID_RESPONSE');
+                for (const item of data.items) {
+                    if (!integer(item.MaLoaiThuoc) || typeof item.TenLoaiThuoc !== 'string') throw new ApiError('INVALID_RESPONSE');
+                    categories.set(String(item.MaLoaiThuoc), item.TenLoaiThuoc);
+                }
+                pages = data.pages; index++;
+            } while (index <= pages);
+            const all = node('option', 'Tất cả loại thuốc'); all.value = '';
+            $('units-category').replaceChildren(all);
+            for (const [id, name] of categories) { const option = node('option', name); option.value = id; $('units-category').append(option); }
+            if (categoryId && !categories.has(categoryId)) { categoryId = ''; productPage = 1; loadProducts(); }
+            $('units-category').value = categoryId; $('units-category').disabled = false;
+            $('units-categories-status').textContent = categories.size ? '' : 'Chưa có loại thuốc. Bạn vẫn có thể tìm thuốc bằng từ khóa.';
+        } catch (error) {
+            if (!active || attempt !== categoryVersion || error.code === 'REQUEST_ABORTED') return;
+            if (!access(error)) { $('units-categories-status').textContent = 'Chưa tải được loại thuốc. Bạn vẫn có thể tìm thuốc bằng từ khóa hoặc thử tải lại.'; $('units-categories-retry').hidden = false; }
+        }
+    }
     async function loadProducts() {
         pickerController?.abort(); pickerController = new AbortController(); const attempt = ++pickerVersion;
         $('units-picker-status').textContent = 'Đang tìm thuốc…'; $('units-picker-retry').hidden = true;
         $('units-products').replaceChildren(); $('units-products-prev').disabled = true; $('units-products-next').disabled = true;
         $('units-products-page').textContent = '';
         try {
-            const data = await getProducts({ search, page: productPage, per_page: 10, sort_by: 'TenThuoc', sort_order: 'asc' }, { signal: pickerController.signal });
+            const data = await getProducts({ search, category_id: categoryId, page: productPage, per_page: 10, sort_by: 'TenThuoc', sort_order: 'asc' }, { signal: pickerController.signal });
             if (!active || attempt !== pickerVersion) return;
             if (data.code !== 'PRODUCTS_LISTED' || !Array.isArray(data.items)) throw new ApiError('INVALID_RESPONSE');
             for (const item of data.items) {
@@ -52,7 +82,7 @@ export function setupUnits({ root, onAccessError }) {
                 button.append(node('strong', item.TenThuoc), node('span', item.MaDuoc || 'Chưa có mã dược'), node('span', `Mã vạch: ${item.MaVach || 'Chưa có'}`));
                 li.append(button); $('units-products').append(li);
             }
-            markSelection(); $('units-picker-status').textContent = data.total ? `${data.total} thuốc phù hợp` : 'Không tìm thấy thuốc. Thử từ khóa khác.';
+            markSelection(); $('units-picker-status').textContent = data.total ? `${data.total} thuốc phù hợp` : 'Không tìm thấy thuốc. Thử từ khóa hoặc loại thuốc khác, hoặc bỏ bộ lọc.';
             $('units-products-page').textContent = data.pages ? `${data.page} / ${data.pages}` : '';
             $('units-products-prev').disabled = data.page <= 1; $('units-products-next').disabled = data.page >= data.pages;
         } catch (error) {
@@ -199,8 +229,13 @@ export function setupUnits({ root, onAccessError }) {
         event.preventDefault(); const value = $('units-search').value.trim();
         $('units-search-error').textContent = [...value].length > 255 || value.includes('\0') ? 'Từ khóa tối đa 255 ký tự, không chứa NUL.' : '';
         if ($('units-search-error').textContent) { $('units-search').focus(); return; }
-        search = value; productPage = 1; loadProducts();
+        search = value; categoryId = $('units-category').value; productPage = 1; loadProducts();
     });
+    $('units-reset').addEventListener('click', () => {
+        cancelSearch();
+        search = ''; categoryId = ''; productPage = 1; $('units-search').value = ''; $('units-category').value = ''; $('units-search-error').textContent = ''; loadProducts();
+    });
+    $('units-categories-retry').addEventListener('click', loadCategories);
     $('units-picker-retry').addEventListener('click', loadProducts);
     $('units-products-prev').addEventListener('click', () => { productPage--; loadProducts(); });
     $('units-products-next').addEventListener('click', () => { productPage++; loadProducts(); });
@@ -209,14 +244,17 @@ export function setupUnits({ root, onAccessError }) {
     $('units-reload').addEventListener('click', loadList);
     $('units-retry').addEventListener('click', () => product ? loadList() : selectProduct(productId));
     function deactivate() {
-        active = false; pickerVersion++; selectionVersion++; listVersion++;
+        cancelSearch();
+        active = false; pickerVersion++; selectionVersion++; listVersion++; categoryVersion++; categoryController?.abort();
         pickerController?.abort(); selectionController?.abort(); listController?.abort(); closeDialog();
     }
     return {
-        activate() { if (active) return; active = true; loadProducts(); if (productId) selectProduct(productId); },
+        activate() { if (active) return; active = true; loadCategories(); loadProducts(); if (productId) selectProduct(productId); },
         deactivate,
         clear() {
-            deactivate(); productId = undefined; product = undefined; productPage = 1; page = 1; search = '';
+            deactivate(); productId = undefined; product = undefined; productPage = 1; page = 1; search = ''; categoryId = '';
+            const all = node('option', 'Tất cả loại thuốc'); all.value = ''; $('units-category').replaceChildren(all); $('units-category').disabled = true;
+            $('units-categories-status').textContent = ''; $('units-categories-retry').hidden = true;
             root.querySelectorAll('input').forEach(input => { input.value = ''; });
             for (const id of ['units-products', 'units-body', 'units-product']) $(id).replaceChildren();
             for (const id of ['units-count', 'units-page', 'units-picker-status', 'units-products-page', 'units-search-error', 'unit-dialog-context', 'unit-dialog-status', 'unit-delete-summary']) $(id).textContent = '';

@@ -20,6 +20,7 @@ export async function promotionFixture(req, json) {
     if (mode === 'network') { req.socket.destroy(); return; }
     if (mode === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
     if (parts[3] === 'products') {
+        if (mode === 'picker-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
         const id = Number(parts[4]);
         if (id) return json(200, { code: 'PRODUCT_FOUND', product: products.find(product => product.MaThuoc === id) });
         return json(200, paged(products.filter(product => product.TenThuoc.includes(url.searchParams.get('search') || '')), url, 'PRODUCTS_LISTED'));
@@ -68,7 +69,7 @@ export async function checkPromotions({ evaluate: run, waitFor, key, command, ro
     const submit = () => run(`document.querySelector('#promotion-form').requestSubmit()`);
     const programValues = (overrides = {}) => run(`(()=>{const values=${JSON.stringify({ TenChuongTrinh: 'Chương trình mới', NgayBatDau: '2026-11-15', NgayKetThuc: '2026-11-15', ...overrides })};for(const [name,value]of Object.entries(values))document.getElementById('promotion-'+name).value=value})()`);
     const itemValues = (overrides = {}) => run(`(()=>{const values=${JSON.stringify({ MaThuoc: '25', LoaiGiamGia: 'true', GiaTriGiam: '15', SoLuong: '10', ...overrides })};for(const [name,value]of Object.entries(values))document.getElementById('promotion-'+name).value=value;document.querySelector('#promotion-LoaiGiamGia').dispatchEvent(new Event('change'))})()`);
-    const filter = (search = '', status = '') => run(`document.querySelector('#promotions-search').value=${JSON.stringify(search)};document.querySelector('#promotions-status').value=${JSON.stringify(status)};document.querySelector('#promotions-filters').requestSubmit()`);
+    const filter = (search = '', status = '') => run(`document.querySelector('#promotions-search').value=${JSON.stringify(search)};document.querySelector('#promotions-status').value=${JSON.stringify(status)};document.querySelector('#promotions-search').dispatchEvent(new Event('input'));new Promise(r=>setTimeout(r,350))`);
     const openProgram = id => run(`document.querySelector('[data-promotion-action="view"][data-id="${id}"]').click()`);
     const screenshot = async (name, selector) => {
         await run(`${selector ? `document.querySelector('${selector}').scrollIntoView({block:'start',behavior:'instant'})` : "window.scrollTo({top:0,behavior:'instant'})"};new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
@@ -108,6 +109,17 @@ export async function checkPromotions({ evaluate: run, waitFor, key, command, ro
     await screenshot('DETAIL_DESKTOP');
     await click('promotion-items-next'); await waitFor(`document.querySelector('#promotion-items-body').children.length===3`); await click('promotion-items-prev'); await waitFor(`document.querySelector('#promotion-items-body').children.length===20`);
     await click('promotion-item-add'); await dialogReady(); await waitFor(`!document.querySelector('#promotion-MaThuoc').disabled`);
+    assert.equal(await run(`document.querySelector('#promotion-product-find')`), null);
+    assert.equal(await run(`document.querySelector('#promotion-picker-retry').hidden`), true);
+    mode = 'picker-error';
+    await run(`document.querySelector('#promotion-product-search').value='Thuốc 25';document.querySelector('#promotion-product-search').dispatchEvent(new Event('input'))`);
+    await waitFor(`!document.querySelector('#promotion-picker-retry').hidden`);
+    mode = 'normal'; await click('promotion-picker-retry');
+    await waitFor(`document.querySelector('#promotion-MaThuoc').options.length===2 && document.querySelector('#promotion-MaThuoc option[value="25"]')`);
+    assert.equal(await run(`document.querySelector('#promotion-picker-retry').hidden`), true);
+    assert.equal(await run(`document.querySelector('#promotion-dialog').open`), true, 'Live picker search does not submit the promotion form');
+    await run(`document.querySelector('#promotion-product-search').value='';document.querySelector('#promotion-product-search').dispatchEvent(new Event('input'))`);
+    await waitFor(`document.querySelector('#promotion-MaThuoc').options.length===21`);
     assert.equal(await run(`document.querySelector('#promotion-MaThuoc option[value="1"]').disabled`), true);
     await click('promotion-picker-next'); await waitFor(`document.querySelector('#promotion-MaThuoc option[value="25"]')`);
     assert.equal(await run(`document.querySelector('#promotion-MaThuoc option[value="23"]').disabled`), true, 'Disable assigned products outside first visible item page');

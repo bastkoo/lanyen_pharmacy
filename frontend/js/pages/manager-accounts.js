@@ -1,4 +1,5 @@
 import { getAccounts } from '../api/accounts.js';
+import { setupLiveSearch } from '../utils/live-search.js';
 import { accountId } from '../utils/json-integers.js';
 import { accountRole, accountError } from '../utils/account-validation.js';
 import { setupAccountDialog, normalizeAccount, renderAccountAvatar } from '../components/account-dialog.js';
@@ -7,6 +8,7 @@ import { stockNode as n } from '../components/stock-table.js';
 export function setupAccounts({ root, getActorId, onAccessError, onSelfUpdated }) {
     const $ = id => document.getElementById(id);
     let active = false, page = 1, filters = { search: '', role: '', status: '' }, listVersion = 0, statsVersion = 0, listController, statsController;
+    const cancelSearch = setupLiveSearch({ input: $('accounts-search'), form: $('accounts-filters'), isActive: () => active, filters: [$('accounts-role'), $('accounts-status')] });
     const dialog = setupAccountDialog({ isActive: () => active, getActorId, onAccessError, onSelfUpdated, onSaved: text => { $('accounts-feedback').textContent = text; $('accounts-feedback').hidden = false; loadList(); loadStats(); } });
     function access(error) { if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; } return false; }
     function state(text, type = 'empty') {
@@ -52,11 +54,11 @@ export function setupAccounts({ root, getActorId, onAccessError, onSelfUpdated }
         } catch (error) { if (active && attempt === statsVersion && error.code !== 'REQUEST_ABORTED' && !access(error)) { $('accounts-stats-status').textContent = accountError(error); $('accounts-stats-retry').hidden = false; } }
     }
     $('accounts-filters').addEventListener('submit', event => { event.preventDefault(); const search = $('accounts-search').value.trim(); $('accounts-filter-error').textContent = [...search].length > 255 || search.includes('\0') ? 'Từ khóa tối đa 255 ký tự, không chứa NUL.' : ''; if ($('accounts-filter-error').textContent) { $('accounts-search').focus(); return; } filters = { search, role: $('accounts-role').value, status: $('accounts-status').value }; page = 1; loadList(); });
-    $('accounts-reset').addEventListener('click', () => { $('accounts-filters').reset(); filters = { search: '', role: '', status: '' }; page = 1; $('accounts-filter-error').textContent = ''; loadList(); });
+    $('accounts-reset').addEventListener('click', () => { cancelSearch(); $('accounts-filters').reset(); filters = { search: '', role: '', status: '' }; page = 1; $('accounts-filter-error').textContent = ''; loadList(); });
     $('accounts-prev').addEventListener('click', () => { page--; loadList(); }); $('accounts-next').addEventListener('click', () => { page++; loadList(); });
     $('accounts-retry').addEventListener('click', loadList); $('accounts-stats-retry').addEventListener('click', loadStats); $('accounts-refresh').addEventListener('click', () => { loadList(); loadStats(); });
     $('account-add').addEventListener('click', event => dialog.open('create', undefined, event.currentTarget)); $('accounts-body').addEventListener('click', event => { const button = event.target.closest('[data-account-action]'); if (button && !button.disabled) dialog.open(button.dataset.accountAction, button.dataset.accountId, button); });
-    function deactivate() { active = false; listVersion++; statsVersion++; listController?.abort(); statsController?.abort(); dialog.close(); }
+    function deactivate() { cancelSearch(); active = false; listVersion++; statsVersion++; listController?.abort(); statsController?.abort(); dialog.close(); }
     return {
         activate() { if (active) return; active = true; loadList(); loadStats(); }, deactivate,
         clear() { deactivate(); dialog.clear(); page = 1; filters = { search: '', role: '', status: '' }; $('accounts-filters').reset(); $('accounts-body').replaceChildren(); for (const id of ['accounts-count', 'accounts-page', 'accounts-feedback', 'accounts-filter-error', 'accounts-stats-status']) $(id).textContent = ''; $('accounts-feedback').hidden = true; for (const key of ['total', 'employees', 'managers', 'locked']) $(`accounts-stat-${key}`).textContent = '—'; state('Đăng nhập để tải tài khoản nội bộ.'); }

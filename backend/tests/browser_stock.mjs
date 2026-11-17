@@ -68,7 +68,7 @@ export async function checkStock({ evaluate: run, waitFor, key, command, root })
     assert.equal(calls.some(call => call.path.endsWith('/batches')), false);
     await click('batch-products-next'); await waitFor(`document.querySelector('#batch-product-select').options.length===4`);
     await click('batch-products-prev'); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);
-    await run(`document.querySelector('#batch-search').value='Thuốc 23';document.querySelector('#batch-product-search').requestSubmit()`);
+    await run(`document.querySelector('#batch-search').value='Thuốc 23';document.querySelector('#batch-search').dispatchEvent(new Event('input'))`);
     await waitFor(`document.querySelector('#batch-product-select').options.length===2`);
     assert.ok(calls.some(call => call.params.get('search') === 'Thuốc 23'));
     await run(`document.querySelector('#batch-search').value='';document.querySelector('#batch-product-search').requestSubmit()`); await waitFor(`document.querySelector('#batch-product-select').options.length===21`);

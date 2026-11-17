@@ -36,6 +36,7 @@ class ProductSchema(Schema):
     BaoQuan = required_text()
     NguongTonKho = fields.Integer(required=True, strict=True, validate=validate.Range(min=0, max=2147483647))
     PhanLoai = fields.Boolean()
+    KeDon = fields.Boolean(required=True)
 
     @pre_load
     def validate_types_and_trim(self, data, **kwargs):
@@ -43,8 +44,9 @@ class ProductSchema(Schema):
         for key in ('MaLoaiThuoc', 'NguongTonKho'):
             if key in data and type(data[key]) is not int:
                 raise ValidationError({key: ['Must be an integer']})
-        if 'PhanLoai' in data and type(data['PhanLoai']) is not bool:
-            raise ValidationError({'PhanLoai': ['Must be a boolean']})
+        for key in ('PhanLoai', 'KeDon'):
+            if key in data and type(data[key]) is not bool:
+                raise ValidationError({key: ['Must be a boolean']})
         for key, value in data.items():
             if isinstance(value, str):
                 if '\x00' in value:
