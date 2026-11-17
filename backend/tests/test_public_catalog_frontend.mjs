@@ -3,9 +3,30 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { categoryIcon } from '../../frontend/js/utils/category-icons.js';
 import { readCatalogFilters, catalogQuery, publicProductsUrl } from '../../frontend/js/utils/public-catalog-filters.js';
+import { promotionCountdown, promotionBadge } from '../../frontend/js/utils/public-sale-format.js';
 
 globalThis.location = { protocol: 'http:', hostname: 'localhost' };
 const api = await import('../../frontend/js/api/public-catalog.js');
+
+test('sale countdown uses Vietnam midnight and includes the entire last day', () => {
+    const program = { NgayBatDau: '2026-11-17', NgayKetThuc: '2026-11-20' };
+    const read = value => promotionCountdown(program, Date.parse(value));
+    assert.deepEqual(read('2026-11-16T23:59:59+07:00'), { state: 'UPCOMING', label: 'Bắt đầu sau', text: '00:00:01' });
+    assert.deepEqual(read('2026-11-17T00:00:00+07:00'), { state: 'ACTIVE', label: 'Kết thúc sau', text: '4 ngày 00:00:00' });
+    assert.equal(read('2026-11-17T12:00:00+07:00').text, '3 ngày 12:00:00');
+    assert.equal(read('2026-11-20T23:59:59.800+07:00').text, '00:00:01');
+    assert.deepEqual(read('2026-11-21T00:00:00+07:00'), { state: 'ENDED', label: 'Đã kết thúc', text: '00:00:00' });
+    assert.equal(read('2026-11-21T00:00:01+07:00').text, '00:00:00');
+    assert.equal(promotionCountdown({ NgayBatDau: '2026-02-30', NgayKetThuc: '2026-03-01' }), null);
+    assert.equal(promotionCountdown({ NgayBatDau: '2026-11-20', NgayKetThuc: '2026-11-17' }), null);
+});
+
+test('sale badge distinguishes direct discounts and configured percentage', () => {
+    assert.equal(promotionBadge({ LoaiGiamGia: false, GiaTriGiam: '200.00' }), 'Ưu đãi');
+    assert.equal(promotionBadge({ LoaiGiamGia: true, GiaTriGiam: '20.00' }), '-20%');
+    assert.equal(promotionBadge({ LoaiGiamGia: true, GiaTriGiam: '100.00' }), '-100%');
+    assert.equal(promotionBadge({ LoaiGiamGia: true, GiaTriGiam: 'invalid' }), 'Ưu đãi');
+});
 
 test('public product URLs preserve keyword, category, false prescription, sort and page across navigation', () => {
     const filters = readCatalogFilters('?search=A%20%26%20B&category_id=13&ke_don=false&sort_order=desc&page=2');
@@ -52,4 +73,22 @@ test('public errors, invalid responses and aborted requests are handled without 
     await assert.rejects(api.getPublicProducts({}), error => error.code === 'INVALID_RESPONSE');
     globalThis.fetch = async () => { throw new Error('offline'); };
     await assert.rejects(api.getPublicProducts({}), error => error.code === 'CONNECTION_FAILED');
+});
+
+test('public sale list and program products use read-only public contracts', async () => {
+    const calls = [];
+    globalThis.fetch = async (url, options) => {
+        calls.push({ url, options });
+        return { ok: true, text: async () => JSON.stringify({ items: [] }) };
+    };
+    await api.getPublicPromotions({ page: 2, per_page: 100 });
+    await api.getPromotionProducts(7, { page: 1, per_page: 10 });
+    assert.equal(new URL(calls[0].url).pathname, '/api/promotions');
+    assert.equal(new URL(calls[0].url).searchParams.get('page'), '2');
+    assert.equal(new URL(calls[1].url).pathname, '/api/promotions/7/products');
+    for (const call of calls) {
+        assert.equal(call.options.method, 'GET');
+        assert.equal(call.options.credentials, 'omit');
+        assert.equal(call.options.headers, undefined);
+    }
 });

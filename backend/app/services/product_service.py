@@ -65,20 +65,24 @@ def list_public_products(filters):
     if 'category_id' in filters:
         require_category(filters['category_id'])
     items, total = products.list_products(**filters, sort_by='TenThuoc')
+    page, per_page = filters['page'], filters['per_page']
+    return {'items': serialize_public_products(items), 'page': page,
+            'per_page': per_page, 'total': total, 'pages': (total + per_page - 1) // per_page}
+
+
+def serialize_public_products(items, unit_records=None, stock_totals=None):
     serialized = PublicProductSchema(many=True).dump(items)
     grouped = {item['MaThuoc']: [] for item in serialized}
     from app.services.inventory_service import usable_stock
-    stock = usable_stock(list(grouped))
-    for unit in units.public_units(list(grouped)):
+    stock = usable_stock(list(grouped)) if stock_totals is None else stock_totals
+    for unit in units.public_units(list(grouped)) if unit_records is None else unit_records:
         grouped[unit.MaThuoc].append({'MaDonGia': unit.MaDonGia,
                                      'DonViTinh': unit.DonViTinh, 'GiaBan': unit.GiaBan,
                                      'ConHang': unit.SoLuongQuyDoi > 0 and
                                      stock.get(unit.MaThuoc, 0) >= unit.SoLuongQuyDoi})
     for item in serialized:
         item['DonViGia'] = grouped[item['MaThuoc']]
-    page, per_page = filters['page'], filters['per_page']
-    return {'items': serialized, 'page': page,
-            'per_page': per_page, 'total': total, 'pages': (total + per_page - 1) // per_page}
+    return serialized
 
 
 @database_operation

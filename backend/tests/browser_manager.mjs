@@ -14,6 +14,7 @@ import { stockFixture, checkStock } from './browser_stock.mjs';
 import { promotionFixture, checkPromotions } from './browser_promotions.mjs';
 import { accountFixture, accountActor, checkAccounts } from './browser_accounts.mjs';
 import { checkHomepage, publicCatalogFixture, cartFixture, mergeCartFixture } from './browser_home.mjs';
+import { publicSaleFixture, checkSale } from './browser_sale.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -64,6 +65,7 @@ const server = createServer(async (req, res) => {
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
     if (checkingHomepage && (pathname === '/api/categories' || pathname === '/api/products')) return publicCatalogFixture(req, json);
+    if (checkingHomepage && pathname.startsWith('/api/promotions')) return publicSaleFixture(req, json);
     if (checkingHomepage && pathname.startsWith('/api/cart')) return cartFixture(req, json, scenario === 'manager');
     if (checkingAccounts && pathname.startsWith('/api/manager/accounts')) return accountFixture(req, json);
     if (checkingPromotions && (pathname.startsWith('/api/manager/promotions') || pathname.startsWith('/api/manager/products'))) return promotionFixture(req, json);
@@ -374,6 +376,7 @@ try {
     if (homepageTest) {
         checkingHomepage = true;
         await checkHomepage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, requests: homepageRequests, setScenario: value => { scenario = value; } });
+        await checkSale({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}` });
         checkingHomepage = false;
     }
     assert.deepEqual(errors, []);

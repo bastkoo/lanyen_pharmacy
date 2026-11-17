@@ -27,3 +27,5 @@ async function readCatalog(path, filters, { signal } = {}) {
 
 export const getPublicCategories = (filters, options) => readCatalog('categories', filters, options);
 export const getPublicProducts = (filters, options) => readCatalog('products', filters, options);
+export const getPublicPromotions = (filters, options) => readCatalog('promotions', filters, options);
+export const getPromotionProducts = (id, filters, options) => readCatalog(`promotions/${id}/products`, filters, options);

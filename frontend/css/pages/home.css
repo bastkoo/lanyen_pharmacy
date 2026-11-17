@@ -259,3 +259,10 @@
 .cart-items h3 { margin: 0; font-size: 1rem; }
 .cart-items p { margin: 8px 0; }
 .cart-items button { min-height: 44px; }
+.customer-notice { position: fixed; inset: auto auto max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); z-index: 200; display: flex; gap: 12px; align-items: start; width: min(360px, calc(100% - 32px)); max-height: min(45dvh, 320px); overflow-y: auto; margin: 0; padding: 16px; border: 1px solid var(--home-line); border-left: 4px solid var(--primary-dark); border-radius: var(--radius-md); background: var(--surface-color); color: var(--text-color); box-shadow: var(--shadow-md); font-size: 14px; line-height: 1.5; }
+.customer-notice[hidden] { display: none; }
+.customer-notice-mark { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--white-color); background: var(--primary-dark); font-weight: 700; }
+.customer-notice > div { min-width: 0; overflow-wrap: anywhere; }
+.customer-notice p { margin-top: 4px; }
+.customer-notice[data-type='error'] { border-left-color: var(--danger-color); }
+.customer-notice[data-type='error'] .customer-notice-mark { background: var(--danger-color); }

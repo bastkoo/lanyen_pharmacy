@@ -1,5 +1,6 @@
 import { getSession, logoutSession } from "../api/auth.js";
 import { setupAuthDialog, authMessage } from "../components/auth-dialog.js";
+import { notify } from '../components/customer-notice.js';
 
 const $ = id => document.getElementById(id);
 let checking = false;
@@ -17,15 +18,16 @@ function renderUser(user) {
     window.dispatchEvent(new Event('auth-changed'));
 }
 const openAuth = setupAuthDialog((user, warning) => {
-    if (warning) { $("page-status").textContent = warning; return; }
+    if (warning) { $("page-status").textContent = warning; notify(warning, 'error'); return; }
     renderUser(user);
     $("page-status").textContent = "Đăng nhập thành công. Chào mừng bạn đến với Lan Yến.";
+    notify('Đăng nhập thành công. Chào mừng bạn đến với Lan Yến.');
     $("retry-session").hidden = true;
     $("main").focus();
-});
+}, { notice: notify });
 for (const id of ["login-button", "start-login"]) $(id)?.addEventListener("click", event => openAuth(event.currentTarget));
 
-async function refreshSession() {
+async function refreshSession(manual = false) {
     if (checking || $("auth-dialog").open) return;
     checking = true;
     if ($("refresh-account")) $("refresh-account").disabled = true;
@@ -35,11 +37,13 @@ async function refreshSession() {
         renderUser(data.user);
         $("page-status").textContent = "Phiên đăng nhập đang hoạt động.";
         $("retry-session").hidden = true;
+        if (manual) notify('Đã kiểm tra phiên đăng nhập.');
     } catch (error) {
         if (["UNAUTHENTICATED", "ACCOUNT_LOCKED", "FORBIDDEN"].includes(error.code)) renderUser(null);
         else $("header-status").textContent = "Chưa thể kiểm tra phiên";
         $("page-status").textContent = error.code === "UNAUTHENTICATED" ? "Bạn có thể đăng nhập bằng số điện thoại để tiếp tục." : authMessage(error);
         $("retry-session").hidden = error.code === "UNAUTHENTICATED";
+        if (manual) notify($("page-status").textContent, error.code === 'UNAUTHENTICATED' ? 'info' : 'error');
     } finally {
         checking = false;
         if ($("refresh-account")) $("refresh-account").disabled = false;
@@ -52,11 +56,12 @@ $("logout-button").addEventListener("click", async () => {
         await logoutSession();
         renderUser(null);
         $("page-status").textContent = "Bạn đã đăng xuất.";
+        notify('Đăng xuất thành công.');
         $("login-button").focus();
-    } catch (error) { $("page-status").textContent = authMessage(error); }
+    } catch (error) { $("page-status").textContent = authMessage(error); notify($("page-status").textContent, 'error'); }
     finally { $("logout-button").disabled = false; }
 });
-$("refresh-account")?.addEventListener("click", refreshSession);
-$("retry-session").addEventListener("click", refreshSession);
-window.addEventListener("focus", refreshSession);
+$("refresh-account")?.addEventListener("click", () => refreshSession(true));
+$("retry-session").addEventListener("click", () => refreshSession(true));
+window.addEventListener("focus", () => refreshSession());
 refreshSession();

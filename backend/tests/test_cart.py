@@ -24,6 +24,8 @@ class CartTests(unittest.TestCase):
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
         self.unit = NS(MaDonGia=8, MaThuoc=7, GiaBan=12000, DonViTinh='Vỉ', SoLuongQuyDoi=10)
         self.stock = self.mock('app.services.cart_service.usable_stock', return_value={7: 100})
+        self.price_units = self.mock('app.services.cart_service.units.public_units', return_value=[self.unit])
+        self.active_promotions = self.mock('app.services.cart_service.promotion_items.active_for_products', return_value=[])
         self.find_unit = self.mock('app.services.cart_service.units.find_by_id',
                                   side_effect=lambda p, u: self.unit if (p, u) == (7, 8) else None)
         self.lock = self.mock('app.services.cart_service.carts.lock_user', return_value=self.user)
@@ -202,6 +204,21 @@ class CartTests(unittest.TestCase):
         self.assertIsNone(result['items'][0]['GiaBan'])
         self.assertEqual(result['total'], 0)
         self.assertEqual(self.client.delete('/api/cart/items/8', headers={'X-CSRF-Token': self.csrf}).status_code, 200)
+
+    def test_cart_quotes_best_active_promotion_with_partial_quota_without_writes(self):
+        from decimal import Decimal
+        self.price_units.return_value = [self.unit, NS(MaThuoc=7, MaDonGia=9, GiaBan=1000, SoLuongQuyDoi=1)]
+        offer = NS(MaChuongTrinh=3, MaThuoc=7, LoaiGiamGia=True, GiaTriGiam=Decimal('10'), SoLuong=10)
+        self.active_promotions.return_value = [(offer, NS(MaChuongTrinh=3, TenChuongTrinh='Giảm tháng 11'))]
+        self.add()
+        self.add()
+        cart = self.client.get('/api/cart').json
+        self.assertEqual(cart['items'][0]['GiaBan'], 11000)
+        self.assertEqual(cart['items'][0]['GiaGoc'], 12000)
+        self.assertEqual(cart['items'][0]['SoLuongKhuyenMai'], 1)
+        self.assertEqual(cart['total'], 23000)
+        self.assertEqual(offer.SoLuong, 10)
+        self.commit.assert_not_called()
 
     def test_locked_user_cannot_read_or_write_account_cart(self):
         self.login_session()

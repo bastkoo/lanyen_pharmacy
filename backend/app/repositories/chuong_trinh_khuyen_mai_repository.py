@@ -21,6 +21,15 @@ def list_promotions(page, per_page):
     return items, total
 
 
+def list_public(today, page, per_page):
+    query = select(ChuongTrinhKhuyenMai).where(ChuongTrinhKhuyenMai.NgayKetThuc >= today)
+    total = db.session.execute(select(func.count()).select_from(query.subquery())).scalar_one()
+    records = db.session.execute(query.order_by(ChuongTrinhKhuyenMai.NgayBatDau,
+        ChuongTrinhKhuyenMai.NgayKetThuc, ChuongTrinhKhuyenMai.MaChuongTrinh)
+        .offset((page - 1) * per_page).limit(per_page)).scalars().all()
+    return records, total
+
+
 def create(data):
     promotion = ChuongTrinhKhuyenMai(**data)
     db.session.add(promotion)

@@ -6,7 +6,9 @@ import path from 'node:path';
 let catalogMode = 'normal';
 const categoryNames = ['Thiết bị y tế', 'Chăm sóc da mặt', 'Mắt - Thị lực', 'Tiêu hóa', 'Vitamin', 'Kháng sinh & nấm', 'Tim mạch & huyết áp', 'Thần kinh', 'Cơ xương khớp', 'Hô hấp - Tai mũi họng', 'Sinh lý - nội tiết tố', 'Chăm sóc cá nhân', 'Thuốc giảm đau - Hạ sốt - Kháng viêm'];
 const catalogCategories = categoryNames.map((name, index) => ({ MaLoaiThuoc: index + 1, TenLoaiThuoc: name }));
-const catalogProducts = Array.from({ length: 26 }, (_, index) => ({ MaThuoc: index + 1, MaLoaiThuoc: index < 14 ? 1 : index - 12, TenThuoc: index ? `Thuốc ${index + 1}` : '<b>Thuốc 1</b>', HinhAnh: index ? 'https://example.invalid/catalog.png' : 'javascript:alert(1)', MoTa: 'Mô tả sản phẩm trong dữ liệu kiểm thử.', QuyCachDongGoi: 'Hộp 10 viên', NhaSanXuat: 'Nhà sản xuất kiểm thử', NuocSanXuat: 'Việt Nam', KeDon: index % 2 === 0 }));
+export const catalogProducts = Array.from({ length: 26 }, (_, index) => ({ MaThuoc: index + 1, MaLoaiThuoc: index < 14 ? 1 : index - 12, TenThuoc: index ? `Thuốc ${index + 1}` : '<b>Thuốc 1</b>', HinhAnh: index ? 'https://example.invalid/catalog.png' : 'javascript:alert(1)', MoTa: 'Mô tả sản phẩm trong dữ liệu kiểm thử.', QuyCachDongGoi: 'Hộp 10 viên', NhaSanXuat: 'Nhà sản xuất kiểm thử', NuocSanXuat: 'Việt Nam', KeDon: index % 2 === 0 }));
+let saleQuotes = false;
+export const setSaleQuotes = value => { saleQuotes = value; };
 for (const product of catalogProducts) product.DonViGia = product.MaThuoc === 3 ? [] : product.MaThuoc === 2 ? [
     { MaDonGia: 21, DonViTinh: 'Vỉ', GiaBan: 10000 }, { MaDonGia: 22, DonViTinh: 'Viên', GiaBan: 1000 }, { MaDonGia: 23, DonViTinh: 'Hộp', GiaBan: 100000 }
 ] : [{ MaDonGia: product.MaThuoc * 10 + 1, DonViTinh: 'Hộp', GiaBan: 50000 }];
@@ -27,7 +29,9 @@ export async function cartFixture(req, json, authenticated) {
         const rows = items.map(item => {
             const product = catalogProducts.find(product => product.MaThuoc === item.MaThuoc);
             const unit = product.DonViGia.find(unit => unit.MaDonGia === item.MaDonGia);
-            return { ...item, ...unit, TenThuoc: product.TenThuoc, QuyCachDongGoi: product.QuyCachDongGoi, ThanhTien: unit.GiaBan * item.SoLuong };
+            return { ...item, ...unit, TenThuoc: product.TenThuoc, QuyCachDongGoi: product.QuyCachDongGoi, ThanhTien: unit.GiaBan * item.SoLuong,
+                ...(saleQuotes && product.MaThuoc === 1 ? { GiaBan: 40000, GiaGoc: unit.GiaBan, SoLuongKhuyenMai: item.SoLuong,
+                    ThanhTien: 40000 * item.SoLuong, KhuyenMai: { MaChuongTrinh: 1, TenChuongTrinh: 'Ưu đãi tháng 11' } } : {}) };
         });
         return json(200, { code: 'CART_LISTED', csrf_token: 'fixture-csrf', authenticated, items: rows, total_quantity: rows.reduce((s, r) => s + r.SoLuong, 0), total: rows.reduce((s, r) => s + r.ThanhTien, 0) });
     }
@@ -184,7 +188,16 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     for (let i = 0; i < 2; i++) {
         await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
         await waitFor(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-purchase-status').textContent==='Đã thêm 1 Vỉ vào giỏ hàng.' && !document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').disabled`);
+        assert.equal(await run(`document.querySelector('#customer-notice').dataset.type`), 'success');
+        assert.equal(await run(`document.querySelector('#customer-notice').getAttribute('role')`), 'status');
+        assert.equal(await run(`document.querySelector('#customer-notice').contains(document.activeElement)`), false, 'Notices never steal focus');
+        if (i === 0) await run(`new Promise(resolve=>setTimeout(resolve,3000))`);
     }
+    await run(`new Promise(resolve=>setTimeout(resolve,2300))`);
+    assert.equal(await run(`document.querySelector('#customer-notice').hidden`), false, 'A new notice gets its own five seconds');
+    assert.equal(await run(`(() => { const rect=document.querySelector('#customer-notice').getBoundingClientRect();return Math.abs(rect.left-16)<1 && Math.abs(innerHeight-rect.bottom-16)<1; })()`), true, 'Notice is fixed at bottom left');
+    await run(`new Promise(resolve=>setTimeout(resolve,2800))`);
+    assert.equal(await run(`document.querySelector('#customer-notice').hidden`), true, 'Notice disappears after five seconds');
     await run(`document.querySelector('input[name="product-unit-2"][value="22"]').click();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
     await waitFor(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-purchase-status').textContent==='Đã thêm 1 Viên vào giỏ hàng.'`);
     await run(`document.querySelector('[data-cart]').click()`);
@@ -193,16 +206,21 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     assert.equal(await run(`document.querySelector('.cart-dialog .catalog-price').textContent`), 'Tạm tính: 21.000 ₫');
     await run(`document.querySelector('.cart-items li:last-child button').click()`);
     await waitFor(`document.querySelectorAll('.cart-items li').length===1 && document.querySelector('.cart-dialog .catalog-price').textContent==='Tạm tính: 20.000 ₫'`);
+    assert.equal(await run(`document.querySelector('#cart-dialog #customer-notice')?.matches(':popover-open')`), true, 'Notice stays above the modal cart');
     await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
+    assert.equal(await run(`document.querySelector('#customer-notice').parentElement===document.body`), true, 'Notice survives closing its modal');
     assert.equal(await run(`document.activeElement.hasAttribute('data-cart')`), true);
     catalogMode = 'cart-error'; await run(`document.querySelector('[data-cart]').click()`);
-    await waitFor(`!document.querySelector('#cart-dialog > button:last-child').hidden`);
-    catalogMode = 'normal'; await run(`document.querySelector('#cart-dialog > button:last-child').click()`);
+    await waitFor(`!document.querySelector('#cart-retry').hidden`);
+    catalogMode = 'normal'; await run(`document.querySelector('#cart-retry').click()`);
     await waitFor(`document.querySelectorAll('.cart-items li').length===1`);
     await key('Escape', 27); await waitFor(`!document.querySelector('#cart-dialog').open`);
     catalogMode = 'stock-changed';
     await run(`document.querySelector('input[name="product-unit-2"][value="21"]').click();document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').click()`);
     await waitFor(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').textContent==='Hết hàng' && document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-purchase-status').textContent.includes('đã hết hàng')`);
+    assert.equal(await run(`document.querySelector('#customer-notice').dataset.type`), 'error');
+    assert.equal(await run(`document.querySelector('#customer-notice').getAttribute('role')`), 'alert');
+    assert.match(await run(`document.querySelector('#customer-notice').textContent`), /đã hết hàng/);
     await run(`document.querySelector('input[name="product-unit-2"][value="22"]').click()`);
     assert.equal(await run(`document.querySelector('input[name="product-unit-2"]').closest('article').querySelector('.catalog-buy').disabled`), false, 'Stock rejection for one unit does not disable another available unit');
     catalogMode = 'normal';
@@ -287,6 +305,9 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
         assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Products overflow at ${width}`);
         await checkCardLayout();
         await checkImageFrames();
+        await run(`document.querySelector('#public-search').value='';document.querySelector('#public-search-form').requestSubmit()`);
+        assert.equal(await run(`(() => {const rect=document.querySelector('#customer-notice').getBoundingClientRect();return rect.left>=0 && rect.right<=innerWidth && rect.bottom<=innerHeight && rect.width>0;})()`), true, `Notice fits viewport at ${width}`);
+        if (width === 375) await shot('CUSTOMER_NOTICE_MOBILE');
         await run(`document.querySelector('[data-cart]').click()`); await waitFor(`document.querySelector('#cart-dialog .cart-items li')!==null`);
         assert.equal(await run(`document.querySelector('#cart-dialog').scrollWidth<=document.querySelector('#cart-dialog').clientWidth`), true, `Cart overflow at ${width}`);
         await key('Tab', 9); assert.equal(await run(`document.querySelector('#cart-dialog').contains(document.activeElement)`), true);
@@ -329,7 +350,7 @@ export async function checkHomepage({ evaluate: run, waitFor, key, command, root
     await click('start-login'); await key('Escape', 27); await waitFor(`!document.querySelector('#auth-dialog').open`);
     assert.equal(await run('document.activeElement.id'), 'start-login');
     assert.equal(requests.some(url=>url.startsWith('/api/manager/')), false);
-    assert.equal(requests.filter(url=>url.startsWith('/api/')).every(url=>['/api/auth/','/api/categories?','/api/products?','/api/cart'].some(prefix=>url.startsWith(prefix))), true);
+    assert.equal(requests.filter(url=>url.startsWith('/api/')).every(url=>['/api/auth/','/api/categories?','/api/products?','/api/cart','/api/promotions'].some(prefix=>url.startsWith(prefix))), true);
     console.log('PASS: sticky header search without nav links; separate category/search page, combined category/prescription/sort, URL reload/back/forward, paging, reset, stale/error/empty/retry, shared OTP/session, safe DOM, 1440–320px. API/AUTH MOCK; no PostgreSQL writes.');
     console.log(`Public page QA screenshots: ${path.join(root,'docs')}`);
 }

@@ -34,3 +34,8 @@ class PublicProductSchema(Schema):
     NhaSanXuat = fields.String(dump_only=True)
     NuocSanXuat = fields.String(dump_only=True)
     KeDon = fields.Boolean(dump_only=True)
+
+
+class PublicPromotionQuerySchema(Schema):
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1, max=2147483647))
+    per_page = fields.Integer(load_default=12, validate=validate.Range(min=1, max=100))

@@ -3,6 +3,8 @@ from marshmallow import ValidationError
 
 from app.schemas.public_catalog_schema import PublicCategoryQuerySchema, PublicProductQuerySchema
 from app.services import category_service, product_service
+from app.schemas.public_catalog_schema import PublicPromotionQuerySchema
+from app.services import public_promotion_service
 
 
 def query(schema):
@@ -24,3 +26,12 @@ def list_products():
     if 'ke_don' in filters:
         filters['ke_don'] = filters['ke_don'] == 'true'
     return jsonify(code='PRODUCTS_LISTED', **product_service.list_public_products(filters))
+
+
+def list_promotions():
+    return jsonify(code='PROMOTIONS_LISTED', **public_promotion_service.list_programs(**query(PublicPromotionQuerySchema)))
+
+
+def promotion_products(promotion_id):
+    return jsonify(code='PROMOTION_PRODUCTS_LISTED',
+                   **public_promotion_service.list_products(promotion_id, **query(PublicPromotionQuerySchema)))

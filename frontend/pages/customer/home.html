@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="../../css/base/reset.css">
     <link rel="stylesheet" href="../../css/base/global.css">
     <link rel="stylesheet" href="../../css/pages/home.css">
+    <link rel="stylesheet" href="../../css/pages/public-sale.css">
     <link rel="stylesheet" href="../../css/components/auth.css">
     <script type="module" src="../../js/pages/home.js"></script>
     <script type="module" src="../../js/pages/public-home.js"></script>
@@ -59,6 +60,21 @@
             <div><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg><p><strong>Rõ ràng trong thông tin</strong><span>Để bạn tìm hiểu trước khi lựa chọn.</span></p></div>
             <div><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#pill"></use></svg><p><strong>Quan tâm đúng nhu cầu</strong><span>Bắt đầu từ sức khỏe của bạn và gia đình.</span></p></div>
             <div><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 21s-9-5.5-9-12a5 5 0 0 1 9-3 5 5 0 0 1 9 3c0 6.5-9 12-9 12Z"></path></svg><p><strong>Đồng hành mỗi ngày</strong><span>Trân trọng từng sự quan tâm nhỏ.</span></p></div>
+        </section>
+        <section id="public-sale" class="sale-section page-width" aria-labelledby="sale-title">
+            <div class="sale-heading"><div><p class="eyebrow">ƯU ĐÃI TỪ LAN YẾN</p><h2 id="sale-title">Giá tốt, thêm an tâm.</h2></div><p>Khám phá những ưu đãi đang diễn ra và sắp tới.</p></div>
+            <div class="sale-body">
+                <div id="sale-program-state" role="status">Đang tải chương trình khuyến mãi…</div>
+                <button id="sale-program-retry" type="button" class="quiet-link" hidden>Thử tải chương trình lại</button>
+                <ul id="sale-programs" class="sale-programs" aria-label="Chọn chương trình khuyến mãi" hidden></ul>
+                <section id="sale-products" aria-labelledby="sale-program-title" hidden>
+                    <div class="sale-program-heading"><div><h3 id="sale-program-title"></h3><p id="sale-program-dates"></p><p id="sale-countdown" class="sale-countdown" role="timer" aria-live="off"></p></div><p id="sale-program-status"></p></div>
+                    <p id="sale-products-state" role="status"></p>
+                    <button id="sale-products-retry" type="button" class="quiet-link" hidden>Thử tải sản phẩm lại</button>
+                    <ul id="sale-products-grid" class="sale-products-grid" aria-label="Sản phẩm khuyến mãi" hidden></ul>
+                    <div id="sale-pagination" class="catalog-pagination" hidden><button id="sale-products-prev" class="button button-outline" type="button">Trang trước</button><span id="sale-products-page" aria-live="polite"></span><button id="sale-products-next" class="button button-outline" type="button">Trang sau</button></div>
+                </section>
+            </div>
         </section>
         <section id="categories" class="catalog-section page-width section-space" aria-labelledby="categories-title" tabindex="-1">
             <div class="section-heading"><div><p class="eyebrow">BẮT ĐẦU TỪ NHU CẦU CỦA BẠN</p><h2 id="categories-title">Danh mục sản phẩm</h2><p>Khám phá sản phẩm theo nhu cầu chăm sóc sức khỏe.</p></div><span class="section-index" aria-hidden="true">01 / KHÁM PHÁ</span></div>

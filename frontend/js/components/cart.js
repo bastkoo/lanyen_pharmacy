@@ -1,4 +1,5 @@
 import { getCart, addCartItem, removeCartItem } from '../api/cart.js';
+import { notify } from './customer-notice.js';
 
 const node = (tag, text, className) => {
     const element = document.createElement(tag);
@@ -32,7 +33,18 @@ export function purchaseControls(product) {
         Number.isSafeInteger(unit.GiaBan) && unit.GiaBan >= 0 && typeof unit.DonViTinh === 'string')
         .sort((a, b) => b.GiaBan - a.GiaBan || a.MaDonGia - b.MaDonGia);
     let selected = units[0];
-    const price = node('p', selected ? `${money(selected.GiaBan)} / ${selected.DonViTinh}` : 'Chưa có giá bán', 'catalog-price');
+    const sale = product.KhuyenMai;
+    const price = node('p', '', 'catalog-price');
+    const original = node('p', '', 'sale-original-price'), quota = node('p', '', 'sale-quota');
+    const updatePrice = () => {
+        const discounted = sale && Number.isSafeInteger(selected?.GiaKhuyenMai) && selected.GiaKhuyenMai < selected.GiaBan;
+        price.textContent = selected ? `${money(discounted ? selected.GiaKhuyenMai : selected.GiaBan)} / ${selected.DonViTinh}` : 'Chưa có giá bán';
+        original.replaceChildren();
+        if (discounted) original.append(node('span', 'Giá gốc: ', 'sr-only'), node('s', money(selected.GiaBan)));
+        original.hidden = !sale;
+        quota.textContent = selected && sale ? `Còn ${selected.SoLuongKhuyenMai || 0} ${selected.DonViTinh} ưu đãi` : '';
+    };
+    updatePrice();
     price.setAttribute('aria-live', 'polite');
     const status = node('p', '', 'catalog-purchase-status'); status.setAttribute('role', 'status');
     block.append(status);
@@ -41,10 +53,10 @@ export function purchaseControls(product) {
         fieldset.append(node('legend', `Chọn đơn vị tính cho ${product.TenThuoc}`, 'sr-only'));
         for (const unit of units) {
             const label = node('label', undefined, 'catalog-unit-option'), radio = node('input');
-            radio.type = 'radio'; radio.name = `product-unit-${product.MaThuoc}`; radio.value = unit.MaDonGia;
+            radio.type = 'radio'; radio.name = `product-unit-${product.MaThuoc}${sale ? `-sale-${sale.MaChuongTrinh}` : ''}`; radio.value = unit.MaDonGia;
             radio.setAttribute('aria-label', `${unit.DonViTinh}${unit.ConHang === true ? '' : ', hết hàng'}`);
             radio.checked = selected === unit;
-            radio.addEventListener('change', () => { selected = unit; price.textContent = `${money(unit.GiaBan)} / ${unit.DonViTinh}`; });
+            radio.addEventListener('change', () => { selected = unit; updatePrice(); });
             label.append(radio, node('span', unit.DonViTinh)); fieldset.append(label);
         }
         block.append(fieldset);
@@ -52,10 +64,12 @@ export function purchaseControls(product) {
     let adding = false;
     const buy = node('button', undefined, 'button button-primary catalog-buy'); buy.type = 'button';
     const updateBuy = () => {
-        const available = selected?.ConHang === true;
+        const upcoming = sale?.TrangThai === 'UPCOMING';
+        const hasOffer = !sale || selected?.SoLuongKhuyenMai > 0;
+        const available = selected?.ConHang === true && hasOffer && !upcoming;
         buy.disabled = adding || !available;
-        buy.textContent = available ? 'Chọn mua' : 'Hết hàng';
-        buy.setAttribute('aria-label', `${available ? 'Chọn mua' : 'Hết hàng'} ${product.TenThuoc}${selected ? `, ${selected.DonViTinh}` : ''}`);
+        buy.textContent = upcoming ? 'Sắp diễn ra' : selected?.ConHang !== true ? 'Hết hàng' : !hasOffer ? 'Hết ưu đãi' : 'Chọn mua';
+        buy.setAttribute('aria-label', `${buy.textContent} ${product.TenThuoc}${selected ? `, ${selected.DonViTinh}` : ''}`);
     };
     block.addEventListener('change', updateBuy);
     updateBuy();
@@ -65,14 +79,18 @@ export function purchaseControls(product) {
         try {
             await serialize(() => addCartItem(product.MaThuoc, chosen.MaDonGia));
             status.textContent = `Đã thêm 1 ${chosen.DonViTinh} vào giỏ hàng.`;
+            notify(status.textContent);
             window.dispatchEvent(new Event('cart-changed'));
         } catch (error) {
             status.textContent = errorMessage(error);
+            notify(status.textContent, 'error');
             if (error.code === 'OUT_OF_STOCK') chosen.ConHang = false;
         }
         finally { adding = false; updateBuy(); }
     });
-    block.append(price, buy); return block;
+    block.append(price);
+    if (sale) block.append(original, quota);
+    block.append(buy); return block;
 }
 
 export function setupCart() {
@@ -85,6 +103,7 @@ export function setupCart() {
     const status = node('p'); status.setAttribute('role', 'status');
     const note = node('p', '', 'catalog-product-meta'), list = node('ul', undefined, 'cart-items');
     const total = node('p', '', 'catalog-price'), retry = node('button', 'Tải lại giỏ hàng', 'button button-secondary'); retry.type = 'button';
+    retry.id = 'cart-retry';
     dialog.append(close, title, status, note, list, total, retry); document.body.append(dialog);
     let opener, version = 0;
     async function load() {
@@ -102,15 +121,20 @@ export function setupCart() {
                 const remove = node('button', 'Xóa', 'quiet-link'); remove.type = 'button'; remove.setAttribute('aria-label', `Xóa ${item.TenThuoc}, ${item.DonViTinh}`);
                 remove.addEventListener('click', async () => {
                     remove.disabled = true;
-                    try { await serialize(() => removeCartItem(item.MaDonGia)); await load(); retry.hidden = false; retry.focus(); }
-                    catch (error) { status.textContent = errorMessage(error); remove.disabled = false; }
+                    try { await serialize(() => removeCartItem(item.MaDonGia)); notify('Đã xóa sản phẩm khỏi giỏ hàng.'); await load(); retry.hidden = false; retry.focus(); }
+                    catch (error) { status.textContent = errorMessage(error); notify(status.textContent, 'error'); remove.disabled = false; }
                 });
-                row.append(heading, node('p', `Quy cách đóng gói: ${item.QuyCachDongGoi || 'Chưa có thông tin'}`),
-                    node('p', `${item.SoLuong} ${item.DonViTinh}${item.GiaBan === null ? ' · Không còn khả dụng' : ` × ${money(item.GiaBan)} = ${money(item.ThanhTien)}`}`), remove);
+                row.append(heading, node('p', `Quy cách đóng gói: ${item.QuyCachDongGoi || 'Chưa có thông tin'}`));
+                if (item.KhuyenMai) {
+                    row.append(node('p', `Ưu đãi: ${item.KhuyenMai.TenChuongTrinh}`));
+                    const regular = item.SoLuong - item.SoLuongKhuyenMai;
+                    row.append(node('p', `${item.SoLuongKhuyenMai} ${item.DonViTinh} × ${money(item.GiaBan)}${regular ? ` + ${regular} ${item.DonViTinh} × ${money(item.GiaGoc)} (giá gốc)` : ''} = ${money(item.ThanhTien)}`));
+                } else row.append(node('p', `${item.SoLuong} ${item.DonViTinh}${item.GiaBan === null ? ' · Không còn khả dụng' : ` × ${money(item.GiaBan)} = ${money(item.ThanhTien)}`}`));
+                row.append(remove);
                 list.append(row);
             }
             total.textContent = `Tạm tính: ${money(data.total)}`;
-        } catch (error) { if (attempt === version) { status.textContent = errorMessage(error); retry.hidden = false; } }
+        } catch (error) { if (attempt === version) { status.textContent = errorMessage(error); notify(status.textContent, 'error'); retry.hidden = false; } }
     }
     for (const trigger of triggers) trigger.addEventListener('click', () => { opener = trigger; dialog.showModal(); close.focus(); load(); });
     close.addEventListener('click', () => dialog.close());

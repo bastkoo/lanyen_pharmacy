@@ -8,6 +8,9 @@ from app.repositories import gio_thuoc_repository as carts
 from app.repositories import don_vi_gia_thuoc_repository as units
 from app.services.auth_service import AuthError, current_user
 from app.services.inventory_service import usable_stock
+from app.services.inventory_service import current_date
+from app.repositories import chi_tiet_khuyen_mai_repository as promotion_items
+from app.services.sale_pricing import cart_prices
 
 MAX_QUANTITY = 2147483647
 # Bound the signed session cookie; only identifiers and quantities are stored.
@@ -108,8 +111,11 @@ def get_cart():
     entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
                if user_id is not None else guest_items())
     details = carts.catalog_details(entries)
+    product_ids = list({entry[0] for entry in entries})
+    prices = cart_prices(entries, details, units.public_units(product_ids),
+                         promotion_items.active_for_products(product_ids, current_date())) if entries else []
     items = []
-    for product_id, unit_id, quantity in entries:
+    for (product_id, unit_id, quantity), pricing in zip(entries, prices):
         product, unit = details.get((product_id, unit_id), (None, None))
         available = unit is not None and unit.GiaBan >= 0
         items.append({'MaThuoc': product_id, 'MaDonGia': unit_id, 'SoLuong': quantity,
@@ -118,6 +124,8 @@ def get_cart():
                       'GiaBan': unit.GiaBan if available else None,
                       'QuyCachDongGoi': product.QuyCachDongGoi if product else '',
                       'ThanhTien': quantity * unit.GiaBan if available else None})
+        if pricing and pricing['KhuyenMai']:
+            items[-1].update(pricing, GiaGoc=unit.GiaBan)
     return {'code': 'CART_LISTED', 'items': items, 'authenticated': user_id is not None,
             'total_quantity': sum(item['SoLuong'] for item in items),
             'total': sum(item['ThanhTien'] or 0 for item in items)}
