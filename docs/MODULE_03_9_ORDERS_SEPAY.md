@@ -4,7 +4,7 @@
 
 ## Phạm vi đã xác nhận
 
-- Lưu `DonHang` và `ChiTietDonHang` từ các dòng giỏ được chọn của khách hàng đăng nhập (`VaiTro=0`).
+- Lưu `DonHang` và `ChiTietDonHang` từ các dòng giỏ được chọn của tài khoản mua hàng đăng nhập: khách hàng `VaiTro=0`, nhân viên `VaiTro=1`, quản lý `VaiTro=2`. Nhân viên và quản lý mua cho chính tài khoản của mình, dùng cùng luồng COD/QR; không được đọc/thanh toán đơn người khác. Tài khoản bị khóa, chưa đăng nhập hoặc vai trò không hợp lệ vẫn bị từ chối.
 - COD: `PhuongThucThanhToan=0`, `TrangThaiDonHang=1`, `TrangThaiThanhToan=0`.
 - QR: `PhuongThucThanhToan=1`, trạng thái đơn/thanh toán ban đầu đều bằng 0. Webhook SePay hợp lệ với số tiền đủ sẽ chuyển cả hai trạng thái thành 1.
 - Theo yêu cầu mới nhất: trừ kho và hạn mức khuyến mãi ngay khi Hoàn tất cho cả COD và QR, trong cùng transaction tạo đơn. FIFO theo MaLo tăng dần, chỉ lấy lô còn hạn. QR đang chờ thanh toán vẫn đã trừ kho/hạn mức; IPN không trừ lần hai. Không có giữ hàng/hoàn kho 10 phút. Chưa tích/đổi điểm; phí giao hàng vẫn xác nhận riêng theo luồng hiện tại.

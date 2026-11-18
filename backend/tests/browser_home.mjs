@@ -23,6 +23,13 @@ export function mergeCartFixture() {
     }
     guestCart = [];
 }
+export function appendAccountCart(entries) {
+    for (const item of entries) {
+        const match = accountCart.find(row => row.MaDonGia === item.MaDonGia);
+        if (match) match.SoLuong += item.SoLuong;
+        else accountCart.push({ ...item });
+    }
+}
 export async function cartFixture(req, json, authenticated) {
     const url = new URL(req.url, 'http://fixture.local');
     const items = authenticated ? accountCart : guestCart;

@@ -3,6 +3,7 @@ import { getOrders, initializePayment } from '../api/orders.js';
 import { money } from '../components/cart.js';
 import { validHttps } from '../utils/product-validation.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
+import { setupOrderReorder } from '../components/order-reorder.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
@@ -10,6 +11,7 @@ const filters = ['all', 'processing', 'shipping', 'delivered', 'cancelled', 'ret
 const statusNames = ['Đang xử lý', 'Đang xử lý', 'Đang giao', 'Đã giao', 'Đã hủy', 'Đổi trả'];
 let status = 'all', page = 1, total = 0, perPage = 10, validQuery = true;
 let version = 0, user = null, rows = new Map(), disposed = false, opening = false;
+const reorder = setupOrderReorder({ getUser: () => user, onAdded: () => { $('orders-state').textContent = 'Đã thêm các sản phẩm đã chọn vào giỏ hàng.'; } });
 
 function readQuery() {
     const query = new URLSearchParams(location.search);
@@ -25,6 +27,7 @@ function readQuery() {
 }
 
 function clearPrivate() {
+    reorder.clear();
     rows.clear(); user = null;
     $('orders-list').replaceChildren(); $('orders-empty').hidden = true; $('orders-pagination').hidden = true;
     $('orders-processing-count').textContent = ''; $('orders-processing-count').hidden = true;
@@ -47,19 +50,21 @@ function card(value) {
     reference.append(title, node('p', `${receipt} · #${value.MaDonHang}`));
     const badge = node('span', statusNames[value.TrangThaiDonHang] || 'Chưa xác định', 'orders-status'); badge.dataset.status = value.TrangThaiDonHang;
     heading.append(reference, badge); article.append(heading);
-    const preview = node('div', undefined, 'orders-preview');
-    if (value.preview) {
-        const item = value.preview, visual = node('div', 'Chưa có ảnh', 'orders-preview-image');
+    const products = node('ul', undefined, 'orders-products');
+    for (const item of value.items.slice(0, 1)) {
+        const preview = node('li', undefined, 'orders-preview'), visual = node('div', 'Chưa có ảnh', 'orders-preview-image');
         if (validHttps(item.HinhAnh)) {
             const img = node('img'); img.src = item.HinhAnh; img.alt = ''; img.width = 56; img.height = 66; img.referrerPolicy = 'no-referrer';
             img.addEventListener('error', () => visual.replaceChildren(document.createTextNode('Chưa có ảnh')), { once: true }); visual.replaceChildren(img);
         }
         const description = node('div'); description.append(node('h3', item.TenThuoc));
-        if (value.item_count > 1) description.append(node('p', `+${value.item_count - 1} dòng sản phẩm khác`));
+        if (value.items.length > 1) description.append(node('p', `+ ${value.items.length - 1} sản phẩm khác`));
         preview.append(visual, description, node('span', money(item.ThanhTien), 'orders-preview-price'),
             node('span', `×${item.SoLuong} ${item.DonViTinh}`, 'orders-preview-quantity'));
-    } else preview.append(node('p', 'Chưa có chi tiết sản phẩm cho đơn hàng này.'));
-    article.append(preview);
+        products.append(preview);
+    }
+    if (!value.items.length) products.append(node('li', 'Chưa có chi tiết sản phẩm cho đơn hàng này.', 'orders-preview'));
+    article.append(products);
     const summary = node('div', undefined, 'orders-card-summary'), detail = node('a', 'Xem chi tiết →', 'quiet-link'); detail.href = href;
     detail.setAttribute('aria-label', `Xem chi tiết đơn ${value.MaDonHang}`);
     const paymentTotal = node('div', 'Thành tiền:', 'orders-card-total'); paymentTotal.append(node('strong', money(value.TongThanhToan)));
@@ -69,6 +74,11 @@ function card(value) {
     let message = value.TrangThaiThanhToan === 1 ? 'Đã thanh toán.' : value.PhuongThucThanhToan === 0 ? 'Thanh toán khi nhận hàng.' : 'Chưa thanh toán.';
     if ([0, 1].includes(value.TrangThaiDonHang)) message = value.TrangThaiDonHang === 1 ? `Đơn hàng đang được xử lý. ${message}` : `Đơn hàng đang chờ xử lý. ${message}`;
     actions.append(node('p', message, 'orders-card-message'));
+    if ([3, 4].includes(value.TrangThaiDonHang)) {
+        const buy = node('button', 'Mua lại', 'button button-outline orders-buy-again'); buy.type = 'button';
+        buy.dataset.reorder = value.MaDonHang; buy.setAttribute('aria-haspopup', 'dialog'); buy.setAttribute('aria-controls', 'reorder-dialog');
+        buy.setAttribute('aria-label', `Mua lại đơn ${value.MaDonHang}`); actions.append(buy);
+    }
     if (value.can_pay === true) {
         const pay = node('button', 'Thanh toán', 'button button-primary'); pay.type = 'button'; pay.dataset.payOrder = value.MaDonHang;
         pay.setAttribute('aria-label', `Thanh toán đơn ${value.MaDonHang}`); pay.disabled = opening; actions.append(pay);
@@ -93,11 +103,11 @@ async function load() {
         if (data.code !== 'ORDERS_LISTED' || !Array.isArray(data.items) || !Number.isSafeInteger(data.total)
             || !Number.isSafeInteger(data.processing_count) || data.total < 0 || data.processing_count < 0
             || !Number.isSafeInteger(data.per_page) || data.per_page < 1 || data.per_page > 50
-            || data.page !== page || data.status !== status) throw { code: 'INVALID_RESPONSE' };
+            || data.page !== page || data.status !== status || data.items.some(value => !Array.isArray(value.items))) throw { code: 'INVALID_RESPONSE' };
         total = data.total; perPage = data.per_page;
         rows = new Map(data.items.map(value => [String(value.MaDonHang), value]));
         $('orders-list').replaceChildren(...data.items.map(card));
-        $('orders-processing-count').hidden = false; $('orders-processing-count').textContent = String(data.processing_count);
+        $('orders-processing-count').hidden = data.processing_count < 1; $('orders-processing-count').textContent = data.processing_count > 0 ? String(data.processing_count) : '';
         $('orders-processing-count').setAttribute('aria-label', `${data.processing_count} đơn đang xử lý`);
         $('orders-empty').hidden = data.items.length > 0;
         $('orders-empty-message').textContent = status === 'all' && page === 1 ? 'Bạn chưa có đơn hàng. Khám phá sản phẩm để bắt đầu mua sắm.' : 'Không có đơn hàng ở trang hoặc trạng thái này.';
@@ -127,6 +137,12 @@ $('orders-previous').addEventListener('click', () => { if (page > 1) navigate(st
 $('orders-next').addEventListener('click', () => { if (page * perPage < total) navigate(status, page + 1); });
 $('orders-retry').addEventListener('click', load); $('orders-login').addEventListener('click', () => $('login-button').click());
 $('orders-list').addEventListener('click', async event => {
+    const buy = event.target.closest('[data-reorder]');
+    if (buy && user && !opening) {
+        const value = rows.get(buy.dataset.reorder);
+        if (value) await reorder.open(value, buy);
+        return;
+    }
     const button = event.target.closest('[data-pay-order]');
     const value = button && rows.get(button.dataset.payOrder);
     if (!value?.can_pay || !user || opening) return;
@@ -151,7 +167,7 @@ window.addEventListener('auth-changed', event => {
     if (disposed || (user && String(event.detail?.user?.MaNguoiDung) === String(user.MaNguoiDung))) return;
     version++; clearPrivate(); load();
 });
-window.addEventListener('focus', () => { if (!disposed && !opening) load(); });
+window.addEventListener('focus', () => { if (!disposed && !opening && !reorder.isOpen()) load(); });
 window.addEventListener('pagehide', () => { disposed = true; version++; clearPrivate(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; readQuery(); load(); } });
 readQuery(); load();

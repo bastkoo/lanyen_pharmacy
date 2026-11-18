@@ -36,6 +36,8 @@
 .order-step-caption { display: block; color: var(--home-muted); font-size: 11px; line-height: 1.5; margin-top: 6px; overflow-wrap: anywhere; }
 .order-step-flow { display: none; height: 100%; width: 38%; background: var(--primary-color); }
 .order-step.is-approaching .order-step-flow { display: block; animation: order-flow 1.8s linear infinite; }
+.order-progress[data-status='3'] .order-step-flow { display: none; animation: none; transform: none; }
+.order-progress[data-status='3'] .order-step-connector { background: var(--primary-color); }
 @keyframes order-flow { from { transform: translateX(-110%); } to { transform: translateX(370%); } }
 .order-muted { color: var(--home-muted); font-size: 13px; line-height: 1.7; }
 .order-receipt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: var(--spacing-lg); gap: var(--spacing-md); }

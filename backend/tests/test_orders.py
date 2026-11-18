@@ -104,7 +104,7 @@ class OrderTests(unittest.TestCase):
             with self.subTest(query=query):
                 self.assertEqual(self.client.get('/api/orders?' + query).status_code, 400)
         listing.assert_not_called()
-        self.user.VaiTro = 2
+        self.user.VaiTro = 99
         self.assertEqual(self.client.get('/api/orders').status_code, 403)
         self.user.VaiTro = 0
         with self.client.session_transaction() as state:
@@ -122,7 +122,10 @@ class OrderTests(unittest.TestCase):
             with self.subTest(changes=changes):
                 order = self.order(NgayDat=datetime(2026, 11, 18, 9), GhiChu='Người nhận: An\nGiao tận nơi: Huế', **changes)
                 detail = NS(MaChiTiet=100, MaThuoc=7, MaDonGia=8, SoLuong=3, DonGia=12000)
-                listing.return_value = ([order], 1, 1, {45: (2, detail, NS(TenThuoc='Vitamin', HinhAnh=None), NS(DonViTinh='Hộp'))})
+                second = NS(MaChiTiet=101, MaThuoc=9, MaDonGia=10, SoLuong=2, DonGia=10000)
+                listing.return_value = ([order], 1, 1, {45: [
+                    (detail, NS(TenThuoc='Vitamin', HinhAnh=None), NS(DonViTinh='Hộp')),
+                    (second, NS(TenThuoc='Vitamin B', HinhAnh=None), NS(DonViTinh='Vỉ'))]})
                 response = self.client.get('/api/orders')
                 self.assertEqual(response.status_code, 200)
                 value = response.json['items'][0]
@@ -131,6 +134,8 @@ class OrderTests(unittest.TestCase):
                 self.assertEqual(value['preview']['ThanhTien'], '36000')
                 self.assertEqual(value['TongThanhToan'], '32000')
                 self.assertEqual(value['item_count'], 2)
+                self.assertEqual([item['MaThuoc'] for item in value['items']], [7, 9])
+                self.assertEqual(value['items'][1]['ThanhTien'], '20000')
                 self.assertEqual(value['HinhThucNhanHang'], 'delivery')
         self.commit.assert_not_called()
         self.deduct.assert_not_called()
@@ -143,11 +148,14 @@ class OrderTests(unittest.TestCase):
         responses[0].scalar_one.return_value = 1
         responses[1].scalar_one.return_value = 7
         responses[2].scalars.return_value.all.return_value = [NS(MaDonHang=45)]
-        responses[3].all.return_value = []
+        first = NS(MaDonHang=45, MaChiTiet=100)
+        second = NS(MaDonHang=45, MaChiTiet=101)
+        responses[3].all.return_value = [(first, None, None), (second, None, None)]
         execute.side_effect = responses
         with self.app.app_context():
             result = don_hang_repository.list_owned(12, (0, 1), 2, 10)
         self.assertEqual(result[1:3], (1, 7))
+        self.assertEqual([line[0].MaChiTiet for line in result[3][45]], [100, 101])
         statements = [call.args[0].compile(dialect=postgresql.dialect()) for call in execute.call_args_list]
         for statement in statements[:3]:
             self.assertIn('MaNguoiMua', str(statement))
@@ -297,7 +305,7 @@ class OrderTests(unittest.TestCase):
 
     def test_csrf_customer_role_and_ownership(self):
         self.assertEqual(self.client.post('/api/orders', json=self.values).status_code, 403)
-        self.user.VaiTro = 2
+        self.user.VaiTro = 99
         self.assertEqual(self.post().status_code, 403)
         self.user.VaiTro = 0
         self.find.return_value = self.order(MaNguoiMua=99)
@@ -305,6 +313,171 @@ class OrderTests(unittest.TestCase):
         with self.client.session_transaction() as state:
             state.pop('user_id')
         self.assertEqual(self.post().status_code, 401)
+
+    def test_manager_can_create_own_cod_and_qr_orders(self):
+        self.user.VaiTro = 2
+        for method, status in [(0, 1), (1, 0)]:
+            with self.subTest(method=method):
+                response = self.post(PhuongThucThanhToan=method)
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(response.json['order']['TrangThaiDonHang'], status)
+                self.assertEqual(self.create.call_args.args[0]['MaNguoiMua'], 12)
+        self.assertEqual(self.client.post('/api/orders', json=self.values).status_code, 403)
+
+    def test_manager_reads_only_own_list_detail_status_and_checkout(self):
+        self.user.VaiTro = 2
+        order = self.order(NgayDat=datetime(2026, 11, 18, 9), GhiChu='')
+        listing = self.mock('app.services.order_service.orders.list_owned', return_value=([order], 1, 1, {}))
+        self.mock('app.services.order_service.orders.detail_items', return_value=[])
+        self.find.return_value = order
+        self.assertEqual(self.client.get('/api/orders').status_code, 200)
+        listing.assert_called_once_with(12, None, 1, 10)
+        for path in ['/api/orders/45', '/api/orders/45/detail']:
+            self.assertEqual(self.client.get(path).status_code, 200)
+        self.commit.assert_not_called()
+        self.assertEqual(self.initialize().status_code, 200)
+        self.commit.reset_mock()
+        self.find.return_value = self.order(MaNguoiMua=99)
+        for path in ['/api/orders/45', '/api/orders/45/detail']:
+            self.assertEqual(self.client.get(path).status_code, 404)
+        self.assertEqual(self.initialize().status_code, 404)
+        self.commit.assert_not_called()
+
+    def test_locked_manager_cannot_create_order(self):
+        self.user.VaiTro = 2
+        self.user.TrangThai = True
+        self.assertEqual(self.post().status_code, 403)
+        self.create.assert_not_called()
+
+    def test_employee_can_buy_read_and_pay_only_own_orders(self):
+        self.user.VaiTro = 1
+        for method, status in [(0, 1), (1, 0)]:
+            with self.subTest(method=method):
+                response = self.post(PhuongThucThanhToan=method)
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(response.json['order']['TrangThaiDonHang'], status)
+                self.assertEqual(self.create.call_args.args[0]['MaNguoiMua'], 12)
+        self.assertEqual(self.client.post('/api/orders', json=self.values).status_code, 403)
+        self.commit.reset_mock()
+        order = self.order(NgayDat=datetime(2026, 11, 18, 9), GhiChu='')
+        listing = self.mock('app.services.order_service.orders.list_owned', return_value=([order], 1, 1, {}))
+        self.mock('app.services.order_service.orders.detail_items', return_value=[])
+        self.find.return_value = order
+        self.assertEqual(self.client.get('/api/orders').status_code, 200)
+        listing.assert_called_once_with(12, None, 1, 10)
+        for path in ['/api/orders/45', '/api/orders/45/detail']:
+            self.assertEqual(self.client.get(path).status_code, 200)
+        self.commit.assert_not_called()
+        self.assertEqual(self.initialize().status_code, 200)
+        self.commit.reset_mock()
+        self.find.return_value = self.order(MaNguoiMua=99)
+        for path in ['/api/orders/45', '/api/orders/45/detail']:
+            self.assertEqual(self.client.get(path).status_code, 404)
+        self.assertEqual(self.initialize().status_code, 404)
+        self.commit.assert_not_called()
+
+    def test_locked_employee_cannot_create_order(self):
+        self.user.VaiTro = 1
+        self.user.TrangThai = True
+        self.assertEqual(self.post().status_code, 403)
+        self.create.assert_not_called()
+
+    def reorder_fixture(self, status=3):
+        self.find.return_value = self.order(TrangThaiDonHang=status)
+        unit = NS(GiaBan=15000, SoLuongQuyDoi=10, DonViTinh='Vỉ')
+        detail = NS(MaChiTiet=9007199254741001, MaThuoc=7, MaDonGia=8, SoLuong=3, DonGia=12000)
+        self.mock('app.services.order_service.orders.detail_items', return_value=[
+            (detail, NS(TenThuoc='Vitamin', HinhAnh=None), unit)])
+        self.records.return_value = []
+        return detail, unit
+
+    def test_reorder_options_current_price_and_stock_without_mutation(self):
+        detail, unit = self.reorder_fixture()
+        for status in [3, 4]:
+            self.find.return_value.TrangThaiDonHang = status
+            response = self.client.get('/api/orders/45/reorder')
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.json['items'][0]['GiaBan'], '15000')
+            self.assertEqual(response.json['items'][0]['MaChiTiet'], str(detail.MaChiTiet))
+            self.assertTrue(response.json['items'][0]['ConHang'])
+        self.stock.return_value = {7: 29}
+        self.assertFalse(self.client.get('/api/orders/45/reorder').json['items'][0]['ConHang'])
+        self.commit.assert_not_called()
+        self.deduct.assert_not_called()
+
+    def test_reorder_selected_lines_additive_using_saved_quantity(self):
+        detail, unit = self.reorder_fixture()
+        existing = NS(MaThuoc=7, MaDonGia=8, SoLuong=2)
+        self.records.return_value = [existing]
+        self.mock('app.services.cart_service.require_unit', return_value=unit)
+        response = self.client.post('/api/orders/45/reorder', json={'MaChiTiet': [str(detail.MaChiTiet)]},
+                                    headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json, {'code': 'ORDER_REORDERED', 'unit_ids': [8]})
+        self.assertEqual(existing.SoLuong, 5)
+        self.assertEqual(detail.SoLuong, 3)
+        self.commit.assert_called_once()
+        self.create.assert_not_called()
+        self.deduct.assert_not_called()
+        self.promotion_detail.assert_not_called()
+
+    def test_reorder_stock_shortage_does_not_partially_add_cart(self):
+        detail, _ = self.reorder_fixture()
+        existing = NS(MaThuoc=7, MaDonGia=8, SoLuong=8)
+        self.records.return_value = [existing]
+        self.assertEqual(self.client.post('/api/orders/45/reorder',
+            json={'MaChiTiet': [str(detail.MaChiTiet)]}, headers={'X-CSRF-Token': 'test-csrf'}).json['code'], 'OUT_OF_STOCK')
+        self.assertEqual(existing.SoLuong, 8)
+        self.commit.assert_not_called()
+        self.rollback.assert_called_once()
+
+    def test_reorder_selection_omits_unavailable_lines_and_failure_rolls_back(self):
+        detail, unit = self.reorder_fixture()
+        other = NS(MaChiTiet=9007199254741002, MaThuoc=9, MaDonGia=10, SoLuong=1, DonGia=10000)
+        order_service.orders.detail_items.return_value.append((other, None, None))
+        add = self.mock('app.services.order_service.add_database')
+        response = self.client.post('/api/orders/45/reorder', json={'MaChiTiet': [str(detail.MaChiTiet)]},
+                                    headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual(response.status_code, 200)
+        add.assert_called_once_with(12, [(7, 8, 3)], check_stock=True)
+        add.reset_mock()
+        response = self.client.post('/api/orders/45/reorder',
+            json={'MaChiTiet': [str(detail.MaChiTiet), str(other.MaChiTiet)]}, headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual(response.status_code, 404)
+        add.assert_not_called()
+        add.side_effect = SQLAlchemyError('private')
+        response = self.client.post('/api/orders/45/reorder', json={'MaChiTiet': [str(detail.MaChiTiet)]},
+                                    headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual((response.status_code, response.json['code']), (503, 'DATABASE_UNAVAILABLE'))
+        self.assertEqual(self.rollback.call_count, 2)
+        self.commit.assert_not_called()
+
+    def test_reorder_rejects_wrong_owner_nonterminal_and_unknown_lines(self):
+        detail, _ = self.reorder_fixture()
+        headers = {'X-CSRF-Token': 'test-csrf'}
+        self.find.return_value.MaNguoiMua = 99
+        self.assertEqual(self.client.get('/api/orders/45/reorder').status_code, 404)
+        self.assertEqual(self.client.post('/api/orders/45/reorder', json={'MaChiTiet': [str(detail.MaChiTiet)]}, headers=headers).status_code, 404)
+        self.find.return_value.MaNguoiMua = 12
+        for status in [0, 1, 2, 5]:
+            self.find.return_value.TrangThaiDonHang = status
+            self.assertEqual(self.client.get('/api/orders/45/reorder').status_code, 409)
+            self.assertEqual(self.client.post('/api/orders/45/reorder', json={'MaChiTiet': [str(detail.MaChiTiet)]}, headers=headers).status_code, 409)
+        self.find.return_value.TrangThaiDonHang = 3
+        self.assertEqual(self.client.post('/api/orders/45/reorder', json={'MaChiTiet': ['99']}, headers=headers).status_code, 400)
+        self.commit.assert_not_called()
+
+    def test_reorder_schema_csrf_and_anonymous_boundaries(self):
+        self.reorder_fixture()
+        for body in [{'MaChiTiet': []}, {'MaChiTiet': ['1', '1']}, {'MaChiTiet': [1]},
+                     {'MaChiTiet': ['1'], 'SoLuong': 1}, {'MaChiTiet': ['1'], 'MaNguoiMua': 99}]:
+            self.assertEqual(self.client.post('/api/orders/45/reorder', json=body,
+                headers={'X-CSRF-Token': 'test-csrf'}).status_code, 400)
+        self.assertEqual(self.client.post('/api/orders/45/reorder', json={'MaChiTiet': ['1']}).status_code, 403)
+        with self.client.session_transaction() as state:
+            state.clear()
+        self.assertEqual(self.client.get('/api/orders/45/reorder').status_code, 401)
+        self.commit.assert_not_called()
 
     def test_database_failure_rolls_back_cart_and_order_transaction(self):
         self.create.side_effect = SQLAlchemyError('private database details')
@@ -448,7 +621,7 @@ class OrderTests(unittest.TestCase):
     def test_gateway_csrf_role_and_client_parameters(self):
         self.find.return_value = self.order()
         self.assertEqual(self.client.post('/api/orders/45/payment').status_code, 403)
-        self.user.VaiTro = 2
+        self.user.VaiTro = 99
         self.assertEqual(self.initialize().status_code, 403)
         self.user.VaiTro = 0
         self.assertEqual(self.initialize(json={'order_amount': '1'}).status_code, 400)

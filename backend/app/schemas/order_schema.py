@@ -10,6 +10,16 @@ class OrderListQuerySchema(Schema):
     per_page = fields.Integer(load_default=10, validate=validate.Range(min=1, max=50))
 
 
+class OrderReorderSchema(Schema):
+    MaChiTiet = fields.List(fields.String(validate=validate.Regexp(r'^[1-9][0-9]{0,18}$')),
+                           required=True, validate=validate.Length(min=1, max=1000))
+
+    @validates_schema
+    def unique_items(self, data, **kwargs):
+        if len(set(data['MaChiTiet'])) != len(data['MaChiTiet']):
+            raise ValidationError('Duplicate order lines.')
+
+
 class OrderCreateSchema(Schema):
     MaDonGia = fields.List(fields.Integer(strict=True, validate=validate.Range(min=1, max=2147483647)),
                           required=True, validate=validate.Length(min=1, max=1000))

@@ -42,14 +42,13 @@ def list_owned(user_id, statuses, page, per_page):
                                .offset((page - 1) * per_page).limit(per_page)).scalars().all()
     if not items:
         return items, total, processing_count, {}
-    # One preview per order, with a line count. Avoid an N+1 query for products.
-    first = select(ChiTietDonHang.MaDonHang,
-                   func.min(ChiTietDonHang.MaChiTiet).label('first_id'), func.count().label('item_count')).where(
-                       ChiTietDonHang.MaDonHang.in_([item.MaDonHang for item in items])).group_by(
-                           ChiTietDonHang.MaDonHang).subquery()
-    rows = db.session.execute(select(first.c.MaDonHang, first.c.item_count, ChiTietDonHang, Thuoc, DonViGiaThuoc)
-                              .select_from(first)
-                              .join(ChiTietDonHang, ChiTietDonHang.MaChiTiet == first.c.first_id)
+    # Fetch every line for this owned page in one query, without N+1 requests.
+    rows = db.session.execute(select(ChiTietDonHang, Thuoc, DonViGiaThuoc)
                               .outerjoin(Thuoc, Thuoc.MaThuoc == ChiTietDonHang.MaThuoc)
-                              .outerjoin(DonViGiaThuoc, DonViGiaThuoc.MaDonGia == ChiTietDonHang.MaDonGia)).all()
-    return items, total, processing_count, {row[0]: row[1:] for row in rows}
+                              .outerjoin(DonViGiaThuoc, DonViGiaThuoc.MaDonGia == ChiTietDonHang.MaDonGia)
+                              .where(ChiTietDonHang.MaDonHang.in_([item.MaDonHang for item in items]))
+                              .order_by(ChiTietDonHang.MaDonHang, ChiTietDonHang.MaChiTiet)).all()
+    lines = {}
+    for row in rows:
+        lines.setdefault(row[0].MaDonHang, []).append(row)
+    return items, total, processing_count, lines

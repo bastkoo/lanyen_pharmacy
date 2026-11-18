@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { resetCartFixture, setCartMode, setSaleQuotes } from './browser_home.mjs';
+import { resetCartFixture, setCartMode, setSaleQuotes, appendAccountCart } from './browser_home.mjs';
 import { resetAddressFixture, setAddressFixtureMode, addressSnapshot } from './browser_addresses.mjs';
 
 const cart = [{ MaThuoc: 1, MaDonGia: 11, SoLuong: 1 }, { MaThuoc: 2, MaDonGia: 21, SoLuong: 2 }];
@@ -10,7 +10,23 @@ let fixtureOrder, paymentConfirmed = false, orderCreates = 0, orderMode = 'norma
 let gatewayInitializations = 0;
 let fixtureEnvironment = 'sandbox';
 let listMode = 'normal';
+let reorderCalls = [], reorderMode = 'normal';
 export async function orderFixture(req, json) {
+    if (new URL(req.url, 'http://fixture').pathname.endsWith('/reorder')) {
+        const id = new URL(req.url, 'http://fixture').pathname.split('/')[3];
+        const options = [{ MaChiTiet: '9007199254741001', MaThuoc: 1, MaDonGia: 11, SoLuong: 1,
+            TenThuoc: '<b>Vitamin tổng hợp</b>', DonViTinh: 'Hộp', HinhAnh: null, GiaBan: '50000', ConHang: true },
+        { MaChiTiet: '9007199254741002', MaThuoc: 2, MaDonGia: 21, SoLuong: 2,
+            TenThuoc: 'Vitamin thứ hai', DonViTinh: 'Vỉ', HinhAnh: null, GiaBan: '12000', ConHang: reorderMode !== 'unavailable' }];
+        if (reorderMode === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
+        if (req.method === 'GET') return json(200, { code: 'REORDER_OPTIONS', MaDonHang: id, items: options });
+        assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
+        let raw = ''; for await (const chunk of req) raw += chunk;
+        const values = JSON.parse(raw); reorderCalls.push(values.MaChiTiet);
+        const selected = options.filter(row => values.MaChiTiet.includes(row.MaChiTiet));
+        appendAccountCart(selected.map(row => ({ MaThuoc: row.MaThuoc, MaDonGia: row.MaDonGia, SoLuong: row.SoLuong })));
+        return json(200, { code: 'ORDER_REORDERED', unit_ids: selected.map(row => row.MaDonGia) });
+    }
     if (req.method === 'GET' && new URL(req.url, 'http://fixture').pathname === '/api/orders') {
         if (listMode === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
         const query = new URL(req.url, 'http://fixture').searchParams;
@@ -22,7 +38,11 @@ export async function orderFixture(req, json) {
             TrangThaiDonHang: state, TrangThaiThanhToan: 0, can_pay: state === 0,
             TongTien: '60000', TienGiamGia: '10000', item_count: 2,
             preview: { TenThuoc: '<b>Vitamin tổng hợp</b>', HinhAnh: 'javascript:alert(1)',
-                DonViTinh: 'Hộp', SoLuong: 1, ThanhTien: '50000' }
+                DonViTinh: 'Hộp', SoLuong: 1, ThanhTien: '50000' },
+            items: [{ MaThuoc: 1, TenThuoc: '<b>Vitamin tổng hợp</b>', HinhAnh: 'javascript:alert(1)',
+                DonViTinh: 'Hộp', SoLuong: 1, ThanhTien: '30000' },
+            { MaThuoc: 2, TenThuoc: 'Vitamin thứ hai', HinhAnh: null,
+                DonViTinh: 'Vỉ', SoLuong: 2, ThanhTien: '20000' }]
         }));
         return json(200, { code: 'ORDERS_LISTED', items: page === 1 ? items : [], total: items.length,
             processing_count: listMode === 'empty' ? 0 : 2, page, per_page: 10, status });
@@ -173,10 +193,19 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
             await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
             await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Đang xử lý đơn','Đang giao','Đã giao'][status])}`);
             assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).indexOf(document.querySelector('[aria-current="step"]'))`), status);
-            assert.equal(await run(`document.querySelectorAll('.is-approaching').length`), status === 0 ? 0 : 1);
-            assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).findIndex(e=>e.classList.contains('is-approaching'))`), status - 1);
+            assert.equal(await run(`document.querySelectorAll('.is-approaching').length`), status === 1 || status === 2 ? 1 : 0);
+            assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).findIndex(e=>e.classList.contains('is-approaching'))`), status === 1 || status === 2 ? status - 1 : -1);
             assert.equal(await run(`document.querySelectorAll('#order-progress .is-complete').length`), status === 3 ? 4 : status);
-            assert.equal(await run(`Array.from(document.querySelectorAll('.order-step-flow')).filter(e=>getComputedStyle(e).animationName==='order-flow').length`), status === 0 ? 0 : 1);
+            assert.equal(await run(`Array.from(document.querySelectorAll('.order-step-flow')).filter(e=>getComputedStyle(e).animationName==='order-flow').length`), status === 1 || status === 2 ? 1 : 0);
+            if (status === 2) {
+                // Change the API result on the same page: polling must remove
+                // the old moving segment, not merely style a fresh page.
+                fixtureOrder.TrangThaiDonHang = 3;
+                await waitFor(`document.querySelector('#order-progress').dataset.status==='3'`);
+                assert.equal(await run(`document.querySelectorAll('#order-progress .order-step-flow').length`), 0);
+                assert.equal(await run(`document.querySelector('#order-progress').getAnimations({subtree:true}).length`), 0);
+                assert.equal(await run(`document.querySelectorAll('#order-progress .is-complete').length`), 4);
+            }
         }
         fixtureOrder.TrangThaiDonHang = 4; await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
         await waitFor(`document.querySelector('#order-status').textContent==='Đã hủy'`);
@@ -279,6 +308,10 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await waitFor(`document.querySelectorAll('.orders-card').length===6`);
         assert.equal(await run(`document.querySelectorAll('[data-pay-order]').length`), 1);
         assert.equal(await run(`document.querySelector('.orders-preview h3 b')`), null);
+        assert.equal(await run(`document.querySelectorAll('.orders-preview').length`), 6);
+        assert.equal(await run(`document.querySelector('.orders-preview p').textContent`), '+ 1 sản phẩm khác');
+        assert.equal(await run(`document.querySelectorAll('.orders-buy-again').length`), 2);
+        assert.equal(await run(`Array.from(document.querySelectorAll('.orders-card')).every(e=>[3,4].includes(Number(e.querySelector('.orders-status').dataset.status)) || !e.querySelector('.orders-buy-again'))`), true);
         assert.equal(await run(`document.querySelector('#orders-processing-count').textContent`), '2');
         assert.equal(await run(`document.querySelectorAll('.orders-filters .orders-count').length`), 1);
         for (const [filter, expected] of [['processing', [0, 1]], ['shipping', [2]], ['delivered', [3]], ['cancelled', [4]], ['returns', [5]], ['all', [0, 1, 2, 3, 4, 5]]]) {
@@ -296,6 +329,41 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
                 await writeFile(path.join(root, 'docs', `MY_ORDERS_${width}.png`), Buffer.from(shot.data, 'base64'));
             }
         }
+        await click(`document.querySelector('.orders-buy-again')`);
+        await waitFor(`document.querySelector('#reorder-list input:checked') && !document.querySelector('#reorder-add').disabled`);
+        assert.equal(await run(`document.querySelectorAll('#reorder-list input:checked').length`), 2);
+        assert.equal(await run(`document.querySelector('#reorder-list b')`), null);
+        for (const width of [1440, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run(`document.querySelector('#reorder-dialog').scrollWidth<=document.querySelector('#reorder-dialog').clientWidth`), true);
+            if (width !== 320) {
+                const shot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+                await writeFile(path.join(root, 'docs', `REORDER_${width}.png`), Buffer.from(shot.data, 'base64'));
+            }
+        }
+        await run(`document.querySelectorAll('#reorder-list input').forEach(e=>{e.checked=false;e.dispatchEvent(new Event('change',{bubbles:true}))})`);
+        assert.equal(await run(`document.querySelector('#reorder-buy').disabled && document.querySelector('#reorder-add').disabled`), true);
+        await run(`document.querySelectorAll('#reorder-list input')[1].click();document.querySelector('#reorder-add').click();document.querySelector('#reorder-add').click()`);
+        await waitFor(`!document.querySelector('#reorder-dialog').open`);
+        assert.deepEqual(reorderCalls, [['9007199254741002']]);
+        await click(`document.querySelector('.orders-buy-again')`);
+        await waitFor(`!document.querySelector('#reorder-buy').disabled`);
+        await run(`document.querySelector('#reorder-list input').click();document.querySelector('#reorder-buy').click()`);
+        await waitFor(`location.pathname.endsWith('/checkout.html') && document.querySelector('#checkout-layout')?.hidden===false`);
+        assert.equal(await run('location.search'), '?unit=21');
+        assert.equal(await run(`document.querySelector('#checkout-products').children.length`), 1);
+        assert.equal(orderCreates, 3, 'Buy now only opens confirmation; does not create another order');
+        await navigate('orders.html'); await waitFor(`document.querySelectorAll('.orders-preview').length===6`);
+        reorderMode = 'unavailable'; await click(`document.querySelector('.orders-buy-again')`);
+        await waitFor(`document.querySelectorAll('#reorder-list input').length===2`);
+        assert.equal(await run(`document.querySelectorAll('#reorder-list input')[1].disabled`), true);
+        await key('Escape', 27);
+        await waitFor(`!document.querySelector('#reorder-dialog').open`);
+        assert.equal(await run(`document.activeElement.classList.contains('orders-buy-again')`), true);
+        reorderMode = 'error'; await click(`document.querySelector('.orders-buy-again')`);
+        await waitFor(`document.querySelector('#reorder-state').textContent.includes('Chưa thực hiện')`);
+        assert.equal(await run(`document.querySelector('#reorder-add').disabled`), true);
+        await key('Escape', 27); reorderMode = 'normal';
         await run(`HTMLFormElement.prototype.submit=function(){window.__listPayment={action:this.action,fields:Object.fromEntries(new FormData(this))}};document.querySelector('[data-pay-order]').click()`);
         await waitFor(`Boolean(window.__listPayment)`);
         assert.equal(await run('window.__listPayment.action'), 'https://pay-sandbox.sepay.vn/v1/checkout/init');
@@ -306,7 +374,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         assert.equal(await run(`document.querySelectorAll('.orders-card').length`), 0);
         listMode = 'empty'; await run(`document.querySelector('#orders-retry').click()`);
         await waitFor(`document.querySelector('#orders-empty').hidden===false`);
-        assert.equal(await run(`document.querySelector('#orders-processing-count').textContent`), '0');
+        assert.equal(await run(`document.querySelector('#orders-processing-count').textContent`), '');
+        assert.equal(await run(`document.querySelector('#orders-processing-count').hidden`), true);
         listMode = 'normal'; await run(`window.dispatchEvent(new Event('focus'))`);
         await waitFor(`document.querySelectorAll('.orders-card').length===6`);
         await click($('account-avatar-button')); await click($('logout-button'));

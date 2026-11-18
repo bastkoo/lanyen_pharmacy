@@ -12,7 +12,7 @@ from app.repositories import gio_thuoc_repository as carts
 from app.repositories import dia_chi_repository as addresses
 from app.repositories import chi_tiet_khuyen_mai_repository as promotion_items
 from app.services.auth_service import AuthError
-from app.services.cart_service import get_cart, operation, require_unit
+from app.services.cart_service import get_cart, operation, require_unit, add_database, check_quantity
 from app.services.inventory_service import usable_stock, deduct_order_stock
 from app.services.sepay_gateway_service import gateway_config
 from app.schemas.order_schema import ORDER_FILTERS
@@ -156,23 +156,88 @@ def serialize_item(detail, product, unit):
 
 @operation
 def list_owned(user_id, status, page, per_page):
-    items, total, processing_count, previews = orders.list_owned(user_id, ORDER_FILTERS[status], page, per_page)
+    items, total, processing_count, lines = orders.list_owned(user_id, ORDER_FILTERS[status], page, per_page)
     result = []
     for order in items:
         value = serialize(order, legacy_payment=False)
         value['NgayDat'] = order.NgayDat.isoformat()
-        lines = (order.GhiChu or '').split('\n')
-        receipt = lines[1] if len(lines) > 1 and lines[0].startswith('Người nhận: ') else ''
+        receipt_lines = (order.GhiChu or '').split('\n')
+        receipt = receipt_lines[1] if len(receipt_lines) > 1 and receipt_lines[0].startswith('Người nhận: ') else ''
         value['HinhThucNhanHang'] = ('pickup' if receipt.startswith('Nhận tại nhà thuốc: ') else
                                     'delivery' if receipt.startswith('Giao tận nơi: ') else None)
-        preview = previews.get(order.MaDonHang)
-        value['item_count'] = preview[0] if preview else 0
-        value['preview'] = serialize_item(*preview[1:]) if preview else None
+        value['items'] = [serialize_item(*line) for line in lines.get(order.MaDonHang, [])]
+        value['item_count'] = len(value['items'])
+        # Keep the preview field for older clients; the new UI uses all items.
+        value['preview'] = value['items'][0] if value['items'] else None
         value['can_pay'] = (order.PhuongThucThanhToan == 1 and order.TrangThaiThanhToan == 0
                             and order.TrangThaiDonHang == 0 and order.MoiTruongThanhToan in ('sandbox', 'production'))
         result.append(value)
     return {'items': result, 'total': total, 'processing_count': processing_count,
             'page': page, 'per_page': per_page, 'status': status}
+
+
+def reorder_lines(user_id, order_id, lock=False):
+    if not 0 < order_id <= 9223372036854775807:
+        raise AuthError('ORDER_NOT_FOUND', 404)
+    order = orders.find(order_id, lock=True) if lock else orders.find(order_id)
+    if order is None or order.MaNguoiMua != user_id:
+        raise AuthError('ORDER_NOT_FOUND', 404)
+    if order.TrangThaiDonHang not in (3, 4):
+        raise AuthError('ORDER_NOT_REORDERABLE', 409)
+    return orders.detail_items(order_id)
+
+
+@operation
+def reorder_options(user_id, order_id):
+    lines = reorder_lines(user_id, order_id)
+    stock = usable_stock(list({detail.MaThuoc for detail, _, _ in lines})) if lines else {}
+    result = []
+    for detail, product, unit in lines:
+        item = serialize_item(detail, product, unit)
+        available = bool(product and unit and unit.GiaBan >= 0 and unit.SoLuongQuyDoi > 0
+                         and detail.SoLuong * unit.SoLuongQuyDoi <= stock.get(detail.MaThuoc, 0))
+        item.update(GiaBan=str(unit.GiaBan) if unit and unit.GiaBan >= 0 else None, ConHang=available)
+        result.append(item)
+    return {'MaDonHang': str(order_id), 'items': result}
+
+
+@operation
+def reorder(user_id, order_id, selected_ids):
+    # One transaction for all selected lines, using saved quantities, never
+    # accepting client prices/quantities or granting access to another owner.
+    if carts.lock_user(user_id) is None:
+        raise AuthError('UNAUTHENTICATED', 401)
+    lines = reorder_lines(user_id, order_id, lock=True)
+    selected = set(selected_ids)
+    if not selected or not selected.issubset({str(detail.MaChiTiet) for detail, _, _ in lines}):
+        raise AuthError('INVALID_REQUEST', 400)
+    additions = {}
+    for detail, product, unit in lines:
+        if str(detail.MaChiTiet) not in selected:
+            continue
+        if product is None or unit is None:
+            raise AuthError('UNIT_NOT_FOUND', 404)
+        key = (detail.MaThuoc, detail.MaDonGia)
+        additions[key] = additions.get(key, 0) + detail.SoLuong
+    products = {product_id for product_id, _ in additions}
+    totals = dict(additions)
+    for record in carts.list_items(user_id):
+        if record.MaThuoc in products:
+            key = (record.MaThuoc, record.MaDonGia)
+            totals[key] = totals.get(key, 0) + record.SoLuong
+    required = {}
+    for (product_id, unit_id), quantity in sorted(totals.items()):
+        check_quantity(quantity)
+        unit = require_unit(product_id, unit_id, for_update=True)
+        if unit.SoLuongQuyDoi <= 0:
+            raise AuthError('OUT_OF_STOCK', 409)
+        required[product_id] = required.get(product_id, 0) + quantity * unit.SoLuongQuyDoi
+    stock = usable_stock(list(products))
+    if any(quantity > stock.get(product_id, 0) for product_id, quantity in required.items()):
+        raise AuthError('OUT_OF_STOCK', 409)
+    add_database(user_id, [(product_id, unit_id, quantity)
+                           for (product_id, unit_id), quantity in sorted(additions.items())], check_stock=True)
+    return {'unit_ids': sorted({unit_id for _, unit_id in additions})}
 
 
 @operation

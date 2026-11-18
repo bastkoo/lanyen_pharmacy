@@ -41,15 +41,17 @@ function receiptInfo(note) {
 
 function renderProgress(value) {
     const current = value.TrangThaiDonHang;
+    $('order-progress').dataset.status = String(current);
     const standard = Number.isInteger(current) && current >= 0 && current <= 3;
     $('order-progress').hidden = !standard;
     $('order-progress').replaceChildren();
     if (standard) steps.forEach((label, index) => {
         const completed = index < current || (current === 3 && index === 3);
-        const approaching = current > 0 && index === current - 1;
+        const approaching = current > 0 && current < 3 && index === current - 1;
         const item = node('li', undefined, `order-step${completed ? ' is-complete' : ''}${index === current ? ' is-current' : ''}${approaching ? ' is-approaching' : ''}`);
         if (index === current) item.setAttribute('aria-current', 'step');
-        const connector = node('span', undefined, 'order-step-connector'); connector.setAttribute('aria-hidden', 'true'); connector.append(node('span', undefined, 'order-step-flow'));
+        const connector = node('span', undefined, 'order-step-connector'); connector.setAttribute('aria-hidden', 'true');
+        if (approaching) connector.append(node('span', undefined, 'order-step-flow'));
         const marker = node('span', completed ? '✓' : '', 'order-step-marker'); marker.setAttribute('aria-hidden', 'true');
         item.append(connector, marker, node('span', label, 'order-step-label'));
         if (index === 0) item.append(node('span', dateText(value.NgayDat), 'order-step-caption'));

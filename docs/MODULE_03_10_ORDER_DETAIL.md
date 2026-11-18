@@ -20,7 +20,7 @@ Các giá trị 4/5 vẫn hiển thị Đã hủy/Đổi trả, không bị ép 
 
 Bước hiện tại 0/1/2 có chấm hoạt động, chưa có dấu tích hoàn tất. Chỉ những bước trước bước hiện tại có dấu tích. Trạng thái 3 là kết thúc, cả bốn bước hoàn tất. Vì vậy trạng thái 1 nghĩa là nhà thuốc đang xử lý, chưa hoàn thành xử lý.
 
-Trạng thái 0 chưa tích Đặt hàng và không có hiệu ứng chạy. Trạng thái 1 chạy trên đoạn 0→1, trạng thái 2 trên đoạn 1→2, trạng thái 3 trên đoạn 2→3. Các đoạn đã đi qua giữ màu xanh; đoạn đang chạy có nền trung tính để thấy vệt xanh. `prefers-reduced-motion` thay animation bằng đoạn màu tĩnh. Hiệu ứng không tự thay đổi trạng thái đơn. Trang vẫn đọc API mỗi 5 giây khi đơn ở 0/1/2, giữ nút thử lại khi có lỗi. Đã bỏ nút tạm dừng, nút cập nhật thủ công và dòng thời gian cập nhật theo yêu cầu.
+Trạng thái 0 chưa tích Đặt hàng và không có hiệu ứng chạy. Trạng thái 1 chạy trên đoạn 0→1, trạng thái 2 trên đoạn 1→2. Trạng thái 3 (Đã giao) có đủ bốn dấu tích, các đoạn nối xanh nằm yên, không chạy trên đoạn 2→3. Các đoạn đã đi qua giữ màu xanh; đoạn đang chạy có nền trung tính để thấy vệt xanh. `prefers-reduced-motion` thay animation bằng đoạn màu tĩnh. Hiệu ứng không tự thay đổi trạng thái đơn. Trang vẫn đọc API mỗi 5 giây khi đơn ở 0/1/2, giữ nút thử lại khi có lỗi. Đã bỏ nút tạm dừng, nút cập nhật thủ công và dòng thời gian cập nhật theo yêu cầu.
 
 ## Dữ liệu và bố cục
 

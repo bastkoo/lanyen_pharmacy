@@ -1,7 +1,7 @@
 from flask import current_app, g, jsonify, request, redirect
 
 from app.controllers.auth_controller import payload
-from app.schemas.order_schema import OrderCreateSchema, OrderListQuerySchema
+from app.schemas.order_schema import OrderCreateSchema, OrderListQuerySchema, OrderReorderSchema
 from marshmallow import ValidationError
 from app.services import order_service
 from app.services.auth_service import AuthError
@@ -28,6 +28,32 @@ def list_owned():
 def read(order_id):
     try:
         return jsonify(code='ORDER_READ', order=order_service.read(g.current_user.MaNguoiDung, order_id))
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
+def reorder_options(order_id):
+    if request.args:
+        return jsonify(code='INVALID_REQUEST'), 400
+    try:
+        return jsonify(code='REORDER_OPTIONS', **order_service.reorder_options(g.current_user.MaNguoiDung, order_id))
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
+def reorder(order_id):
+    if request.args:
+        return jsonify(code='INVALID_REQUEST'), 400
+    if not request.is_json:
+        return jsonify(code='JSON_REQUIRED'), 415
+    try:
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            raise ValidationError('Object required.')
+        data = OrderReorderSchema().load(body)
+        return jsonify(code='ORDER_REORDERED', **order_service.reorder(g.current_user.MaNguoiDung, order_id, data['MaChiTiet']))
+    except ValidationError:
+        return jsonify(code='INVALID_REQUEST'), 400
     except AuthError as error:
         return jsonify(code=error.code), error.status
 
