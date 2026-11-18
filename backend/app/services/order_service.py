@@ -11,11 +11,13 @@ from app.repositories import don_hang_repository as orders
 from app.repositories import gio_thuoc_repository as carts
 from app.repositories import dia_chi_repository as addresses
 from app.repositories import chi_tiet_khuyen_mai_repository as promotion_items
+from app.repositories import diem_thuong_repository as points
 from app.services.auth_service import AuthError
 from app.services.cart_service import get_cart, operation, require_unit, add_database, check_quantity
 from app.services.inventory_service import usable_stock, deduct_order_stock
 from app.services.sepay_gateway_service import gateway_config
 from app.schemas.order_schema import ORDER_FILTERS
+from app.services.points_service import redemption
 
 
 def payment_config():
@@ -30,6 +32,7 @@ def serialize(order, legacy_payment=True):
               ('MaDonHang', 'TongTien', 'TienGiamGia', 'TongThanhToan')}
     result.update({key: getattr(order, key) for key in
                    ('TrangThaiDonHang', 'TrangThaiThanhToan', 'PhuongThucThanhToan')})
+    result['DoiDiem'] = getattr(order, 'DoiDiem', False)
     if order.PhuongThucThanhToan == 1:
         result['payment_environment'] = order.MoiTruongThanhToan
     # Retain the legacy read payload when configured. Sandbox-only installations
@@ -82,6 +85,13 @@ def create(user, data, reorder_id=None):
     if any(count > stock.get(product, 0) for product, count in required.items()):
         raise AuthError('OUT_OF_STOCK', 409)
     total = quote['total']
+    redeemed = 0
+    if data.get('DoiDiem', False):
+        # Account lock above serializes balance checks and debits across orders.
+        redeemed, discount = redemption(total, points.balance(user.MaNguoiDung))
+        if redeemed <= 0:
+            raise AuthError('POINTS_UNAVAILABLE', 409)
+        total -= discount
     if total != int(data['TongThanhToan']):
         raise AuthError('QUOTE_CHANGED', 409)
     if not 0 <= original <= 9223372036854775807 or not 0 <= original - total <= 2147483647:
@@ -111,11 +121,14 @@ def create(user, data, reorder_id=None):
     order = orders.create(dict(
         MaNguoiMua=user.MaNguoiDung, MaNhanVien=None, TongTien=original,
         TienGiamGia=original - total, TongThanhToan=total,
+        DoiDiem=redeemed > 0,
         TrangThaiDonHang=1 if data['PhuongThucThanhToan'] == 0 else 0,
         PhuongThucThanhToan=data['PhuongThucThanhToan'], TrangThaiThanhToan=0,
         MoiTruongThanhToan=environment,
         NgayDat=datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None), KenhDatHang=False,
         GhiChu='\n'.join([recipient, receipt, data['GhiChu'].strip()]).rstrip()), details)
+    if redeemed:
+        points.debit(user.MaNguoiDung, redeemed, order.MaDonHang, order.NgayDat)
     for record in records:
         carts.remove(record)
     result = serialize(order, legacy_payment=False)

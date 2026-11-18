@@ -1,9 +1,9 @@
 import { quoteCart } from '../api/cart.js';
-import { getSession, getAddresses } from '../api/auth.js';
+import { getSession, getAddresses, getPoints } from '../api/auth.js';
 import { money, cartErrorMessage } from '../components/cart.js';
 import { authMessage } from '../components/auth-dialog.js';
 import { validHttps } from '../utils/product-validation.js';
-import { readCheckoutSelection, readReorderSelection } from '../utils/checkout-selection.js';
+import { readCheckoutSelection, readReorderSelection, checkoutRedemption } from '../utils/checkout-selection.js';
 import { createOrder, getOrder, initializePayment, quoteReorder, checkoutReorder } from '../api/orders.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
 
@@ -18,12 +18,47 @@ let user, known = false, currentKey, addresses = [], addressId = null, addressCh
 let quoteVersion = 0, addressVersion = 0, sessionVersion = 0, disposed = false;
 let ready = false, submitting = false, totalToPay = null, order = null, paymentTimer;
 let openingPayment = false;
+let pointsVersion = 0, pointsBalance = null, quoteTotal = null;
 const resumeId = new URLSearchParams(location.search).get('order');
 let activeOrderId = /^[1-9][0-9]{0,18}$/.test(resumeId || '') ? resumeId : null;
 const key = value => value ? String(value.MaNguoiDung) : 'guest';
 
 function updateComplete() {
     $('checkout-complete').disabled = submitting || !ready || Boolean(activeOrderId);
+    $('checkout-use-points').disabled = submitting || !ready || Boolean(activeOrderId) || pointsBalance === null
+        || pointsBalance <= 0n || quoteTotal === null || quoteTotal < 100n;
+}
+function updateRedemption() {
+    if (quoteTotal === null || activeOrderId) return;
+    const result = checkoutRedemption(quoteTotal, pointsBalance ?? 0n, $('checkout-use-points').checked);
+    totalToPay = String(result.total);
+    $('checkout-total').textContent = ready ? money(result.total) : '—';
+    $('checkout-points-discount-row').hidden = result.quantity <= 0n;
+    $('checkout-points-discount').textContent = `−${money(result.discount)}`;
+    updateComplete();
+}
+async function loadPoints() {
+    const attempt = ++pointsVersion, account = currentKey;
+    pointsBalance = null; $('checkout-use-points').checked = false;
+    $('checkout-points').hidden = true;
+    $('checkout-points-state').hidden = true; $('checkout-points-retry').hidden = true;
+    $('checkout-points-balance').textContent = '—'; updateRedemption(); updateComplete();
+    if (!user || activeOrderId) return;
+    try {
+        const data = await getPoints(1, user.MaNguoiDung);
+        if (disposed || attempt !== pointsVersion || account !== currentKey || activeOrderId) return;
+        if (data.code !== 'POINTS_LISTED' || !/^-?[0-9]+$/.test(String(data.balance))) throw { code: 'INVALID_RESPONSE' };
+        pointsBalance = BigInt(data.balance);
+        $('checkout-points-balance').textContent = new Intl.NumberFormat('vi-VN').format(pointsBalance);
+        $('checkout-points').hidden = pointsBalance <= 0n;
+        updateRedemption(); updateComplete();
+    } catch (error) {
+        if (disposed || attempt !== pointsVersion || account !== currentKey || activeOrderId) return;
+        $('checkout-points-state').textContent = 'Chưa tải được số dư xu. Bạn có thể thử lại hoặc đặt hàng không đổi xu.';
+        $('checkout-points-state').hidden = false;
+        $('checkout-points-retry').hidden = false;
+        if (['SESSION_CHANGED', 'UNAUTHENTICATED', 'ACCOUNT_LOCKED'].includes(error.code)) window.dispatchEvent(new Event('focus'));
+    }
 }
 function resetOrder() {
     clearTimeout(paymentTimer); order = null;
@@ -35,6 +70,7 @@ function resetOrder() {
 }
 function renderOrder(value) {
     order = value; activeOrderId = String(value.MaDonHang);
+    pointsVersion++; $('checkout-points').hidden = true;
     const pending = value.PhuongThucThanhToan === 1 && value.TrangThaiThanhToan === 0 && value.TrangThaiDonHang === 0;
     const environmentKnown = ['sandbox', 'production'].includes(value.payment_environment);
     $('checkout-result').hidden = false;
@@ -187,7 +223,7 @@ function renderProducts(data) {
 }
 async function loadQuote() {
     if (activeOrderId || submitting) return;
-    ready = false; updateComplete();
+    ready = false; quoteTotal = null; updateComplete();
     const attempt = ++quoteVersion;
     $('checkout-layout').hidden = true; $('checkout-retry').hidden = true;
     if (!selectedUnits.length && !reorderSelection) { $('checkout-state').textContent = invalidSelection ? 'Đường dẫn sản phẩm chưa hợp lệ. Trở về giỏ hàng để chọn lại.' : 'Chưa có sản phẩm được chọn. Trở về giỏ hàng và chọn sản phẩm muốn mua.'; return; }
@@ -204,7 +240,7 @@ async function loadQuote() {
         }
         renderProducts(data); $('checkout-layout').hidden = false;
         ready = data.items.length > 0 && data.items.every(item => item.GiaBan !== null && item.ConHang === true);
-        totalToPay = String(data.total); updateComplete();
+        quoteTotal = BigInt(data.total); updateRedemption(); updateComplete();
     } catch (error) {
         if (disposed || attempt !== quoteVersion) return;
         const reorderErrors = { ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
@@ -217,6 +253,8 @@ function receive(next, force = false) {
     sessionVersion++;
     const changed = !known || currentKey !== key(next);
     if (known && changed) {
+        pointsVersion++; pointsBalance = null; quoteTotal = null; $('checkout-use-points').checked = false;
+        $('checkout-points').hidden = true; $('checkout-points-discount-row').hidden = true;
         ready = false; updateComplete(); resetOrder();
         if (currentKey !== 'guest') $('checkout-note').value = '';
         addresses = []; addressId = null;
@@ -227,7 +265,7 @@ function receive(next, force = false) {
     }
     user = next || null; currentKey = key(user); known = true;
     if (activeOrderId) { $('checkout-layout').hidden = true; $('checkout-state').textContent = user ? '' : 'Đăng nhập đúng tài khoản để xem đơn hàng.'; if (user) checkPayment(); }
-    else if (changed || force) { renderAddress(); loadQuote(); loadAddresses(); }
+    else if (changed || force) { renderAddress(); loadQuote(); loadAddresses(); loadPoints(); }
     else $('checkout-recipient').textContent = user ? `${user.HoTen} · ${user.SDT}` : '';
 }
 async function initialize() {
@@ -257,6 +295,8 @@ $('checkout-address-retry').addEventListener('click', loadAddresses);
 $('checkout-retry').addEventListener('click', initialize);
 $('checkout-payment-check').addEventListener('click', checkPayment);
 $('checkout-open-payment').addEventListener('click', openPayment);
+$('checkout-use-points').addEventListener('change', updateRedemption);
+$('checkout-points-retry').addEventListener('click', loadPoints);
 $('checkout-complete').addEventListener('click', async () => {
     if (submitting || !ready || activeOrderId) return;
     if (!user) { $('checkout-complete-note').textContent = 'Đăng nhập để tạo đơn hàng.'; $('login-button').click(); return; }
@@ -267,6 +307,7 @@ $('checkout-complete').addEventListener('click', async () => {
     const account = currentKey;
     try {
         const values = {
+            DoiDiem: $('checkout-use-points').checked && pointsBalance !== null && pointsBalance > 0n && quoteTotal >= 100n,
             PhuongThucThanhToan: document.querySelector('input[name="payment"]:checked').value === 'cod' ? 0 : 1,
             HinhThucNhanHang: receipt, MaDiaChi: receipt === 'delivery' ? addressId : null,
             GhiChu: $('checkout-note').value, TongThanhToan: totalToPay };
@@ -285,7 +326,8 @@ $('checkout-complete').addEventListener('click', async () => {
             GATEWAY_NOT_CONFIGURED: paymentMessage(error), GATEWAY_CONFIG_INVALID: paymentMessage(error),
             GATEWAY_PRODUCTION_DISABLED: paymentMessage(error),
             GATEWAY_ENVIRONMENT_COLLISION: paymentMessage(error),
-            QUOTE_CHANGED: 'Giá đã thay đổi. Hãy tải lại trang để kiểm tra trước khi đặt hàng.',
+            QUOTE_CHANGED: 'Giá hoặc số dư xu đã thay đổi. Hãy tải lại trang để kiểm tra trước khi đặt hàng.',
+            POINTS_UNAVAILABLE: 'Số dư xu không còn đủ để đổi. Hãy tải lại trang để kiểm tra.',
             CART_CHANGED: 'Giỏ hàng đã thay đổi hoặc đơn đã được tạo. Hãy kiểm tra trước khi đặt lại.',
             OUT_OF_STOCK: reorderSelection ? 'Không đủ tồn kho. Hãy trở về Đơn hàng của tôi để chọn lại.' : 'Không đủ tồn kho. Hãy trở về giỏ hàng để điều chỉnh.',
             ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
@@ -294,7 +336,7 @@ $('checkout-complete').addEventListener('click', async () => {
             QR_AMOUNT_INVALID: 'Đơn có tổng tiền bằng 0. Vui lòng chọn thanh toán khi nhận hàng.',
             CONNECTION_FAILED: 'Mất kết nối khi tạo đơn; đơn có thể đã được lưu. Không tự động gửi lại. Hãy kiểm tra trước khi đặt lại.' };
         $('checkout-complete-note').textContent = messages[error.code] || authMessage(error);
-        if (['CONNECTION_FAILED', 'CART_CHANGED', 'QUOTE_CHANGED', 'OUT_OF_STOCK'].includes(error.code)) ready = false;
+        if (['CONNECTION_FAILED', 'CART_CHANGED', 'QUOTE_CHANGED', 'OUT_OF_STOCK', 'POINTS_UNAVAILABLE'].includes(error.code)) ready = false;
     } finally { submitting = false; updateComplete(); }
 });
 for (const input of document.querySelectorAll('input[name="receipt"]')) input.addEventListener('change', showReceipt);

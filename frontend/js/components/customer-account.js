@@ -16,7 +16,7 @@ export function setupCustomerAccount() {
     const trigger = document.createElement('button'); trigger.type = 'button'; trigger.id = 'account-avatar-button'; trigger.className = 'customer-avatar';
     trigger.setAttribute('aria-expanded', 'false'); trigger.setAttribute('aria-controls', 'customer-account-menu');
     const menu = document.createElement('nav'); menu.id = 'customer-account-menu'; menu.className = 'customer-account-menu'; menu.hidden = true; menu.setAttribute('aria-label', 'Tài khoản của tôi');
-    for (const [file, text] of [['profile.html', 'Thông tin cá nhân'], ['points.html', 'Điểm tích lũy'], ['orders.html', 'Đơn hàng của tôi'], ['addresses.html', 'Địa chỉ nhận hàng']]) {
+    for (const [file, text] of [['profile.html', 'Thông tin cá nhân'], ['points.html', 'Xu tích lũy'], ['orders.html', 'Đơn hàng của tôi'], ['addresses.html', 'Địa chỉ nhận hàng']]) {
         const link = document.createElement('a'); link.href = `../customer/${file}`; link.textContent = text; menu.append(link);
     }
     const management = document.createElement('a'); management.textContent = 'Quản lý'; management.hidden = true; management.dataset.management = ''; menu.append(management);

@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { resetCartFixture, setCartMode, setSaleQuotes, appendAccountCart } from './browser_home.mjs';
 import { resetAddressFixture, setAddressFixtureMode, addressSnapshot } from './browser_addresses.mjs';
+import { setPointsFixtureMode } from './browser_points.mjs';
 
 const cart = [{ MaThuoc: 1, MaDonGia: 11, SoLuong: 1 }, { MaThuoc: 2, MaDonGia: 21, SoLuong: 2 }];
 const addresses = [{ MaDiaChi: 1, DiaChiGiao: true, TinhThanh: 'Thành phố Huế', PhuongXa: 'Phường Vỹ Dạ', DiaChiCuThe: 'Nhà chính' }, { MaDiaChi: 2, DiaChiGiao: false, TinhThanh: 'Thành phố Hà Nội', PhuongXa: 'Phường B', DiaChiCuThe: '<b>Nhà phụ</b>' }];
@@ -80,6 +81,7 @@ export async function orderFixture(req, json) {
         if (orderMode === 'config-error') return json(503, { code: 'GATEWAY_NOT_CONFIGURED' });
         orderCreates++;
         fixtureOrder = { MaDonHang: String(9007199254741000n + BigInt(orderCreates)), TongThanhToan: values.TongThanhToan, payment_environment: fixtureEnvironment,
+            DoiDiem: values.DoiDiem === true,
             PhuongThucThanhToan: values.PhuongThucThanhToan, TrangThaiThanhToan: 0,
             TrangThaiDonHang: values.PhuongThucThanhToan === 0 ? 1 : 0 };
         return json(201, { code: 'ORDER_CREATED', order: fixtureOrder });
@@ -131,6 +133,16 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await waitFor(`!document.querySelector('#otp-form').hidden && !document.querySelector('#otp').disabled`);
         await run(`document.querySelector('#otp').value='123456';document.querySelector('#otp-form').requestSubmit()`);
         await ready('40.000 ₫'); await waitFor(`${$('checkout-street')}.textContent==='Nhà chính'`);
+        await waitFor(`!document.querySelector('#checkout-use-points').disabled`);
+        assert.equal(await run(`document.querySelector('#checkout-points-balance').textContent`), '195');
+        assert.equal(await run(`document.querySelector('#checkout-use-points').checked`), false);
+        await click($('checkout-use-points')); await ready('20.500 ₫');
+        assert.equal(await run(`document.querySelector('#checkout-points-discount').textContent`), '−19.500 ₫');
+        assert.equal(await run(`document.querySelector('#checkout-points-option').textContent`), 'Sử dụng điểm: 195 xu');
+        assert.equal(await run(`document.querySelector('#checkout-use-points').getAttribute('role')`), 'switch');
+        assert.equal(await run(`document.querySelector('#checkout-points-state').hidden`), true);
+        await click($('checkout-use-points')); await ready('40.000 ₫');
+        assert.equal(orderCreates, 0, 'Toggling redemption must not create an order');
         assert.equal(await run(`${$('checkout-note')}.value`), 'Gọi trước khi giao');
         await click($('checkout-change-address')); await waitFor(`${$('checkout-address-dialog')}.open`);
         await click(`document.querySelector('input[name="delivery-address"][value="2"]')`); await click($('checkout-address-done'));
@@ -388,6 +400,26 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await click($('account-avatar-button')); await click($('logout-button'));
         await waitFor(`document.querySelectorAll('.orders-card').length===0 && document.querySelector('#orders-processing-count').hidden`);
         console.log('PASS: My Orders filters 0–5, global processing count, pending QR payment form, safe text, network retry, empty state, logout privacy, responsive 1440–320px.');
+        setScenario('manager'); resetCartFixture([], cart); setSaleQuotes(true);
+        setPointsFixtureMode('empty');
+        await navigate('checkout.html?unit=11'); await ready('40.000 ₫');
+        await waitFor(`document.querySelector('#checkout-points-balance').textContent==='0'`);
+        assert.equal(await run(`document.querySelector('#checkout-points').hidden`), true);
+        setPointsFixtureMode('normal');
+        await navigate('checkout.html?unit=11'); await ready('40.000 ₫');
+        await waitFor(`!document.querySelector('#checkout-use-points').disabled`);
+        await click($('checkout-use-points')); await ready('20.500 ₫');
+        for (const width of [1440, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Redemption fits ${width}px`);
+        }
+        await click(`document.querySelector('input[name="receipt"][value="pickup"]')`);
+        await click($('checkout-complete'));
+        await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
+        assert.equal(fixtureOrder.DoiDiem, true);
+        assert.equal(fixtureOrder.TongThanhToan, '20500');
+        assert.equal(await run(`document.querySelector('#order-total').textContent`), '20.500 ₫');
+        console.log('PASS: gold coins, optional maximum redemption, live discount and total, confirmed DoiDiem payload, 1440–320px. API MOCK.');
         console.log('PASS: checkout selection, guest/login, address, pricing/errors, COD creation, QR/config failure/payment confirmation, double-click prevention, BIGINT order reload, logout privacy, responsive 1440–320px. API MOCK; no database or real payment.');
         console.log(`Order detail screenshots: ${path.join(root, 'docs')}`);
     } finally { fixtureEnvironment = 'sandbox'; setSaleQuotes(false); setCartMode('normal'); resetCartFixture([]); resetAddressFixture([]); setScenario('anonymous'); }

@@ -1,7 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkoutUrl, readCheckoutSelection, readReorderSelection, reorderCheckoutUrl } from '../../frontend/js/utils/checkout-selection.js';
+import { checkoutUrl, readCheckoutSelection, readReorderSelection, reorderCheckoutUrl, checkoutRedemption } from '../../frontend/js/utils/checkout-selection.js';
 import { checkoutFields } from '../../frontend/js/utils/sepay-checkout.js';
+
+test('redemption uses maximum whole coins at 100 VND, caps at balance and total, and stays opt-in', () => {
+    assert.deepEqual(checkoutRedemption('25050', '300', true), { quantity: 250n, discount: 25000n, total: 50n });
+    assert.deepEqual(checkoutRedemption('25050', '20', true), { quantity: 20n, discount: 2000n, total: 23050n });
+    assert.deepEqual(checkoutRedemption('25050', '300', false), { quantity: 0n, discount: 0n, total: 25050n });
+    for (const [total, balance] of [['0', '20'], ['99', '20'], ['25000', '0'], ['25000', '-3']]) {
+        assert.equal(checkoutRedemption(total, balance, true).quantity, 0n);
+    }
+    assert.equal(checkoutRedemption('9223372036854775807', '300', true).total, 9223372036854745807n);
+});
 
 test('direct reorder transfers only source order and selected lines, preserving bigint IDs', () => {
     const url = reorderCheckoutUrl('45', ['9007199254741001', '9007199254741002']);

@@ -21,6 +21,7 @@ class OrderReorderSchema(Schema):
 
 
 class OrderCreateSchema(Schema):
+    DoiDiem = fields.Boolean(load_default=False)
     MaDonGia = fields.List(fields.Integer(strict=True, validate=validate.Range(min=1, max=2147483647)),
                           required=True, validate=validate.Length(min=1, max=1000))
     PhuongThucThanhToan = fields.Integer(required=True, strict=True, validate=validate.OneOf([0, 1]))
@@ -29,6 +30,11 @@ class OrderCreateSchema(Schema):
     GhiChu = fields.String(load_default='', validate=validate.Length(max=2000))
     # Detect a changed quote instead of charging a different amount silently.
     TongThanhToan = fields.String(required=True, validate=validate.Regexp(r'^(0|[1-9][0-9]{0,18})$'))
+
+    @validates_schema(pass_original=True)
+    def validate_redemption(self, data, original_data, **kwargs):
+        if type(original_data.get('DoiDiem', False)) is not bool:
+            raise ValidationError('DoiDiem must be boolean.')
 
     @validates_schema
     def validate_selection(self, data, **kwargs):

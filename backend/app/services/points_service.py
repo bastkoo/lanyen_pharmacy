@@ -5,6 +5,14 @@ from app.repositories import diem_thuong_repository as points
 from app.services.auth_service import AuthError
 
 
+POINT_VALUE_VND = 100
+
+
+def redemption(total, balance):
+    quantity = min(max(0, balance), total // POINT_VALUE_VND)
+    return quantity, quantity * POINT_VALUE_VND
+
+
 def list_points(user_id, page, per_page):
     try:
         rows, balance, total = points.list_owned(user_id, page, per_page)

@@ -44,6 +44,9 @@ class DonHang(db.Model):
         nullable=False
     )
 
+    # Có sử dụng xu để giảm tiền cho đơn hàng.
+    DoiDiem = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+
     # 0: Chờ duyệt
     # 1: Đang xử lý
     # 2: Đang giao

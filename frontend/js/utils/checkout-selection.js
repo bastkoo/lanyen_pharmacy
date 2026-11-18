@@ -1,4 +1,12 @@
 const validId = value => /^[1-9][0-9]*$/.test(value) && Number(value) <= 2147483647;
+export function checkoutRedemption(total, balance, enabled) {
+    total = BigInt(total);
+    balance = BigInt(balance);
+    const maximum = total / 100n;
+    const quantity = enabled ? (balance < 0n ? 0n : balance < maximum ? balance : maximum) : 0n;
+    return { quantity, discount: quantity * 100n, total: total - quantity * 100n };
+}
+
 export function readCheckoutSelection(search) {
     const params = new URLSearchParams(search);
     if ([...params.keys()].some(key => key !== 'unit')) throw new Error('INVALID_SELECTION');

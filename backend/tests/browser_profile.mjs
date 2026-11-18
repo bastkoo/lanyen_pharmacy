@@ -29,7 +29,7 @@ export async function checkProfile({ evaluate: run, waitFor, command, key, baseU
         await navigate('home.html'); await waitFor(`document.querySelector('.customer-account')?.hidden===false`);
         assert.equal(await run(`document.querySelector('#account-avatar-button').textContent`), 'Y');
         await click('account-avatar-button');
-        assert.deepEqual(await run(`Array.from(document.querySelector('#customer-account-menu').children).map(item=>item.textContent.trim())`), ['Thông tin cá nhân', 'Điểm tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng', 'Quản lý', 'Đăng xuất']);
+        assert.deepEqual(await run(`Array.from(document.querySelector('#customer-account-menu').children).map(item=>item.textContent.trim())`), ['Thông tin cá nhân', 'Xu tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng', 'Quản lý', 'Đăng xuất']);
         assert.equal(await run(`document.querySelector('[data-management]').getAttribute('href')`), '../manager/index.html#overview');
         await key('Escape', 27);
         assert.equal(await run(`document.querySelector('#customer-account-menu').hidden && document.activeElement.id==='account-avatar-button'`), true);

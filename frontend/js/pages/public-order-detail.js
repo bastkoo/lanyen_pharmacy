@@ -94,6 +94,7 @@ function render(value) {
     $('order-note').textContent = receipt.note; $('order-note-section').hidden = !receipt.note;
     $('order-subtotal').textContent = money(value.TongTien);
     $('order-discount').textContent = `${BigInt(value.TienGiamGia) > 0n ? '−' : ''}${money(value.TienGiamGia)}`;
+    $('order-discount').previousElementSibling.textContent = value.DoiDiem ? 'Giảm giá sản phẩm và đổi xu' : 'Giảm giá sản phẩm';
     $('order-total').textContent = money(value.TongThanhToan);
     $('order-shipping').textContent = receipt.pickup ? 'Không áp dụng' : 'Chưa xác nhận';
     $('order-total-note').textContent = receipt.pickup ? 'Nhận hàng tại nhà thuốc Lan Yến.' : 'Phí giao hàng nếu có được nhà thuốc xác nhận riêng.';

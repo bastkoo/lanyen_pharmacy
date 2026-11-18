@@ -69,3 +69,14 @@
 .checkout-result img { display: block; max-width: 100%; height: auto; margin-block: 16px; }
 #checkout-transfer-details { white-space: pre-line; overflow-wrap: anywhere; margin-block: 16px; }
 .checkout-result > .quiet-link { display: inline-block; margin: 16px; }
+.checkout-points { margin-block: 20px; padding-block: 16px; border-block: 1px solid var(--home-line); font-size: 14px; }
+.checkout-points label { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; cursor: pointer; }
+.checkout-points label > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.checkout-points input { position: absolute; right: 0; width: 44px; height: 26px; opacity: 0; }
+.checkout-points-track { display: block; width: 44px; height: 26px; flex: none; padding: 3px; border-radius: 20px; background: var(--home-muted); }
+.checkout-points-track::before { content: ''; display: block; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-color); }
+.checkout-points input:checked + .checkout-points-track { background: var(--primary-dark); }
+.checkout-points input:checked + .checkout-points-track::before { transform: translateX(18px); }
+.checkout-points input:focus-visible + .checkout-points-track { outline: 2px solid var(--primary-dark); outline-offset: 3px; }
+.checkout-points input:disabled + .checkout-points-track { opacity: .5; }
+#checkout-points-state { margin-top: 8px; font-size: 13px; line-height: 1.7; color: var(--home-muted); }

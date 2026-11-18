@@ -62,6 +62,8 @@ class OrderTests(unittest.TestCase):
         self.remove = self.mock('app.services.order_service.carts.remove')
         self.commit = self.mock('app.services.order_service.db.session.commit')
         self.rollback = self.mock('app.services.order_service.db.session.rollback')
+        self.points_balance = self.mock('app.services.order_service.points.balance', return_value=25)
+        self.points_debit = self.mock('app.services.order_service.points.debit')
         self.client = self.app.test_client()
         with self.client.session_transaction() as state:
             state.update(user_id=12, csrf_token='test-csrf')
@@ -71,6 +73,74 @@ class OrderTests(unittest.TestCase):
     def post(self, **changes):
         return self.client.post('/api/orders', json={**self.values, **changes},
                                 headers={'X-CSRF-Token': 'test-csrf'})
+
+    def test_redeem_points_discounts_and_debits_in_order_transaction(self):
+        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json['order']['DoiDiem'])
+        self.assertEqual(response.json['order']['TongThanhToan'], '29500')
+        self.assertEqual(response.json['order']['TienGiamGia'], '6500')
+        self.points_balance.assert_called_once_with(12)
+        self.points_debit.assert_called_once_with(12, 25, 45, self.create.call_args.args[0]['NgayDat'])
+        self.commit.assert_called_once()
+
+    def test_no_redemption_does_not_read_or_debit_points(self):
+        response = self.post()
+        self.assertEqual(response.status_code, 201)
+        self.assertFalse(response.json['order']['DoiDiem'])
+        self.points_balance.assert_not_called()
+        self.points_debit.assert_not_called()
+
+    def test_redeem_caps_at_whole_coins_and_preserves_remainder(self):
+        self.points_balance.return_value = 500
+        self.quote.return_value['total'] = 32050
+        response = self.post(DoiDiem=True, TongThanhToan='50')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json['order']['TongThanhToan'], '50')
+        self.assertEqual(self.points_debit.call_args.args[1], 320)
+
+    def test_redemption_rejects_unavailable_changed_balance_and_invalid_boolean(self):
+        for balance in [0, -2]:
+            self.points_balance.return_value = balance
+            response = self.post(DoiDiem=True)
+            self.assertEqual((response.status_code, response.json['code']), (409, 'POINTS_UNAVAILABLE'))
+        self.points_balance.return_value = 20
+        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        self.assertEqual(response.json['code'], 'QUOTE_CHANGED')
+        for flag in [0, 1, 'true', 'false', None, [], {}]:
+            self.assertEqual(self.post(DoiDiem=flag).status_code, 400)
+        self.points_debit.assert_not_called()
+        self.create.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_full_redemption_allows_cod_but_rejects_zero_amount_qr(self):
+        self.points_balance.return_value = 500
+        response = self.post(DoiDiem=True, TongThanhToan='0', PhuongThucThanhToan=1)
+        self.assertEqual(response.json['code'], 'QR_AMOUNT_INVALID')
+        self.points_debit.assert_not_called()
+        response = self.post(DoiDiem=True, TongThanhToan='0')
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(self.points_debit.call_args.args[1], 320)
+
+    def test_redemption_failure_rolls_back_order_and_never_commits(self):
+        self.points_debit.side_effect = SQLAlchemyError('private')
+        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn('private', response.text)
+        self.rollback.assert_called_once()
+        self.commit.assert_not_called()
+
+    def test_direct_reorder_redemption_preserves_cart(self):
+        detail, _ = self.reorder_fixture()
+        values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
+        response = self.client.post('/api/orders/45/reorder/checkout',
+            json={**values, 'MaChiTiet': [str(detail.MaChiTiet)], 'DoiDiem': True, 'TongThanhToan': '29500'},
+            headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(response.json['order']['DoiDiem'])
+        self.points_debit.assert_called_once()
+        self.records.assert_not_called()
+        self.remove.assert_not_called()
 
     def order(self, **changes):
         return NS(**{**dict(MaDonHang=45, MaNguoiMua=12, TongTien=36000, TienGiamGia=4000,
