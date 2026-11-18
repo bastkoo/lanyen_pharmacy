@@ -52,7 +52,8 @@ class OrderTests(unittest.TestCase):
                                          ConHang=True, ThanhTien=32000)]})
         self.mock('app.services.order_service.require_unit', return_value=NS(GiaBan=12000, SoLuongQuyDoi=10))
         self.stock = self.mock('app.services.order_service.usable_stock', return_value={7: 100})
-        self.deduct = self.mock('app.services.order_service.deduct_order_stock')
+        self.deduct = self.mock('app.services.order_service.deduct_order_stock',
+                                return_value=[dict(MaLo='5', MaThuoc=7, SoLuong=30)])
         self.promotion_detail = self.mock('app.services.order_service.promotion_items.find_by_id', return_value=None)
         self.mock('app.services.order_service.addresses.list_owned', return_value=[
             NS(MaDiaChi=9, DiaChiCuThe='Nhà 1', PhuongXa='Vỹ Dạ', TinhThanh='Huế')])
@@ -73,6 +74,103 @@ class OrderTests(unittest.TestCase):
     def post(self, **changes):
         return self.client.post('/api/orders', json={**self.values, **changes},
                                 headers={'X-CSRF-Token': 'test-csrf'})
+
+    def cancellation_fixture(self, status=1, points=25):
+        snapshot = dict(version=1, points=points, batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
+                        promotions=[dict(MaChuongTrinh=6, MaThuoc=7, SoLuong=20)])
+        order = self.order(TrangThaiDonHang=status, DoiDiem=points > 0, DuLieuHoanTra=snapshot)
+        self.find.return_value = order
+        batch = NS(SoLuongNhap=100, SoLuongTon=70)
+        self.batch_find = self.mock('app.services.order_service.batches.find_by_id', return_value=batch)
+        quota = NS(SoLuong=40)
+        self.promotion_detail.return_value = quota
+        self.refund = self.mock('app.services.order_service.points.refund')
+        return order, batch, quota
+
+    def cancel(self, order_id=45, **kwargs):
+        return self.client.post(f'/api/orders/{order_id}/cancel', json={},
+            headers={'X-CSRF-Token': 'test-csrf'}, **kwargs)
+
+    def test_cancel_restores_exact_stock_promotions_points_once(self):
+        order, batch, quota = self.cancellation_fixture()
+        response = self.cancel()
+        self.assertEqual((response.status_code, response.json['code']), (200, 'ORDER_CANCELLED'))
+        self.assertEqual((order.TrangThaiDonHang, batch.SoLuongTon, quota.SoLuong), (4, 100, 60))
+        self.find.assert_called_once_with(45, lock=True)
+        self.batch_find.assert_called_once_with(7, 5, for_update=True)
+        self.promotion_detail.assert_called_once_with(6, 7, for_update=True)
+        self.assertEqual(self.refund.call_args.args[:3], (12, 25, 45))
+        self.assertEqual(self.cancel().json['code'], 'ORDER_NOT_CANCELLABLE')
+        self.refund.assert_called_once()
+        self.commit.assert_called_once()
+        self.assertEqual((batch.SoLuongTon, quota.SoLuong), (100, 60))
+
+    def test_cancel_status_zero_without_points_and_paid_status_one(self):
+        order, batch, quota = self.cancellation_fixture(status=0, points=0)
+        self.assertEqual(self.cancel().status_code, 200)
+        self.refund.assert_not_called()
+        order.TrangThaiDonHang = 1; order.TrangThaiThanhToan = 1
+        batch.SoLuongTon = 70; quota.SoLuong = 40
+        self.assertEqual(self.cancel().status_code, 200)
+        self.assertEqual(order.TrangThaiThanhToan, 1, 'Cancellation does not invent a cash refund')
+
+    def test_cancel_rejects_other_owners_and_non_cancellable_states(self):
+        order, batch, quota = self.cancellation_fixture()
+        order.MaNguoiMua = 99
+        self.assertEqual(self.cancel().status_code, 404)
+        order.MaNguoiMua = 12
+        for status in [2, 3, 4, 5]:
+            order.TrangThaiDonHang = status
+            self.assertEqual(self.cancel().json['code'], 'ORDER_NOT_CANCELLABLE')
+        self.refund.assert_not_called()
+        self.commit.assert_not_called()
+        self.assertEqual((batch.SoLuongTon, quota.SoLuong), (70, 40))
+
+    def test_cancel_legacy_missing_resources_and_bad_snapshot_need_review(self):
+        order, batch, quota = self.cancellation_fixture()
+        saved = order.DuLieuHoanTra
+        for value in [None, {}, {**saved, 'batches': []}, {**saved, 'points': -1},
+                      {**saved, 'batches': saved['batches'] * 2}, {**saved, 'promotions': [{}]}]:
+            order.DuLieuHoanTra = value
+            self.assertEqual(self.cancel().json['code'], 'ORDER_REFUND_REVIEW_REQUIRED')
+        order.DuLieuHoanTra = saved
+        self.batch_find.return_value = None
+        self.assertEqual(self.cancel().json['code'], 'ORDER_REFUND_REVIEW_REQUIRED')
+        self.batch_find.return_value = batch
+        self.promotion_detail.return_value = None
+        self.assertEqual(self.cancel().json['code'], 'ORDER_REFUND_REVIEW_REQUIRED')
+        self.assertEqual((order.TrangThaiDonHang, batch.SoLuongTon, quota.SoLuong), (1, 70, 40))
+        self.refund.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_cancel_auth_csrf_and_request_whitelist(self):
+        self.cancellation_fixture()
+        url = '/api/orders/45/cancel'
+        self.assertEqual(self.client.post(url, json={}).status_code, 403)
+        self.assertEqual(self.client.post(url, json={'TrangThaiDonHang': 4}, headers={'X-CSRF-Token': 'test-csrf'}).status_code, 400)
+        self.assertEqual(self.cancel(9223372036854775808).status_code, 404)
+        with self.client.session_transaction() as state:
+            state.pop('user_id')
+        self.assertEqual(self.cancel().status_code, 401)
+        self.commit.assert_not_called()
+
+    def test_cancel_database_error_rolls_back_all_refunds(self):
+        self.cancellation_fixture()
+        self.refund.side_effect = SQLAlchemyError('private')
+        response = self.cancel()
+        self.assertEqual(response.status_code, 503)
+        self.assertNotIn('private', response.text)
+        self.rollback.assert_called_once()
+        self.commit.assert_not_called()
+
+    def test_create_persists_allocations_needed_for_later_cancellation(self):
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=2)
+        self.promotion_detail.return_value = NS(SoLuong=100)
+        self.assertEqual(self.post(DoiDiem=True, TongThanhToan='29500').status_code, 201)
+        snapshot = self.create.call_args.args[0]['DuLieuHoanTra']
+        self.assertEqual(snapshot, dict(version=1, points=25,
+            batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
+            promotions=[dict(MaChuongTrinh=6, MaThuoc=7, SoLuong=20)]))
 
     def test_redeem_points_discounts_and_debits_in_order_transaction(self):
         response = self.post(DoiDiem=True, TongThanhToan='29500')

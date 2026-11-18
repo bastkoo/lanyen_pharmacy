@@ -30,10 +30,14 @@ def deduct_order_stock(required):
     if any(count > totals.get(product, 0) for product, count in required.items()):
         raise AuthError('OUT_OF_STOCK', 409)
     remaining = dict(required)
+    allocations = []
     for batch in batches:
         amount = min(remaining[batch.MaThuoc], batch.SoLuongTon)
         batch.SoLuongTon -= amount
         remaining[batch.MaThuoc] -= amount
+        if amount:
+            allocations.append(dict(MaLo=str(batch.MaLo), MaThuoc=batch.MaThuoc, SoLuong=amount))
+    return allocations
 
 
 @database_operation

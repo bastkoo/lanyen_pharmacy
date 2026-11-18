@@ -19,6 +19,12 @@ def debit(user_id, quantity, order_id, timestamp):
         LyDo=f'Đổi xu thanh toán đơn hàng #{order_id} (1 xu = 100đ)'))
 
 
+def refund(user_id, quantity, order_id, timestamp):
+    db.session.add(DiemThuong(MaNguoiDung=user_id, SoDiem=quantity,
+        LoaiGiaoDich=True, ThoiGianTichDiem=timestamp,
+        LyDo=f'Hoàn xu do hủy đơn hàng #{order_id}'))
+
+
 def list_owned(user_id, page, per_page):
     owned = DiemThuong.MaNguoiDung == user_id
     amount = cast(DiemThuong.SoDiem, BigInteger)

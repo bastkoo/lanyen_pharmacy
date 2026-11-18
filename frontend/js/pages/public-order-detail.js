@@ -3,6 +3,7 @@ import { getOrderDetail, initializePayment } from '../api/orders.js';
 import { money } from '../components/cart.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
 import { validHttps } from '../utils/product-validation.js';
+import { setupOrderCancellation } from '../components/order-cancel.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
@@ -11,6 +12,9 @@ const validId = /^[1-9][0-9]{0,18}$/.test(id || '') && BigInt(id) <= 92233720368
 const steps = ['Đặt hàng', 'Đang xử lý đơn', 'Đang giao', 'Đã giao'];
 const statusNames = [...steps, 'Đã hủy', 'Đổi trả'];
 let order = null, user = null, version = 0, disposed = false, timer, opening = false, snapshot = '';
+const cancellation = setupOrderCancellation({ getUser: () => user, onCancelled: async () => {
+    await refresh(); $('order-load-state').textContent = 'Đã hủy đơn và hoàn xu, kho, hạn mức khuyến mãi.'; $('main').focus({ preventScroll: true });
+}, onClosed: () => { clearTimeout(timer); if (!disposed && order && [0, 1, 2].includes(order.TrangThaiDonHang)) timer = setTimeout(refresh, 5000); } });
 
 function dateText(value) {
     const parsed = new Date(/(?:Z|[+-]\d\d:\d\d)$/i.test(value || '') ? value : `${value}+07:00`);
@@ -20,6 +24,7 @@ function dateText(value) {
 }
 
 function clearPrivate() {
+    cancellation.clear();
     clearTimeout(timer); order = null; user = null; snapshot = '';
     $('order-detail-layout').hidden = true;
     for (const name of ['order-number', 'order-date', 'order-status', 'order-recipient', 'order-address',
@@ -84,6 +89,7 @@ function renderProducts(items) {
 }
 
 function render(value) {
+    $('order-cancel').hidden = ![0, 1].includes(value.TrangThaiDonHang);
     const receipt = receiptInfo(value.GhiChu);
     $('order-number').textContent = `#${value.MaDonHang}`;
     $('order-date').textContent = `Đặt lúc ${dateText(value.NgayDat)}`;
@@ -112,7 +118,7 @@ function render(value) {
 }
 
 async function refresh() {
-    if (opening) return;
+    if (opening || cancellation.isOpen()) return;
     clearTimeout(timer);
     const attempt = ++version;
     $('order-retry').hidden = true; $('order-login').hidden = true;
@@ -163,6 +169,7 @@ $('order-copy').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText(String(order.MaDonHang)); $('order-copy-state').textContent = 'Đã sao chép mã đơn.'; }
     catch { $('order-copy-state').textContent = 'Bạn có thể chọn mã đơn phía trên để sao chép.'; }
 });
+$('order-cancel').addEventListener('click', event => { if (order && !opening) cancellation.open(order, event.currentTarget); });
 $('order-retry').addEventListener('click', refresh);
 $('order-login').addEventListener('click', () => $('login-button').click());
 window.addEventListener('auth-changed', event => {

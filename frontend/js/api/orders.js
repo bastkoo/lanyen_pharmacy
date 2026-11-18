@@ -19,6 +19,7 @@ async function request(path, method = 'GET', body, token) {
     return data;
 }
 export const createOrder = (values, owner) => withAuthenticatedSession(owner, token => request('', 'POST', values, token));
+export const cancelOrder = (id, owner) => withAuthenticatedSession(owner, token => request(`/${encodeURIComponent(id)}/cancel`, 'POST', {}, token));
 export const getOrder = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}`));
 export const getOrderDetail = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}/detail`));
 export const getReorderOptions = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}/reorder`));

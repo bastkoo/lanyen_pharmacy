@@ -138,3 +138,4 @@ a:focus-visible {
 .reward-coin { --coin-edge: #9b6800; position: relative; display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; flex: none; border: .06em solid var(--coin-edge); border-radius: 50%; color: var(--coin-edge); background: var(--warning-color); font-size: inherit; font-weight: 700; line-height: 1; vertical-align: middle; }
 .reward-coin::before { content: ''; position: absolute; inset: .08em; border: .035em solid var(--coin-edge); border-radius: 50%; }
 .reward-coin::after { content: '₫'; font-size: .62em; }
+.order-cancel-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }

@@ -36,6 +36,14 @@ class PointsTests(unittest.TestCase):
         self.assertEqual(row.ThoiGianTichDiem, timestamp)
         self.commit.assert_not_called()
 
+    def test_cancellation_refund_credits_exact_points_without_committing(self):
+        with self.app.app_context(), patch('app.extensions.db.session.add') as add:
+            points.refund(12, 25, 45, datetime(2026, 11, 18))
+        row = add.call_args.args[0]
+        self.assertEqual((row.MaNguoiDung, row.SoDiem, row.LoaiGiaoDich), (12, 25, True))
+        self.assertIn('#45', row.LyDo)
+        self.commit.assert_not_called()
+
     def setUp(self):
         self.app = create_app({'TESTING': True, 'SECRET_KEY': 'points-test-only-' * 3,
             'SQLALCHEMY_DATABASE_URI': 'postgresql+psycopg://unused:unused@localhost/unused',

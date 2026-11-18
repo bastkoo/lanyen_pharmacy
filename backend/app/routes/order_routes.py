@@ -8,6 +8,7 @@ order_bp.add_url_rule('/orders', view_func=csrf_protect(require_roles(0, 1, 2)(o
 order_bp.add_url_rule('/orders', view_func=require_roles(0, 1, 2)(order_controller.list_owned), methods=['GET'])
 order_bp.add_url_rule('/orders/<int:order_id>', view_func=require_roles(0, 1, 2)(order_controller.read), methods=['GET'])
 order_bp.add_url_rule('/orders/<int:order_id>/detail', view_func=require_roles(0, 1, 2)(order_controller.detail), methods=['GET'])
+order_bp.add_url_rule('/orders/<int:order_id>/cancel', view_func=csrf_protect(require_roles(0, 1, 2)(order_controller.cancel)), methods=['POST'])
 order_bp.add_url_rule('/orders/<int:order_id>/reorder', view_func=require_roles(0, 1, 2)(order_controller.reorder_options), methods=['GET'])
 order_bp.add_url_rule('/orders/<int:order_id>/reorder', view_func=csrf_protect(require_roles(0, 1, 2)(order_controller.reorder)), methods=['POST'])
 order_bp.add_url_rule('/orders/<int:order_id>/reorder/quote', view_func=csrf_protect(require_roles(0, 1, 2)(order_controller.reorder_quote)), methods=['POST'])

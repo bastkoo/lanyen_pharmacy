@@ -1,5 +1,6 @@
 
 from app.extensions import db
+from sqlalchemy.dialects.postgresql import JSONB
 
 
 class DonHang(db.Model):
@@ -46,6 +47,7 @@ class DonHang(db.Model):
 
     # Có sử dụng xu để giảm tiền cho đơn hàng.
     DoiDiem = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    DuLieuHoanTra = db.Column(JSONB, nullable=True)
 
     # 0: Chờ duyệt
     # 1: Đang xử lý

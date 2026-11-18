@@ -12,6 +12,7 @@ from app.repositories import gio_thuoc_repository as carts
 from app.repositories import dia_chi_repository as addresses
 from app.repositories import chi_tiet_khuyen_mai_repository as promotion_items
 from app.repositories import diem_thuong_repository as points
+from app.repositories import lo_thuoc_repository as batches
 from app.services.auth_service import AuthError
 from app.services.cart_service import get_cart, operation, require_unit, add_database, check_quantity
 from app.services.inventory_service import usable_stock, deduct_order_stock
@@ -115,13 +116,16 @@ def create(user, data, reorder_id=None):
         quotas.append((detail, quantity))
     # Both COD and QR debit on completion, exactly once with order/cart writes.
     # Gateway initialization and IPN only update payment status, never stock.
-    deduct_order_stock(required)
+    allocations = deduct_order_stock(required)
     for detail, quantity in quotas:
         detail.SoLuong -= quantity
     order = orders.create(dict(
         MaNguoiMua=user.MaNguoiDung, MaNhanVien=None, TongTien=original,
         TienGiamGia=original - total, TongThanhToan=total,
         DoiDiem=redeemed > 0,
+        DuLieuHoanTra={'version': 1, 'batches': allocations, 'points': redeemed,
+            'promotions': [dict(MaChuongTrinh=promotion_id, MaThuoc=product_id, SoLuong=quantity)
+                           for (promotion_id, product_id), quantity in sorted(promotion_required.items())]},
         TrangThaiDonHang=1 if data['PhuongThucThanhToan'] == 0 else 0,
         PhuongThucThanhToan=data['PhuongThucThanhToan'], TrangThaiThanhToan=0,
         MoiTruongThanhToan=environment,
@@ -134,6 +138,73 @@ def create(user, data, reorder_id=None):
     result = serialize(order, legacy_payment=False)
     db.session.commit()
     return result
+
+
+@operation
+def cancel(user_id, order_id):
+    if not 0 < order_id <= 9223372036854775807:
+        raise AuthError('ORDER_NOT_FOUND', 404)
+    if carts.lock_user(user_id) is None:
+        raise AuthError('UNAUTHENTICATED', 401)
+    order = orders.find(order_id, lock=True)
+    if order is None or order.MaNguoiMua != user_id:
+        raise AuthError('ORDER_NOT_FOUND', 404)
+    if order.TrangThaiDonHang not in (0, 1):
+        raise AuthError('ORDER_NOT_CANCELLABLE', 409)
+    data = order.DuLieuHoanTra
+    if not valid_return_data(data) or bool(data['points']) != bool(order.DoiDiem):
+        raise AuthError('ORDER_REFUND_REVIEW_REQUIRED', 409)
+    # Same lock order as checkout: promotion quota before batch stock.
+    quotas, stock = [], []
+    for entry in sorted(data['promotions'], key=lambda value: (value['MaChuongTrinh'], value['MaThuoc'])):
+        detail = promotion_items.find_by_id(entry['MaChuongTrinh'], entry['MaThuoc'], for_update=True)
+        if detail is None or not 0 < entry['SoLuong'] <= 2147483647 - detail.SoLuong:
+            raise AuthError('ORDER_REFUND_REVIEW_REQUIRED', 409)
+        quotas.append((detail, entry['SoLuong']))
+    for entry in sorted(data['batches'], key=lambda value: (value['MaThuoc'], int(value['MaLo']))):
+        batch = batches.find_by_id(entry['MaThuoc'], int(entry['MaLo']), for_update=True)
+        if batch is None or not 0 < entry['SoLuong'] <= batch.SoLuongNhap - batch.SoLuongTon:
+            raise AuthError('ORDER_REFUND_REVIEW_REQUIRED', 409)
+        stock.append((batch, entry['SoLuong']))
+    for detail, quantity in quotas:
+        detail.SoLuong += quantity
+    for batch, quantity in stock:
+        batch.SoLuongTon += quantity
+    if data['points']:
+        points.refund(user_id, data['points'], order_id,
+                      datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None))
+    order.TrangThaiDonHang = 4
+    result = serialize(order, legacy_payment=False)
+    db.session.commit()
+    return result
+
+
+def valid_return_data(data):
+    if (not isinstance(data, dict) or data.get('version') != 1
+            or type(data.get('points')) is not int or not 0 <= data['points'] <= 2147483647):
+        return False
+    for name, keys in (('batches', ('MaThuoc', 'MaLo')), ('promotions', ('MaChuongTrinh', 'MaThuoc'))):
+        entries = data.get(name)
+        if not isinstance(entries, list) or (name == 'batches' and not entries):
+            return False
+        seen = set()
+        for entry in entries:
+            if (not isinstance(entry, dict) or type(entry.get('SoLuong')) is not int
+                    or not 0 < entry['SoLuong'] <= 2147483647):
+                return False
+            ids = []
+            for key in keys:
+                value = entry.get(key)
+                if key == 'MaLo':
+                    if not isinstance(value, str) or not re.fullmatch(r'[1-9][0-9]{0,18}', value) or int(value) > 9223372036854775807:
+                        return False
+                elif type(value) is not int or not 0 < value <= 2147483647:
+                    return False
+                ids.append(value)
+            if tuple(ids) in seen:
+                return False
+            seen.add(tuple(ids))
+    return True
 
 
 @operation

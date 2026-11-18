@@ -67,7 +67,9 @@ class UsableStockTests(unittest.TestCase):
         with patch.object(repository, 'lock_usable_batches_fifo', return_value=batches) as lock, \
                 patch.object(inventory_service, 'current_date', return_value=date(2026, 11, 18)), \
                 patch.object(repository.db.session, 'commit') as commit:
-            inventory_service.deduct_order_stock({7: 12, 8: 6})
+            allocations = inventory_service.deduct_order_stock({7: 12, 8: 6})
+            self.assertEqual(allocations, [dict(MaLo='1', MaThuoc=7, SoLuong=5),
+                dict(MaLo='2', MaThuoc=7, SoLuong=7), dict(MaLo='4', MaThuoc=8, SoLuong=6)])
             self.assertEqual([batch.SoLuongTon for batch in batches], [0, 3, 20, 0])
             lock.assert_called_once_with([7, 8], date(2026, 11, 18))
             commit.assert_not_called()
@@ -81,7 +83,7 @@ class UsableStockTests(unittest.TestCase):
             self.assertEqual([batch.SoLuongTon for batch in batches], [50, 2])
 
     def test_later_order_cannot_overdraw_remaining_batch_balance(self):
-        batch = NS(MaThuoc=7, SoLuongTon=40)
+        batch = NS(MaLo=1, MaThuoc=7, SoLuongTon=40)
         with patch.object(repository, 'lock_usable_batches_fifo', return_value=[batch]):
             inventory_service.deduct_order_stock({7: 30})
             self.assertEqual(batch.SoLuongTon, 10)

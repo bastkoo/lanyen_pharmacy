@@ -4,6 +4,7 @@ import { money } from '../components/cart.js';
 import { validHttps } from '../utils/product-validation.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
 import { setupOrderReorder } from '../components/order-reorder.js';
+import { setupOrderCancellation } from '../components/order-cancel.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
@@ -12,6 +13,9 @@ const statusNames = ['Đang xử lý', 'Đang xử lý', 'Đang giao', 'Đã gia
 let status = 'all', page = 1, total = 0, perPage = 10, validQuery = true;
 let version = 0, user = null, rows = new Map(), disposed = false, opening = false;
 const reorder = setupOrderReorder({ getUser: () => user, onAdded: () => { $('orders-state').textContent = 'Đã thêm các sản phẩm đã chọn vào giỏ hàng.'; } });
+const cancellation = setupOrderCancellation({ getUser: () => user, onCancelled: async () => {
+    await load(); $('orders-state').textContent = 'Đã hủy đơn và hoàn xu, kho, hạn mức khuyến mãi.'; $('main').focus({ preventScroll: true });
+} });
 
 function readQuery() {
     const query = new URLSearchParams(location.search);
@@ -28,6 +32,7 @@ function readQuery() {
 
 function clearPrivate() {
     reorder.clear();
+    cancellation.clear();
     rows.clear(); user = null;
     $('orders-list').replaceChildren(); $('orders-empty').hidden = true; $('orders-pagination').hidden = true;
     $('orders-processing-count').textContent = ''; $('orders-processing-count').hidden = true;
@@ -74,6 +79,10 @@ function card(value) {
     let message = value.TrangThaiThanhToan === 1 ? 'Đã thanh toán.' : value.PhuongThucThanhToan === 0 ? 'Thanh toán khi nhận hàng.' : 'Chưa thanh toán.';
     if ([0, 1].includes(value.TrangThaiDonHang)) message = value.TrangThaiDonHang === 1 ? `Đơn hàng đang được xử lý. ${message}` : `Đơn hàng đang chờ xử lý. ${message}`;
     actions.append(node('p', message, 'orders-card-message'));
+    if ([0, 1].includes(value.TrangThaiDonHang)) {
+        const cancel = node('button', 'Hủy đơn', 'button button-outline'); cancel.type = 'button'; cancel.dataset.cancelOrder = value.MaDonHang;
+        cancel.setAttribute('aria-label', `Hủy đơn ${value.MaDonHang}`); cancel.setAttribute('aria-haspopup', 'dialog'); cancel.setAttribute('aria-controls', 'order-cancel-dialog'); actions.append(cancel);
+    }
     if ([3, 4].includes(value.TrangThaiDonHang)) {
         const buy = node('button', 'Mua lại', 'button button-outline orders-buy-again'); buy.type = 'button';
         buy.dataset.reorder = value.MaDonHang; buy.setAttribute('aria-haspopup', 'dialog'); buy.setAttribute('aria-controls', 'reorder-dialog');
@@ -137,6 +146,12 @@ $('orders-previous').addEventListener('click', () => { if (page > 1) navigate(st
 $('orders-next').addEventListener('click', () => { if (page * perPage < total) navigate(status, page + 1); });
 $('orders-retry').addEventListener('click', load); $('orders-login').addEventListener('click', () => $('login-button').click());
 $('orders-list').addEventListener('click', async event => {
+    const cancel = event.target.closest('[data-cancel-order]');
+    if (cancel) {
+        const value = rows.get(cancel.dataset.cancelOrder);
+        if (value && !opening) cancellation.open(value, cancel);
+        return;
+    }
     const buy = event.target.closest('[data-reorder]');
     if (buy && user && !opening) {
         const value = rows.get(buy.dataset.reorder);
@@ -167,7 +182,7 @@ window.addEventListener('auth-changed', event => {
     if (disposed || (user && String(event.detail?.user?.MaNguoiDung) === String(user.MaNguoiDung))) return;
     version++; clearPrivate(); load();
 });
-window.addEventListener('focus', () => { if (!disposed && !opening && !reorder.isOpen()) load(); });
+window.addEventListener('focus', () => { if (!disposed && !opening && !reorder.isOpen() && !cancellation.isOpen()) load(); });
 window.addEventListener('pagehide', () => { disposed = true; version++; clearPrivate(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; readQuery(); load(); } });
 readQuery(); load();

@@ -13,6 +13,15 @@ def create(data):
     return jsonify(code='ORDER_CREATED', order=order_service.create(g.current_user, data)), 201
 
 
+def cancel(order_id):
+    if request.args or (request.get_data() and request.get_json(silent=True) != {}):
+        return jsonify(code='INVALID_REQUEST'), 400
+    try:
+        return jsonify(code='ORDER_CANCELLED', order=order_service.cancel(g.current_user.MaNguoiDung, order_id))
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
 def reorder_quote(order_id):
     return reorder_checkout_request(order_id, quote=True)
 

@@ -12,7 +12,18 @@ let gatewayInitializations = 0;
 let fixtureEnvironment = 'sandbox';
 let listMode = 'normal';
 let reorderCalls = [], reorderMode = 'normal';
+let cancelMode = 'normal', cancelCalls = 0;
+const cancelledIds = new Set();
 export async function orderFixture(req, json) {
+    if (req.url.endsWith('/cancel') && req.method === 'POST') {
+        assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
+        if (cancelMode === 'legacy') return json(409, { code: 'ORDER_REFUND_REVIEW_REQUIRED' });
+        const id = req.url.split('/')[3];
+        if (cancelledIds.has(id)) return json(409, { code: 'ORDER_NOT_CANCELLABLE' });
+        cancelCalls++; cancelledIds.add(id);
+        if (id === fixtureOrder.MaDonHang) fixtureOrder.TrangThaiDonHang = 4;
+        return json(200, { code: 'ORDER_CANCELLED', order: { ...fixtureOrder, MaDonHang: id, TrangThaiDonHang: 4 } });
+    }
     if (/\/reorder(?:\/quote)?$/.test(new URL(req.url, 'http://fixture').pathname)) {
         const id = new URL(req.url, 'http://fixture').pathname.split('/')[3];
         const options = [{ MaChiTiet: '9007199254741001', MaThuoc: 1, MaDonGia: 11, SoLuong: 1,
@@ -39,7 +50,7 @@ export async function orderFixture(req, json) {
         const query = new URL(req.url, 'http://fixture').searchParams;
         const status = query.get('status') || 'all', page = Number(query.get('page') || 1);
         const filters = { all: [0, 1, 2, 3, 4, 5], processing: [0, 1], shipping: [2], delivered: [3], cancelled: [4], returns: [5] };
-        const items = listMode === 'empty' ? [] : filters[status].map(state => ({
+        const items = listMode === 'empty' ? [] : [0, 1, 2, 3, 4, 5].map(state => ({
             ...fixtureOrder, MaDonHang: state === 0 ? fixtureOrder.MaDonHang : String(100 + state),
             NgayDat: '2026-11-18T09:15:00', HinhThucNhanHang: 'delivery',
             TrangThaiDonHang: state, TrangThaiThanhToan: 0, can_pay: state === 0,
@@ -50,9 +61,10 @@ export async function orderFixture(req, json) {
                 DonViTinh: 'Hộp', SoLuong: 1, ThanhTien: '30000' },
             { MaThuoc: 2, TenThuoc: 'Vitamin thứ hai', HinhAnh: null,
                 DonViTinh: 'Vỉ', SoLuong: 2, ThanhTien: '20000' }]
-        }));
+        })).map(item => cancelledIds.has(item.MaDonHang) ? { ...item, TrangThaiDonHang: 4, can_pay: false } : item)
+            .filter(item => filters[status].includes(item.TrangThaiDonHang));
         return json(200, { code: 'ORDERS_LISTED', items: page === 1 ? items : [], total: items.length,
-            processing_count: listMode === 'empty' ? 0 : 2, page, per_page: 10, status });
+            processing_count: listMode === 'empty' ? 0 : 2 - [fixtureOrder.MaDonHang, '101'].filter(id => cancelledIds.has(id)).length, page, per_page: 10, status });
     }
     if (/\/detail$/.test(req.url)) {
         if (orderMode === 'detail-error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
@@ -138,7 +150,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         assert.equal(await run(`document.querySelector('#checkout-use-points').checked`), false);
         await click($('checkout-use-points')); await ready('20.500 ₫');
         assert.equal(await run(`document.querySelector('#checkout-points-discount').textContent`), '−19.500 ₫');
-        assert.equal(await run(`document.querySelector('#checkout-points-option').textContent`), 'Sử dụng điểm: 195 xu');
+        assert.equal(await run(`document.querySelector('#checkout-points-option').textContent.trim()`), 'Sử dụng xu: 195');
+        assert.equal(await run(`document.querySelector('#checkout-points-option .reward-coin').getAttribute('aria-label')`), 'xu');
         assert.equal(await run(`document.querySelector('#checkout-use-points').getAttribute('role')`), 'switch');
         assert.equal(await run(`document.querySelector('#checkout-points-state').hidden`), true);
         await click($('checkout-use-points')); await ready('40.000 ₫');
@@ -210,6 +223,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
             fixtureOrder.TrangThaiDonHang = status;
             await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
             await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Đang xử lý đơn','Đang giao','Đã giao'][status])}`);
+            assert.equal(await run(`document.querySelector('#order-cancel').hidden`), status > 1);
             assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).indexOf(document.querySelector('[aria-current="step"]'))`), status);
             assert.equal(await run(`document.querySelectorAll('.is-approaching').length`), status === 1 || status === 2 ? 1 : 0);
             assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).findIndex(e=>e.classList.contains('is-approaching'))`), status === 1 || status === 2 ? status - 1 : -1);
@@ -419,6 +433,33 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         assert.equal(fixtureOrder.DoiDiem, true);
         assert.equal(fixtureOrder.TongThanhToan, '20500');
         assert.equal(await run(`document.querySelector('#order-total').textContent`), '20.500 ₫');
+        await navigate('orders.html'); await waitFor(`document.querySelectorAll('[data-cancel-order]').length===2`);
+        assert.deepEqual(await run(`Array.from(document.querySelectorAll('[data-cancel-order]')).map(button => ({ label: button.textContent, status: button.closest('article').querySelector('.orders-status').dataset.status, visible: button.getClientRects().length > 0 }))`),
+            [{ label: 'Hủy đơn', status: '0', visible: true }, { label: 'Hủy đơn', status: '1', visible: true }]);
+        await click(`document.querySelector('[data-cancel-order]')`);
+        await waitFor(`document.querySelector('#order-cancel-dialog').open`);
+        await key('Escape', 27);
+        assert.equal(cancelCalls, 0, 'Dismissed confirmation must not cancel an order');
+        await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
+        await waitFor(`document.querySelector('#order-cancel')?.hidden===false`);
+        cancelMode = 'legacy'; await click($('order-cancel')); await click($('order-cancel-confirm'));
+        await waitFor(`document.querySelector('#order-cancel-state').textContent.includes('đối soát')`);
+        assert.equal(await run(`document.querySelector('#order-cancel-confirm').disabled`), true);
+        await key('Escape', 27); cancelMode = 'normal';
+        await click($('order-cancel'));
+        for (const width of [1440, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run(`document.querySelector('#order-cancel-dialog').scrollWidth<=document.querySelector('#order-cancel-dialog').clientWidth`), true);
+        }
+        await run(`document.querySelector('#order-cancel-confirm').click();document.querySelector('#order-cancel-confirm').click()`);
+        await waitFor(`document.querySelector('#order-status').textContent==='Đã hủy'`);
+        assert.equal(await run(`document.querySelector('#order-cancel').hidden`), true);
+        assert.equal(cancelCalls, 1, 'Duplicate clicks issue one cancellation request');
+        await navigate('orders.html'); await waitFor(`document.querySelectorAll('[data-cancel-order]').length===1`);
+        await click(`document.querySelector('[data-cancel-order]')`); await click($('order-cancel-confirm'));
+        await waitFor(`document.querySelectorAll('[data-cancel-order]').length===0`);
+        assert.equal(cancelCalls, 2);
+        console.log('PASS: cancellation on list/detail only for states 0/1, confirmation dismissal, legacy review, duplicate-submit prevention, 1440–320px. API MOCK.');
         console.log('PASS: gold coins, optional maximum redemption, live discount and total, confirmed DoiDiem payload, 1440–320px. API MOCK.');
         console.log('PASS: checkout selection, guest/login, address, pricing/errors, COD creation, QR/config failure/payment confirmation, double-click prevention, BIGINT order reload, logout privacy, responsive 1440–320px. API MOCK; no database or real payment.');
         console.log(`Order detail screenshots: ${path.join(root, 'docs')}`);
