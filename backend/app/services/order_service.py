@@ -47,17 +47,19 @@ def serialize(order, legacy_payment=True):
 
 
 @operation
-def create(user, data):
-    # Same lock as cart mutations: a double submit cannot consume the cart twice.
+def create(user, data, reorder_id=None):
+    # Serialize checkout with cart mutations and other orders for this account.
     if carts.lock_user(user.MaNguoiDung) is None:
         raise AuthError('UNAUTHENTICATED', 401)
     environment = gateway_config()['SEPAY_ENV'] if data['PhuongThucThanhToan'] == 1 else None
-    records = [item for item in carts.list_items(user.MaNguoiDung) if item.MaDonGia in data['MaDonGia']]
-    if {item.MaDonGia for item in records} != set(data['MaDonGia']):
+    records = ([] if reorder_id is not None else
+               [item for item in carts.list_items(user.MaNguoiDung) if item.MaDonGia in data['MaDonGia']])
+    if reorder_id is None and {item.MaDonGia for item in records} != set(data['MaDonGia']):
         raise AuthError('CART_CHANGED', 409)
     # Lock quotas before pricing: a concurrent checkout must reprice after the
     # previous order commits, rather than both using the same remaining quota.
-    quote = get_cart(set(data['MaDonGia']), lock_promotions=True)
+    quote = (reorder_quote(user.MaNguoiDung, reorder_id, data['MaChiTiet'], lock=True)
+             if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True))
     if not quote['items'] or any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
     # Multiple units of the same product must fit the combined base-unit stock.
@@ -185,6 +187,25 @@ def reorder_lines(user_id, order_id, lock=False):
     if order.TrangThaiDonHang not in (3, 4):
         raise AuthError('ORDER_NOT_REORDERABLE', 409)
     return orders.detail_items(order_id)
+
+
+@operation
+def reorder_quote(user_id, order_id, selected_ids, lock=False):
+    lines = reorder_lines(user_id, order_id, lock=lock)
+    selected = set(selected_ids)
+    if not selected or not selected.issubset({str(detail.MaChiTiet) for detail, _, _ in lines}):
+        raise AuthError('INVALID_REQUEST', 400)
+    quantities = {}
+    for detail, product, unit in lines:
+        if str(detail.MaChiTiet) not in selected:
+            continue
+        if product is None or unit is None:
+            raise AuthError('UNIT_NOT_FOUND', 404)
+        key = (detail.MaThuoc, detail.MaDonGia)
+        quantities[key] = quantities.get(key, 0) + detail.SoLuong
+        check_quantity(quantities[key])
+    entries = [(product, unit, quantity) for (product, unit), quantity in sorted(quantities.items())]
+    return get_cart(entries=entries, lock_promotions=lock)
 
 
 @operation

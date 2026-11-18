@@ -1,5 +1,5 @@
 import { getReorderOptions, reorderOrder } from '../api/orders.js';
-import { checkoutUrl } from '../utils/checkout-selection.js';
+import { reorderCheckoutUrl } from '../utils/checkout-selection.js';
 import { money } from './cart.js';
 import { validHttps } from '../utils/product-validation.js';
 
@@ -16,7 +16,7 @@ export function setupOrderReorder({ getUser, onAdded }) {
     const heading = node('header', undefined, 'reorder-heading'), title = node('h2', 'Chọn sản phẩm mua lại'); title.id = 'reorder-title';
     const close = node('button', '×', 'icon-button'); close.type = 'button'; close.setAttribute('aria-label', 'Đóng chọn sản phẩm mua lại');
     heading.append(title, close);
-    const note = node('p', 'Giữ số lượng từ đơn cũ. Giá dưới đây là giá hiện tại trước khuyến mãi; ưu đãi được tính lại ở giỏ và trang xác nhận. Số lượng được cộng vào giỏ hiện tại.', 'reorder-note'); note.id = 'reorder-note';
+    const note = node('p', 'Giữ số lượng từ đơn cũ. Giá dưới đây là giá hiện tại trước khuyến mãi; ưu đãi được tính lại ở giỏ và trang xác nhận. Chọn “Mua ngay” để đến trang xác nhận; chọn “Thêm vào giỏ hàng” để cộng vào giỏ hiện tại.', 'reorder-note'); note.id = 'reorder-note';
     const state = node('p', '', 'reorder-state'); state.id = 'reorder-state'; state.setAttribute('role', 'status');
     const list = node('ul', undefined, 'reorder-list'); list.id = 'reorder-list'; list.setAttribute('aria-label', 'Sản phẩm có thể mua lại');
     const actions = node('footer', undefined, 'reorder-actions');
@@ -56,16 +56,18 @@ export function setupOrderReorder({ getUser, onAdded }) {
     async function submit(immediate) {
         const ids = selected();
         if (busy || uncertain || !ids.length || !owner || String(getUser()?.MaNguoiDung) !== owner) return;
+        if (immediate) {
+            location.assign(reorderCheckoutUrl(orderId, ids));
+            return;
+        }
         const attempt = generation, account = owner, originalOrder = orderId;
         busy = true; sync(); state.textContent = 'Đang thêm các sản phẩm đã chọn…';
         try {
             const data = await reorderOrder(originalOrder, ids, account);
             if (attempt !== generation || account !== String(getUser()?.MaNguoiDung)) return;
             if (data.code !== 'ORDER_REORDERED' || !Array.isArray(data.unit_ids) || !data.unit_ids.length) throw { code: 'INVALID_RESPONSE' };
-            const destination = checkoutUrl(data.unit_ids);
             window.dispatchEvent(new Event('cart-changed'));
-            if (immediate) location.assign(destination);
-            else { dialog.close(); onAdded(); }
+            dialog.close(); onAdded();
         } catch (error) {
             if (attempt === generation) {
                 state.textContent = errorText(error);

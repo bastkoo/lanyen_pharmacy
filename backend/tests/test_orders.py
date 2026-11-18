@@ -405,6 +405,65 @@ class OrderTests(unittest.TestCase):
         self.commit.assert_not_called()
         self.deduct.assert_not_called()
 
+    def test_direct_reorder_quote_and_checkout_leave_existing_cart_untouched(self):
+        detail, _ = self.reorder_fixture()
+        existing = NS(MaThuoc=7, MaDonGia=8, SoLuong=99)
+        self.records.return_value = [existing]
+        body = {'MaChiTiet': [str(detail.MaChiTiet)]}
+        headers = {'X-CSRF-Token': 'test-csrf'}
+        response = self.client.post('/api/orders/45/reorder/quote', json=body, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.quote.assert_called_once_with(entries=[(7, 8, 3)], lock_promotions=False)
+        self.commit.assert_not_called()
+        self.deduct.assert_not_called()
+        self.records.assert_not_called()
+        self.quote.reset_mock()
+        values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
+        response = self.client.post('/api/orders/45/reorder/checkout', json={**values, **body}, headers=headers)
+        self.assertEqual(response.status_code, 201)
+        self.quote.assert_called_once_with(entries=[(7, 8, 3)], lock_promotions=True)
+        self.records.assert_not_called()
+        self.remove.assert_not_called()
+        self.assertEqual(existing.SoLuong, 99)
+        self.assertEqual(self.create.call_args.args[1][0]['SoLuong'], 3)
+        self.commit.assert_called_once()
+        self.deduct.assert_called_once_with({7: 30})
+
+    def test_direct_reorder_rejects_other_owners_invalid_lines_and_missing_csrf(self):
+        detail, _ = self.reorder_fixture()
+        values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
+        for suffix, body in [('quote', {}), ('checkout', values)]:
+            url = f'/api/orders/45/reorder/{suffix}'
+            valid = {**body, 'MaChiTiet': [str(detail.MaChiTiet)]}
+            self.assertEqual(self.client.post(url, json=valid).status_code, 403)
+            headers = {'X-CSRF-Token': 'test-csrf'}
+            for ids in [[], ['1'], [str(detail.MaChiTiet)] * 2]:
+                self.assertEqual(self.client.post(url, json={**body, 'MaChiTiet': ids}, headers=headers).status_code, 400)
+            self.find.return_value.MaNguoiMua = 99
+            self.assertEqual(self.client.post(url, json=valid, headers=headers).status_code, 404)
+            self.find.return_value.MaNguoiMua = 12
+            self.find.return_value.TrangThaiDonHang = 1
+            self.assertEqual(self.client.post(url, json=valid, headers=headers).status_code, 409)
+            self.find.return_value.TrangThaiDonHang = 3
+        self.create.assert_not_called()
+        self.remove.assert_not_called()
+        self.commit.assert_not_called()
+
+    def test_direct_reorder_changed_quote_and_stock_do_not_create_order(self):
+        detail, _ = self.reorder_fixture()
+        values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
+        values['MaChiTiet'] = [str(detail.MaChiTiet)]
+        url = '/api/orders/45/reorder/checkout'
+        headers = {'X-CSRF-Token': 'test-csrf'}
+        response = self.client.post(url, json={**values, 'TongThanhToan': '1'}, headers=headers)
+        self.assertEqual(response.json['code'], 'QUOTE_CHANGED')
+        self.stock.return_value = {7: 29}
+        response = self.client.post(url, json=values, headers=headers)
+        self.assertEqual(response.json['code'], 'OUT_OF_STOCK')
+        self.create.assert_not_called()
+        self.remove.assert_not_called()
+        self.commit.assert_not_called()
+
     def test_reorder_selected_lines_additive_using_saved_quantity(self):
         detail, unit = self.reorder_fixture()
         existing = NS(MaThuoc=7, MaDonGia=8, SoLuong=2)

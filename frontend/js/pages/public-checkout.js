@@ -3,14 +3,17 @@ import { getSession, getAddresses } from '../api/auth.js';
 import { money, cartErrorMessage } from '../components/cart.js';
 import { authMessage } from '../components/auth-dialog.js';
 import { validHttps } from '../utils/product-validation.js';
-import { readCheckoutSelection } from '../utils/checkout-selection.js';
-import { createOrder, getOrder, initializePayment } from '../api/orders.js';
+import { readCheckoutSelection, readReorderSelection } from '../utils/checkout-selection.js';
+import { createOrder, getOrder, initializePayment, quoteReorder, checkoutReorder } from '../api/orders.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const result = document.createElement(tag); if (text !== undefined) result.textContent = text; if (className) result.className = className; return result; };
-let selectedUnits, invalidSelection = false;
-try { selectedUnits = readCheckoutSelection(location.search); } catch { selectedUnits = []; invalidSelection = true; }
+let selectedUnits, reorderSelection = null, invalidSelection = false;
+try {
+    reorderSelection = readReorderSelection(location.search);
+    selectedUnits = reorderSelection ? [] : readCheckoutSelection(location.search);
+} catch { selectedUnits = []; invalidSelection = true; }
 let user, known = false, currentKey, addresses = [], addressId = null, addressChoice = null;
 let quoteVersion = 0, addressVersion = 0, sessionVersion = 0, disposed = false;
 let ready = false, submitting = false, totalToPay = null, order = null, paymentTimer;
@@ -165,7 +168,9 @@ function renderProducts(data) {
             const regular = item.SoLuong - item.SoLuongKhuyenMai;
             row.append(node('p', `${discount} · ${item.KhuyenMai.TenChuongTrinh}: ${item.SoLuongKhuyenMai} ${item.DonViTinh} được ưu đãi${regular ? `; ${regular} ${item.DonViTinh} còn lại tính giá gốc` : ''}.`, 'checkout-product-offer'));
         }
-        if (!item.ConHang) row.append(node('p', 'Không đủ tồn kho còn hạn cho số lượng này. Hãy trở về giỏ hàng để điều chỉnh.', 'checkout-product-unavailable'));
+        if (!item.ConHang) row.append(node('p', reorderSelection
+            ? 'Không đủ tồn kho còn hạn cho số lượng này. Hãy trở về Đơn hàng của tôi để chọn lại.'
+            : 'Không đủ tồn kho còn hạn cho số lượng này. Hãy trở về giỏ hàng để điều chỉnh.', 'checkout-product-unavailable'));
         $('checkout-products').append(row);
     }
     $('checkout-product-count').textContent = `${new Set(data.items.map(item => String(item.MaThuoc))).size} loại sản phẩm`;
@@ -176,28 +181,36 @@ function renderProducts(data) {
     $('checkout-discount').textContent = `−${money(original - total)}`; $('checkout-discount-row').hidden = !available || original <= total;
     const offers = new Set(data.items.filter(item => item.KhuyenMai).map(item => item.KhuyenMai.MaChuongTrinh));
     $('checkout-offers').textContent = `Đã áp dụng ${offers.size} ưu đãi cho sản phẩm được chọn.`; $('checkout-offers').hidden = !available || original <= total;
-    $('checkout-state').textContent = available ? '' : 'Một số sản phẩm đã thay đổi tình trạng tồn kho. Vui lòng kiểm tra lại giỏ hàng.';
+    $('checkout-state').textContent = available ? '' : reorderSelection
+        ? 'Một số sản phẩm đã thay đổi tình trạng tồn kho. Vui lòng trở về Đơn hàng của tôi để chọn lại.'
+        : 'Một số sản phẩm đã thay đổi tình trạng tồn kho. Vui lòng kiểm tra lại giỏ hàng.';
 }
 async function loadQuote() {
     if (activeOrderId || submitting) return;
     ready = false; updateComplete();
     const attempt = ++quoteVersion;
     $('checkout-layout').hidden = true; $('checkout-retry').hidden = true;
-    if (!selectedUnits.length) { $('checkout-state').textContent = invalidSelection ? 'Đường dẫn sản phẩm chưa hợp lệ. Trở về giỏ hàng để chọn lại.' : 'Chưa có sản phẩm được chọn. Trở về giỏ hàng và chọn sản phẩm muốn mua.'; return; }
+    if (!selectedUnits.length && !reorderSelection) { $('checkout-state').textContent = invalidSelection ? 'Đường dẫn sản phẩm chưa hợp lệ. Trở về giỏ hàng để chọn lại.' : 'Chưa có sản phẩm được chọn. Trở về giỏ hàng và chọn sản phẩm muốn mua.'; return; }
+    if (reorderSelection && !user) { $('checkout-state').textContent = 'Đăng nhập đúng tài khoản để xác nhận sản phẩm mua lại.'; return; }
     $('checkout-state').textContent = 'Đang kiểm tra giá và sản phẩm đã chọn…';
     try {
-        const data = await quoteCart(selectedUnits);
+        const data = reorderSelection
+            ? await quoteReorder(reorderSelection.orderId, reorderSelection.lineIds, user.MaNguoiDung)
+            : await quoteCart(selectedUnits);
         if (disposed || attempt !== quoteVersion) return;
         if (data.code !== 'CART_LISTED' || !Array.isArray(data.items) || data.total === undefined) throw { code: 'INVALID_RESPONSE' };
-        if (data.items.length !== selectedUnits.length || data.items.some(item => !selectedUnits.includes(item.MaDonGia))) {
+        if (!reorderSelection && (data.items.length !== selectedUnits.length || data.items.some(item => !selectedUnits.includes(item.MaDonGia)))) {
             $('checkout-state').textContent = 'Giỏ hàng đã thay đổi hoặc sản phẩm đã được xóa. Trở về giỏ hàng để chọn lại.'; return;
         }
         renderProducts(data); $('checkout-layout').hidden = false;
-        ready = data.items.every(item => item.GiaBan !== null && item.ConHang === true);
+        ready = data.items.length > 0 && data.items.every(item => item.GiaBan !== null && item.ConHang === true);
         totalToPay = String(data.total); updateComplete();
     } catch (error) {
         if (disposed || attempt !== quoteVersion) return;
-        $('checkout-state').textContent = cartErrorMessage(error); $('checkout-retry').hidden = false;
+        const reorderErrors = { ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
+            ORDER_NOT_REORDERABLE: 'Chỉ mua lại đơn đã giao hoặc đã hủy.',
+            INVALID_REQUEST: 'Lựa chọn mua lại không còn hợp lệ. Hãy trở về Đơn hàng của tôi để chọn lại.' };
+        $('checkout-state').textContent = (reorderSelection && reorderErrors[error.code]) || cartErrorMessage(error); $('checkout-retry').hidden = false;
     }
 }
 function receive(next, force = false) {
@@ -253,10 +266,13 @@ $('checkout-complete').addEventListener('click', async () => {
     $('checkout-complete-note').textContent = 'Đang tạo đơn hàng…';
     const account = currentKey;
     try {
-        const data = await createOrder({ MaDonGia: selectedUnits,
+        const values = {
             PhuongThucThanhToan: document.querySelector('input[name="payment"]:checked').value === 'cod' ? 0 : 1,
             HinhThucNhanHang: receipt, MaDiaChi: receipt === 'delivery' ? addressId : null,
-            GhiChu: $('checkout-note').value, TongThanhToan: totalToPay }, user.MaNguoiDung);
+            GhiChu: $('checkout-note').value, TongThanhToan: totalToPay };
+        const data = reorderSelection
+            ? await checkoutReorder(reorderSelection.orderId, { ...values, MaChiTiet: reorderSelection.lineIds }, user.MaNguoiDung)
+            : await createOrder({ ...values, MaDonGia: selectedUnits }, user.MaNguoiDung);
         if (disposed || account !== currentKey) return;
         renderOrder(data.order);
         history.replaceState(null, '', `checkout.html?order=${encodeURIComponent(activeOrderId)}`);
@@ -271,7 +287,9 @@ $('checkout-complete').addEventListener('click', async () => {
             GATEWAY_ENVIRONMENT_COLLISION: paymentMessage(error),
             QUOTE_CHANGED: 'Giá đã thay đổi. Hãy tải lại trang để kiểm tra trước khi đặt hàng.',
             CART_CHANGED: 'Giỏ hàng đã thay đổi hoặc đơn đã được tạo. Hãy kiểm tra trước khi đặt lại.',
-            OUT_OF_STOCK: 'Không đủ tồn kho. Hãy trở về giỏ hàng để điều chỉnh.',
+            OUT_OF_STOCK: reorderSelection ? 'Không đủ tồn kho. Hãy trở về Đơn hàng của tôi để chọn lại.' : 'Không đủ tồn kho. Hãy trở về giỏ hàng để điều chỉnh.',
+            ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
+            ORDER_NOT_REORDERABLE: 'Chỉ mua lại đơn đã giao hoặc đã hủy.',
             ADDRESS_NOT_FOUND: 'Địa chỉ không còn tồn tại. Hãy tải lại và chọn địa chỉ.',
             QR_AMOUNT_INVALID: 'Đơn có tổng tiền bằng 0. Vui lòng chọn thanh toán khi nhận hàng.',
             CONNECTION_FAILED: 'Mất kết nối khi tạo đơn; đơn có thể đã được lưu. Không tự động gửi lại. Hãy kiểm tra trước khi đặt lại.' };

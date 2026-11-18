@@ -36,3 +36,13 @@ class OrderCreateSchema(Schema):
             raise ValidationError('Duplicate units.')
         if data['HinhThucNhanHang'] == 'delivery' and not data['MaDiaChi']:
             raise ValidationError('Delivery address required.')
+
+
+class ReorderCheckoutSchema(OrderCreateSchema, OrderReorderSchema):
+    class Meta:
+        exclude = ('MaDonGia',)
+
+    @validates_schema
+    def validate_selection(self, data, **kwargs):
+        if data['HinhThucNhanHang'] == 'delivery' and not data['MaDiaChi']:
+            raise ValidationError('Delivery address required.')

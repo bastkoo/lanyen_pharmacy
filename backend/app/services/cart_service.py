@@ -107,10 +107,11 @@ def add_item(product_id, unit_id):
 
 
 @operation
-def get_cart(selected_ids=None, lock_promotions=False):
+def get_cart(selected_ids=None, lock_promotions=False, entries=None):
     user_id = owner()
-    entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
-               if user_id is not None else guest_items())
+    if entries is None:
+        entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
+                   if user_id is not None else guest_items())
     if selected_ids is not None:
         entries = [entry for entry in entries if entry[1] in selected_ids]
     details = carts.catalog_details(entries)

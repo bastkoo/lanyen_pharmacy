@@ -11,6 +11,18 @@ from app.services import cart_service
 
 
 class CartTests(unittest.TestCase):
+    def test_quote_explicit_entries_ignores_existing_cart_and_never_mutates_it(self):
+        self.items.reset_mock()
+        self.items.return_value = [NS(MaThuoc=7, MaDonGia=8, SoLuong=99)]
+        with self.app.test_request_context():
+            result = cart_service.get_cart(entries=[(7, 8, 3)])
+        self.assertEqual(result['items'][0]['SoLuong'], 3)
+        self.assertEqual(result['total'], 36000)
+        self.items.assert_not_called()
+        self.create.assert_not_called()
+        self.remove.assert_not_called()
+        self.commit.assert_not_called()
+
     def setUp(self):
         self.app = create_app({
             'TESTING': True, 'SECRET_KEY': 'cart-test-secret-' * 3,

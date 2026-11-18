@@ -12,7 +12,7 @@ let fixtureEnvironment = 'sandbox';
 let listMode = 'normal';
 let reorderCalls = [], reorderMode = 'normal';
 export async function orderFixture(req, json) {
-    if (new URL(req.url, 'http://fixture').pathname.endsWith('/reorder')) {
+    if (/\/reorder(?:\/quote)?$/.test(new URL(req.url, 'http://fixture').pathname)) {
         const id = new URL(req.url, 'http://fixture').pathname.split('/')[3];
         const options = [{ MaChiTiet: '9007199254741001', MaThuoc: 1, MaDonGia: 11, SoLuong: 1,
             TenThuoc: '<b>Vitamin tổng hợp</b>', DonViTinh: 'Hộp', HinhAnh: null, GiaBan: '50000', ConHang: true },
@@ -22,8 +22,14 @@ export async function orderFixture(req, json) {
         if (req.method === 'GET') return json(200, { code: 'REORDER_OPTIONS', MaDonHang: id, items: options });
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
         let raw = ''; for await (const chunk of req) raw += chunk;
-        const values = JSON.parse(raw); reorderCalls.push(values.MaChiTiet);
+        const values = JSON.parse(raw);
         const selected = options.filter(row => values.MaChiTiet.includes(row.MaChiTiet));
+        if (new URL(req.url, 'http://fixture').pathname.endsWith('/quote')) {
+            const items = selected.map(row => ({ ...row, ThanhTien: String(BigInt(row.GiaBan) * BigInt(row.SoLuong)) }));
+            return json(200, { code: 'CART_LISTED', items,
+                total: items.reduce((sum, row) => sum + Number(row.ThanhTien), 0) });
+        }
+        reorderCalls.push(values.MaChiTiet);
         appendAccountCart(selected.map(row => ({ MaThuoc: row.MaThuoc, MaDonGia: row.MaDonGia, SoLuong: row.SoLuong })));
         return json(200, { code: 'ORDER_REORDERED', unit_ids: selected.map(row => row.MaDonGia) });
     }
@@ -350,7 +356,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await waitFor(`!document.querySelector('#reorder-buy').disabled`);
         await run(`document.querySelector('#reorder-list input').click();document.querySelector('#reorder-buy').click()`);
         await waitFor(`location.pathname.endsWith('/checkout.html') && document.querySelector('#checkout-layout')?.hidden===false`);
-        assert.equal(await run('location.search'), '?unit=21');
+        assert.match(await run('location.search'), /^\?reorder=[1-9][0-9]*&line=9007199254741002$/);
+        assert.deepEqual(reorderCalls, [['9007199254741002']], 'Buy now must not call the cart-adding reorder endpoint');
         assert.equal(await run(`document.querySelector('#checkout-products').children.length`), 1);
         assert.equal(orderCreates, 3, 'Buy now only opens confirmation; does not create another order');
         await navigate('orders.html'); await waitFor(`document.querySelectorAll('.orders-preview').length===6`);

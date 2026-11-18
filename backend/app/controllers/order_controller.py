@@ -1,7 +1,7 @@
 from flask import current_app, g, jsonify, request, redirect
 
 from app.controllers.auth_controller import payload
-from app.schemas.order_schema import OrderCreateSchema, OrderListQuerySchema, OrderReorderSchema
+from app.schemas.order_schema import OrderCreateSchema, OrderListQuerySchema, OrderReorderSchema, ReorderCheckoutSchema
 from marshmallow import ValidationError
 from app.services import order_service
 from app.services.auth_service import AuthError
@@ -11,6 +11,33 @@ from app.services import sepay_gateway_service
 @payload(OrderCreateSchema)
 def create(data):
     return jsonify(code='ORDER_CREATED', order=order_service.create(g.current_user, data)), 201
+
+
+def reorder_quote(order_id):
+    return reorder_checkout_request(order_id, quote=True)
+
+
+def reorder_checkout(order_id):
+    return reorder_checkout_request(order_id, quote=False)
+
+
+def reorder_checkout_request(order_id, quote):
+    if request.args:
+        return jsonify(code='INVALID_REQUEST'), 400
+    if not request.is_json:
+        return jsonify(code='JSON_REQUIRED'), 415
+    try:
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            raise ValidationError('Object required.')
+        data = (OrderReorderSchema() if quote else ReorderCheckoutSchema()).load(body)
+        if quote:
+            return jsonify(order_service.reorder_quote(g.current_user.MaNguoiDung, order_id, data['MaChiTiet']))
+        return jsonify(code='ORDER_CREATED', order=order_service.create(g.current_user, data, reorder_id=order_id)), 201
+    except ValidationError:
+        return jsonify(code='INVALID_REQUEST'), 400
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
 
 
 def list_owned():
