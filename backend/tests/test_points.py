@@ -8,9 +8,42 @@ from sqlalchemy.dialects import postgresql
 
 from app import create_app
 from app.repositories.diem_thuong_repository import list_owned as real_list_owned
+from app.repositories import diem_thuong_repository as points
+from app.services.points_service import redemption
 
 
 class PointsTests(unittest.TestCase):
+    def test_redemption_uses_whole_coins_and_never_exceeds_balance_or_total(self):
+        self.assertEqual(redemption(25050, 300), (250, 25000))
+        self.assertEqual(redemption(25050, 20), (20, 2000))
+        for total, balance in [(99, 20), (0, 20), (25000, 0), (25000, -1)]:
+            self.assertEqual(redemption(total, balance), (0, 0))
+
+    def test_redemption_balance_query_scopes_owner_and_debit_uses_existing_ledger(self):
+        result = Mock(); result.scalar_one.return_value = 25
+        with self.app.app_context(), patch('app.extensions.db.session.execute', return_value=result) as execute:
+            self.assertEqual(points.balance(12), 25)
+            query = execute.call_args.args[0].compile(dialect=postgresql.dialect())
+            self.assertIn(12, query.params.values())
+            self.assertIn('BIGINT', str(query))
+            self.assertIn('CASE', str(query))
+        timestamp = datetime(2026, 11, 18, 10, 30)
+        with self.app.app_context(), patch('app.extensions.db.session.add') as add:
+            points.debit(12, 25, 45, timestamp)
+        row = add.call_args.args[0]
+        self.assertEqual((row.MaNguoiDung, row.SoDiem, row.LoaiGiaoDich), (12, 25, False))
+        self.assertIn('#45', row.LyDo)
+        self.assertEqual(row.ThoiGianTichDiem, timestamp)
+        self.commit.assert_not_called()
+
+    def test_cancellation_refund_credits_exact_points_without_committing(self):
+        with self.app.app_context(), patch('app.extensions.db.session.add') as add:
+            points.refund(12, 25, 45, datetime(2026, 11, 18))
+        row = add.call_args.args[0]
+        self.assertEqual((row.MaNguoiDung, row.SoDiem, row.LoaiGiaoDich), (12, 25, True))
+        self.assertIn('#45', row.LyDo)
+        self.commit.assert_not_called()
+
     def setUp(self):
         self.app = create_app({'TESTING': True, 'SECRET_KEY': 'points-test-only-' * 3,
             'SQLALCHEMY_DATABASE_URI': 'postgresql+psycopg://unused:unused@localhost/unused',

@@ -3,6 +3,7 @@ import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 let mode = 'normal';
+export const setPointsFixtureMode = value => { mode = value; };
 const ledger = Array.from({ length: 21 }, (_, index) => ({ MaDiemThuong: index + 1, SoDiem: index === 20 ? 5 : 10, LoaiGiaoDich: index !== 20, LyDo: index === 1 ? '<b>Lý do an toàn</b>' : index === 20 ? 'Trừ điểm' : 'Cộng điểm', ThoiGianTichDiem: '2026-11-17T10:30:00' })).reverse();
 export function pointsFixture(req, json) {
     assert.equal(req.method, 'GET');
@@ -21,11 +22,16 @@ export async function checkPoints({ evaluate: run, waitFor, command, root, baseU
         await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
         await command('Page.navigate', { url: `${baseUrl}/pages/customer/points.html` }); await new Promise(resolve => setTimeout(resolve, 50)); await ready(20);
         assert.equal(await run(`document.querySelector('#points-balance').textContent`), '195');
-        assert.deepEqual(await run(`Array.from(document.querySelectorAll('.customer-account-sidebar a')).map(link=>link.textContent)`), ['Thông tin cá nhân', 'Điểm tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng']);
+        assert.deepEqual(await run(`Array.from(document.querySelectorAll('.customer-account-sidebar a')).map(link=>link.textContent.trim())`), ['Thông tin cá nhân', 'Xu tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng']);
         assert.equal(await run(`getComputedStyle(document.querySelector('.customer-account-sidebar a[aria-current]')).color`), 'rgb(51, 51, 51)');
         assert.equal(await run(`getComputedStyle(document.querySelector('#customer-account-menu a')).color`), 'rgb(51, 51, 51)');
         assert.equal(await run(`document.querySelector('#points-history b')`), null);
-        assert.match(await run(`document.querySelector('#points-history').textContent`), /−5 điểm/);
+        assert.match(await run(`document.querySelector('#points-history').textContent`), /−5/);
+        assert.equal(await run(`document.querySelector('#points-history .reward-coin').getAttribute('aria-label')`), 'xu');
+        assert.equal(await run(`getComputedStyle(document.querySelector('.points-balance .reward-coin')).backgroundColor`), 'rgb(255, 193, 7)');
+        assert.equal(await run(`document.querySelectorAll('h1 .reward-coin, .customer-account-sidebar .reward-coin, #customer-account-menu .reward-coin').length`), 0);
+        assert.equal(await run(`getComputedStyle(document.querySelector('.points-balance .reward-coin')).fontSize===getComputedStyle(document.querySelector('#points-balance')).fontSize`), true);
+        assert.equal(await run(`getComputedStyle(document.querySelector('.reward-coin'),'::after').content`), '"₫"');
         await click(`document.querySelector('#points-next')`); await ready(1);
         assert.equal(await run(`document.querySelector('#points-page').textContent`), 'Trang 2 / 2');
         assert.equal(await run(`!document.querySelector('#customer-notice') || document.querySelector('#customer-notice').hidden`), true);

@@ -11,6 +11,18 @@ from app.services import cart_service
 
 
 class CartTests(unittest.TestCase):
+    def test_quote_explicit_entries_ignores_existing_cart_and_never_mutates_it(self):
+        self.items.reset_mock()
+        self.items.return_value = [NS(MaThuoc=7, MaDonGia=8, SoLuong=99)]
+        with self.app.test_request_context():
+            result = cart_service.get_cart(entries=[(7, 8, 3)])
+        self.assertEqual(result['items'][0]['SoLuong'], 3)
+        self.assertEqual(result['total'], 36000)
+        self.items.assert_not_called()
+        self.create.assert_not_called()
+        self.remove.assert_not_called()
+        self.commit.assert_not_called()
+
     def setUp(self):
         self.app = create_app({
             'TESTING': True, 'SECRET_KEY': 'cart-test-secret-' * 3,
@@ -53,6 +65,20 @@ class CartTests(unittest.TestCase):
     def login_session(self):
         with self.client.session_transaction() as state:
             state['user_id'] = 12
+
+    def test_checkout_quote_locks_promotions_without_consuming_them(self):
+        from decimal import Decimal
+        from flask import session
+        quota = NS(MaChuongTrinh=6, MaThuoc=7, LoaiGiamGia=True, GiaTriGiam=Decimal('10'), SoLuong=20)
+        self.active_promotions.return_value = [(quota, NS(MaChuongTrinh=6, TenChuongTrinh='Ưu đãi'))]
+        with self.app.test_request_context():
+            session['guest_cart'] = [[7, 8, 3]]
+            result = cart_service.get_cart({8}, lock_promotions=True)
+        self.assertEqual(result['items'][0]['SoLuongKhuyenMai'], 2)
+        self.assertEqual(result['total'], 33600)
+        self.assertTrue(self.active_promotions.call_args.kwargs['for_update'])
+        self.assertEqual(quota.SoLuong, 20)
+        self.commit.assert_not_called()
 
     def test_guest_add_repeat_read_reload_and_delete_without_database_writes(self):
         self.assertEqual(self.add().status_code, 200)

@@ -19,7 +19,7 @@ import { checkCartPage } from './browser_cart.mjs';
 import { checkProfile, profileFixture } from './browser_profile.mjs';
 import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
 import { checkPoints, pointsFixture } from './browser_points.mjs';
-import { checkCheckout } from './browser_checkout.mjs';
+import { checkCheckout, orderFixture } from './browser_checkout.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -73,6 +73,10 @@ const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (checkingHomepage && pathname === '/api/payments/sepay/return') {
+        res.writeHead(303, { Location: '/pages/customer/order-detail.html?order=' + new URL(req.url, 'http://fixture.local').searchParams.get('order') }); return res.end();
+    }
+    if (checkingHomepage && pathname.startsWith('/api/orders')) return orderFixture(req, json);
     if (checkingHomepage && pathname.startsWith('/api/auth/me/addresses')) return addressFixture(req, json);
     if (checkingHomepage && pathname === '/api/auth/me/points') return pointsFixture(req, json);
     if (checkingHomepage && ((pathname === '/api/auth/me' && req.method === 'PUT') || pathname === '/api/auth/me/avatar')) return profileFixture(req, json, fixtureUser);
@@ -120,7 +124,7 @@ const server = createServer(async (req, res) => {
         const filename = path.resolve(frontend, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
         if (!filename.startsWith(frontend + path.sep)) return json(403, {});
         let bytes = await readFile(filename);
-        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html') || (checkingHomepage && /[\\/]customer[\\/](?:home|products)\.html$/.test(filename))) {
+        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html') || (checkingHomepage && /[\\/]customer[\\/](?:home|products|order-detail)\.html$/.test(filename))) {
             const mark = '<div aria-label="Môi trường kiểm thử" style="position:fixed;bottom:6px;right:8px;z-index:90;padding:3px 8px;background:#fff7e5;color:#785313;font:10px Arial;pointer-events:none">KIỂM THỬ GIAO DIỆN · AUTH/API MOCK</div>';
             bytes = Buffer.from(bytes.toString('utf8').replace('</body>', mark + '</body>'));
         }

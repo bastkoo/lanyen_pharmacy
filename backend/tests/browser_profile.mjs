@@ -22,43 +22,53 @@ export async function profileFixture(req, json, user) {
 export async function checkProfile({ evaluate: run, waitFor, command, key, baseUrl, root, setScenario, user }) {
     const original = { ...user };
     const click = id => run(`document.querySelector('#${id}').focus();document.querySelector('#${id}').click()`);
-    const ready = () => waitFor(`document.querySelector('#profile-form')?.hidden===false && !document.querySelector('#profile-save').disabled`);
+    const followLink = async selector => {
+        try { await run(`document.querySelector(${JSON.stringify(selector)}).click()`); }
+        catch (error) { if (!/Inspected target navigated|Execution context was destroyed|Cannot find context/i.test(error.message)) throw error; }
+        await new Promise(resolve => setTimeout(resolve, 50));
+    };
+    const ready = () => waitFor(`document.querySelector('#account-profile-form')?.hidden===false && !document.querySelector('#profile-save').disabled`);
     const navigate = async file => { await command('Page.navigate', { url: `${baseUrl}/pages/customer/${file}` }); await new Promise(resolve => setTimeout(resolve, 50)); };
     try {
         setScenario('manager'); await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
         await navigate('home.html'); await waitFor(`document.querySelector('.customer-account')?.hidden===false`);
         assert.equal(await run(`document.querySelector('#account-avatar-button').textContent`), 'Y');
         await click('account-avatar-button');
-        assert.deepEqual(await run(`Array.from(document.querySelector('#customer-account-menu').children).map(item=>item.textContent.trim())`), ['Thông tin cá nhân', 'Điểm tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng', 'Quản lý', 'Đăng xuất']);
+        assert.deepEqual(await run(`Array.from(document.querySelector('#customer-account-menu').children).map(item=>item.textContent.trim())`), ['Thông tin cá nhân', 'Xu tích lũy', 'Đơn hàng của tôi', 'Địa chỉ nhận hàng', 'Quản lý', 'Đăng xuất']);
         assert.equal(await run(`document.querySelector('[data-management]').getAttribute('href')`), '../manager/index.html#overview');
         await key('Escape', 27);
         assert.equal(await run(`document.querySelector('#customer-account-menu').hidden && document.activeElement.id==='account-avatar-button'`), true);
-        await click('account-avatar-button'); await run(`document.querySelector('#customer-account-menu a[href$="addresses.html"]').click()`);
+        await click('account-avatar-button'); await followLink('#customer-account-menu a[href$="addresses.html"]');
         await waitFor(`document.querySelector('.customer-account-sidebar a[aria-current]')?.getAttribute('href')==='addresses.html'`);
         await waitFor(`document.querySelector('.customer-account')?.hidden===false`);
-        await click('account-avatar-button'); await run(`document.querySelector('#customer-account-menu a').click()`); await ready();
+        await click('account-avatar-button'); await followLink('#customer-account-menu a'); await ready();
         assert.equal(await run('location.pathname'), '/pages/customer/profile.html');
+        assert.equal(await run(`document.querySelector('#auth-dialog #profile-form')?.id`), 'profile-form');
+        assert.equal(await run(`new Set(Array.from(document.querySelectorAll('[id]'),element=>element.id)).size===document.querySelectorAll('[id]').length`), true, 'Profile and auth forms must have distinct IDs');
         assert.equal(await run(`document.querySelector('#profile-phone').readOnly`), true);
-        await run(`document.querySelector('#profile-name').value='  Nguyễn Bình  ';document.querySelector('#profile-name').dispatchEvent(new Event('input'));document.querySelector('#profile-phone').value='injected';document.querySelector('#profile-form').requestSubmit()`);
+        await run(`window.__profileNoticeTypes=[];window.__profileNoticeObserver=new MutationObserver(records=>{for(const record of records){if(record.target.id==='customer-notice'&&record.attributeName==='data-type')window.__profileNoticeTypes.push(record.target.dataset.type);for(const added of record.addedNodes||[]){if(added.id==='customer-notice')window.__profileNoticeTypes.push(added.dataset.type)}}});window.__profileNoticeObserver.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['data-type']})`);
+        await run(`document.querySelector('#profile-name').value='  Nguyễn Bình  ';document.querySelector('#profile-name').dispatchEvent(new Event('input'));document.querySelector('#profile-phone').value='injected';document.querySelector('#account-profile-form').requestSubmit()`);
         await waitFor(`document.querySelector('#profile-save-state').textContent==='Đã lưu thông tin cá nhân.' && !document.querySelector('#profile-save').disabled`);
         assert.equal(user.HoTen, 'Nguyễn Bình'); assert.equal(user.SDT, original.SDT);
         assert.equal(await run(`document.querySelector('#account-avatar-button').textContent`), 'B');
+        assert.deepEqual(await run(`window.__profileNoticeTypes`), ['success'], 'A valid save must show success without an earlier name-validation error');
+        assert.equal(await run(`document.querySelector('#auth-dialog #name-error').textContent`), '');
         await command('Page.reload'); await new Promise(resolve => setTimeout(resolve, 50)); await ready();
         assert.equal(await run(`document.querySelector('#profile-name').value`), 'Nguyễn Bình');
-        await run(`document.querySelector('#profile-name').value='';document.querySelector('#profile-form').requestSubmit()`);
+        await run(`document.querySelector('#profile-name').value='';document.querySelector('#account-profile-form').requestSubmit()`);
         assert.equal(await run(`document.querySelector('#profile-name').getAttribute('aria-invalid')`), 'true');
         await run(`document.querySelector('#profile-name').value='Tên giữ lại';document.querySelector('#profile-name').dispatchEvent(new Event('input'))`);
-        mode = 'error'; await run(`document.querySelector('#profile-form').requestSubmit()`);
+        mode = 'error'; await run(`document.querySelector('#account-profile-form').requestSubmit()`);
         await waitFor(`!document.querySelector('#profile-save').disabled && document.querySelector('#profile-save-state').textContent!=='Đang lưu…'`);
         assert.equal(await run(`document.querySelector('#profile-name').value`), 'Tên giữ lại'); assert.equal(user.HoTen, 'Nguyễn Bình');
         mode = 'normal';
         await run(`(() => {const file=new File([new Uint8Array([1,2,3])],'avatar.png',{type:'image/png'});const dt=new DataTransfer();dt.items.add(file);document.querySelector('#profile-image').files=dt.files;document.querySelector('#profile-image').dispatchEvent(new Event('change'));})()`);
         await waitFor(`!document.querySelector('#profile-save').disabled && !document.querySelector('#profile-remove-image').hidden`);
         assert.equal(user.AnhDaiDien || null, null, 'Upload is only applied to the account after Save');
-        await run(`document.querySelector('#profile-form').requestSubmit()`); await waitFor(`document.querySelector('#profile-save-state').textContent==='Đã lưu thông tin cá nhân.' && !document.querySelector('#profile-save').disabled`);
+        await run(`document.querySelector('#account-profile-form').requestSubmit()`); await waitFor(`document.querySelector('#profile-save-state').textContent==='Đã lưu thông tin cá nhân.' && !document.querySelector('#profile-save').disabled`);
         assert.equal(user.AnhDaiDien, avatarUrl);
         await waitFor(`document.querySelector('#account-avatar-button').textContent==='L'`);
-        await click('profile-remove-image'); await run(`document.querySelector('#profile-form').requestSubmit()`);
+        await click('profile-remove-image'); await run(`document.querySelector('#account-profile-form').requestSubmit()`);
         await waitFor(`document.querySelector('#profile-save-state').textContent==='Đã lưu thông tin cá nhân.' && !document.querySelector('#profile-save').disabled`);
         assert.equal(user.AnhDaiDien, null);
         for (const width of [1440, 768, 375, 320]) {
@@ -73,7 +83,7 @@ export async function checkProfile({ evaluate: run, waitFor, command, key, baseU
             }
         }
         await click('account-avatar-button'); await click('logout-button');
-        await waitFor(`document.querySelector('#profile-form').hidden && !document.querySelector('#profile-login').hidden`);
+        await waitFor(`document.querySelector('#account-profile-form').hidden && !document.querySelector('#profile-login').hidden`);
         assert.equal(await run(`document.querySelector('#profile-name').value`), '');
         assert.equal(await run(`document.querySelector('.customer-account').hidden`), true);
         console.log('PASS: avatar initials/broken-image fallback, account menu/keyboard, own profile navigation/save/reload, immutable phone, upload/save/remove, failure preserves input, logout clears data and 1440–320px. API/provider mocked.');

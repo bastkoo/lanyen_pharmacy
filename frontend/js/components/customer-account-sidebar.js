@@ -11,7 +11,7 @@ export function setupAccountSidebar() {
     const avatar = document.createElement('div'); avatar.className = 'customer-avatar'; avatar.setAttribute('aria-hidden', 'true');
     const name = document.createElement('p'); name.textContent = 'Tài khoản của tôi'; identity.append(avatar, name);
     const nav = document.createElement('nav'); nav.setAttribute('aria-label', 'Điều hướng tài khoản');
-    for (const [file, text] of [['profile.html', 'Thông tin cá nhân'], ['points.html', 'Điểm tích lũy'], ['orders.html', 'Đơn hàng của tôi'], ['addresses.html', 'Địa chỉ nhận hàng']]) {
+    for (const [file, text] of [['profile.html', 'Thông tin cá nhân'], ['points.html', 'Xu tích lũy'], ['orders.html', 'Đơn hàng của tôi'], ['addresses.html', 'Địa chỉ nhận hàng']]) {
         const link = document.createElement('a'); link.href = file; link.textContent = text;
         if (location.pathname.endsWith(`/${file}`)) link.setAttribute('aria-current', 'page'); nav.append(link);
     }

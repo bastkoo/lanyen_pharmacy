@@ -32,6 +32,13 @@ export function getSession() { return request("me"); }
 function requireSameOwner(data, expectedUserId) {
     if (expectedUserId !== undefined && String(data.user?.MaNguoiDung) !== String(expectedUserId)) throw new ApiError('SESSION_CHANGED');
 }
+export function withAuthenticatedSession(expectedUserId, work) {
+    return withSessionRequest(async () => {
+        const data = await send('me');
+        requireSameOwner(data, expectedUserId);
+        return work(data.csrf_token);
+    });
+}
 export function updateProfile(values, expectedUserId) {
     return withSessionRequest(async () => {
         requireSameOwner(await send('me'), expectedUserId);

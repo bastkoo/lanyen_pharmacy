@@ -45,8 +45,9 @@ def check_quantity(quantity):
         raise AuthError('CART_QUANTITY_LIMIT', 409)
 
 
-def require_unit(product_id, unit_id, check_stock=False):
-    unit = units.find_by_id(product_id, unit_id)
+def require_unit(product_id, unit_id, check_stock=False, for_update=False):
+    unit = (units.find_by_id(product_id, unit_id, for_update=True) if for_update
+            else units.find_by_id(product_id, unit_id))
     if unit is None:
         raise AuthError('UNIT_NOT_FOUND', 404)
     if unit.GiaBan < 0:
@@ -106,18 +107,20 @@ def add_item(product_id, unit_id):
 
 
 @operation
-def get_cart(selected_ids=None):
+def get_cart(selected_ids=None, lock_promotions=False, entries=None):
     user_id = owner()
-    entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
-               if user_id is not None else guest_items())
+    if entries is None:
+        entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
+                   if user_id is not None else guest_items())
     if selected_ids is not None:
         entries = [entry for entry in entries if entry[1] in selected_ids]
     details = carts.catalog_details(entries)
     product_ids = list({entry[0] for entry in entries})
     all_units = units.public_units(product_ids) if entries else []
     stock = usable_stock(product_ids) if entries else {}
-    prices = cart_prices(entries, details, all_units,
-                         promotion_items.active_for_products(product_ids, current_date())) if entries else []
+    programs = (promotion_items.active_for_products(product_ids, current_date(), for_update=True)
+                if lock_promotions else promotion_items.active_for_products(product_ids, current_date())) if entries else []
+    prices = cart_prices(entries, details, all_units, programs) if entries else []
     items = []
     for (product_id, unit_id, quantity), pricing in zip(entries, prices):
         product, unit = details.get((product_id, unit_id), (None, None))

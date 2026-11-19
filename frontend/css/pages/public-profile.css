@@ -53,6 +53,7 @@
 .points-balance { padding: 24px; margin-block: 24px; border: 1px solid var(--home-line); border-radius: var(--radius-md); background: var(--surface-color); }
 .points-balance h2 { font-size: 15px; font-weight: 500; }
 .points-balance strong { font-size: 36px; font-weight: 600; color: var(--primary-dark); }
+.points-balance-amount { display: flex; align-items: center; gap: 8px; font-size: 36px; }
 .points-history-title { font-size: 20px; margin-top: 24px; }
 .points-history { list-style: none; margin: 16px 0; padding: 0; }
 .points-entry { display: flex; justify-content: space-between; gap: 20px; padding: 20px 0; border-bottom: 1px solid var(--home-line); }

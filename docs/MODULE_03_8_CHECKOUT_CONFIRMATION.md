@@ -1,5 +1,7 @@
 # MODULE 03.8 — Xác nhận mua hàng
 
+> Luồng hoàn tất đơn và QR đã được bổ sung tại [MODULE 03.9](MODULE_03_9_ORDERS_SEPAY.md). Nội dung dưới đây mô tả phạm vi của bước 03.8 trước khi có chức năng tạo đơn.
+
 ## Phạm vi được chọn
 
 Người dùng xác nhận chỉ triển khai trang chọn hình thức nhận hàng, địa chỉ, ghi chú và phương thức thanh toán. Chưa tạo đơn hàng, trừ kho, sử dụng hạn mức khuyến mãi hoặc thu tiền. Nút Hoàn tất được vô hiệu hóa và có giải thích trên giao diện.

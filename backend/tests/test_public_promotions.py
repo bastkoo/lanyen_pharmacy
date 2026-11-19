@@ -169,3 +169,8 @@ class PublicPromotionTests(unittest.TestCase):
             self.assertIn('"NgayBatDau" <=', sql)
             self.assertIn('"NgayKetThuc" >=', sql)
             self.assertIn('"SoLuong" >', sql)
+            detail_repository.active_for_products([7], date(2026, 11, 17), for_update=True)
+            statement = execute.call_args.args[0]
+            sql = str(statement.compile(dialect=postgresql.dialect()))
+            self.assertIn('FOR UPDATE OF "ChiTietKhuyenMai"', sql)
+            self.assertTrue(statement.get_execution_options()['populate_existing'])

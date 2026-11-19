@@ -13,17 +13,17 @@ const fields = ['profile-name', 'profile-image', 'profile-remove-image', 'profil
 const message = error => error.code?.startsWith('IMAGE_') || error.code?.startsWith('CLOUDINARY_') || error.code === 'INVALID_CLOUDINARY_URL'
     ? productErrorMessage(error) : error.code === 'INVALID_REQUEST' ? 'Thông tin chưa hợp lệ. Kiểm tra họ tên và ảnh đại diện.' : error.code === 'SESSION_CHANGED' ? 'Tài khoản đăng nhập đã thay đổi. Vui lòng kiểm tra lại thông tin.' : authMessage(error);
 function refreshOwner(error) { if (['SESSION_CHANGED', 'UNAUTHENTICATED', 'ACCOUNT_LOCKED'].includes(error.code)) window.dispatchEvent(new Event('focus')); }
-function lock(value) { busy = value; for (const id of fields) $(id).disabled = value; $('profile-form').setAttribute('aria-busy', String(value)); }
+function lock(value) { busy = value; for (const id of fields) $(id).disabled = value; $('account-profile-form').setAttribute('aria-busy', String(value)); }
 function preview() { renderAvatar($('profile-avatar'), { HoTen: $('profile-name').value || user?.HoTen, AnhDaiDien: avatar }); $('profile-remove-image').hidden = !avatar; }
 function receive(next) {
     version++;
     if (!next) {
         user = null; dirty = false; avatar = null; $('profile-name').value = ''; $('profile-phone').value = ''; $('profile-image').value = '';
-        $('profile-avatar').replaceChildren(); $('profile-form').hidden = true; $('profile-login').hidden = false; $('profile-state').textContent = 'Đăng nhập để xem và cập nhật thông tin cá nhân.'; return;
+        $('profile-avatar').replaceChildren(); $('account-profile-form').hidden = true; $('profile-login').hidden = false; $('profile-state').textContent = 'Đăng nhập để xem và cập nhật thông tin cá nhân.'; return;
     }
     if (user && String(user.MaNguoiDung) === String(next.MaNguoiDung) && (dirty || busy)) return;
     user = next; avatar = next.AnhDaiDien || null; dirty = false;
-    $('profile-name').value = next.HoTen; $('profile-phone').value = next.SDT; $('profile-form').hidden = false; $('profile-login').hidden = true; $('profile-state').textContent = ''; $('profile-retry').hidden = true; preview();
+    $('profile-name').value = next.HoTen; $('profile-phone').value = next.SDT; $('account-profile-form').hidden = false; $('profile-login').hidden = true; $('profile-state').textContent = ''; $('profile-retry').hidden = true; preview();
 }
 async function load() {
     const attempt = ++version;
@@ -49,7 +49,7 @@ $('profile-image').addEventListener('change', async () => {
     } catch (error) { if (!disposed) { $('profile-image-error').textContent = message(error); notify(message(error), 'error'); refreshOwner(error); } }
     finally { if (!disposed) { lock(false); $('profile-image').value = ''; } }
 });
-$('profile-form').addEventListener('submit', async event => {
+$('account-profile-form').addEventListener('submit', async event => {
     event.preventDefault(); if (busy || !user) return;
     const name = $('profile-name').value.trim();
     if (!name || [...name].length > 255 || /[\u0000-\u001f]/u.test(name)) {
