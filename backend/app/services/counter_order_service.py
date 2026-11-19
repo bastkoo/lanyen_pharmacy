@@ -61,7 +61,7 @@ def catalog(filters):
 
 @operation
 def quote(data):
-    user = require_customer(users.find_by_phone(normalize_phone(data['SDT'])))
+    user = require_customer(users.find_by_phone(normalize_phone(data['SDT']))) if data.get('SDT', '').strip() else None
     value = get_cart(entries=entries(data))
     if any(not line['ConHang'] or line['GiaBan'] is None for line in value['items']):
         raise AuthError('OUT_OF_STOCK', 409)

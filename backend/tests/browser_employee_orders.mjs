@@ -48,12 +48,20 @@ export async function employeeOrdersFixture(req, json) {
 
 export async function checkEmployeeOrders({ evaluate:run, waitFor, command, baseUrl, root, setScenario }) {
     reset(); setScenario('employee');
+    await command('Emulation.setDeviceMetricsOverride',{width:1440,height:1100,deviceScaleFactor:1,mobile:false});
     await command('Page.navigate', { url:`${baseUrl}/pages/employee/index.html#orders` });
     await new Promise(resolve=>setTimeout(resolve,80)); await run(`window.dispatchEvent(new Event('focus'))`);
     await waitFor(`document.querySelectorAll('#employee-order-rows [data-employee-order]').length===4`);
     await waitFor(`document.querySelector('[data-employee-pending-count]').textContent==='1'`);
     assert.equal(await run(`document.querySelectorAll('[data-employee-pending-count]').length`), 2);
+    assert.equal(await run(`getComputedStyle(document.querySelector('#employee-navigation')).width`),'280px');
+    assert.equal(await run(`Math.abs(document.querySelector('#employee-order-search').getBoundingClientRect().width-document.querySelector('#employee-order-search-form').getBoundingClientRect().width)<2`),true);
     assert.equal(await run(`getComputedStyle(document.querySelector('[data-employee-pending-count]')).color`),'rgb(220, 53, 69)');
+    assert.equal(await run(`getComputedStyle(document.querySelector('[data-employee-pending-count]')).borderRadius`),'50%');
+    assert.equal(await run(`getComputedStyle(document.querySelector('[data-employee-pending-count]')).animationName`),'employee-pending-bounce');
+    await command('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});
+    assert.equal(await run(`getComputedStyle(document.querySelector('[data-employee-pending-count]')).animationName`),'none');
+    await command('Emulation.setEmulatedMedia',{features:[]});
     assert.equal(await run(`document.querySelector('#employee-order-search-form button[type="submit"]')`), null);
     assert.equal(await run(`document.querySelector('#employee-order-rows [data-employee-order]').dataset.employeeOrder`),'501');
     assert.equal(await run(`document.querySelector('#employee-order-rows [data-order-id="502"] .employee-overdue').textContent`),'Quá thời gian xử lý');

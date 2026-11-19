@@ -33,7 +33,7 @@ class CounterLineSchema(Schema):
 
 
 class CounterQuoteSchema(Schema):
-    SDT = fields.String(required=True, validate=validate.Length(min=1, max=24))
+    SDT = fields.String(load_default='', validate=validate.Length(max=24))
     items = fields.List(fields.Nested(CounterLineSchema), required=True, validate=validate.Length(min=1, max=100))
     DoiDiem = fields.Boolean(load_default=False)
 
@@ -44,6 +44,7 @@ class CounterQuoteSchema(Schema):
 
 
 class CounterCreateSchema(CounterQuoteSchema):
+    SDT = fields.String(required=True, validate=validate.Length(min=1, max=24))
     HoTen = fields.String(load_default='', validate=validate.Length(max=255))
     PhuongThucThanhToan = fields.Integer(strict=True, required=True, validate=validate.OneOf([0, 1]))
     TongThanhToan = fields.String(required=True, validate=validate.Regexp(r'^(0|[1-9][0-9]{0,18})$'))

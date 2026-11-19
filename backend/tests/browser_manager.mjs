@@ -176,7 +176,7 @@ try {
             const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="320"><rect width="480" height="320" fill="#e8f5ee"/><rect x="170" y="70" width="140" height="80" rx="40" fill="#16865b"/><text x="240" y="220" text-anchor="middle" fill="#106b48" font-size="24">IMAGE QA FIXTURE</text></svg>';
             call('Fetch.fulfillRequest', { requestId: data.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'image/svg+xml' }], body: Buffer.from(svg).toString('base64') }, data.sessionId).catch(error => errors.push(error.message));
         }
-        if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.text);
+        if (data.method === 'Runtime.exceptionThrown') errors.push(data.params.exceptionDetails.exception?.description || data.params.exceptionDetails.text);
         if (data.id && pending.has(data.id)) {
             const { resolve, reject, timer } = pending.get(data.id);
             clearTimeout(timer); pending.delete(data.id);

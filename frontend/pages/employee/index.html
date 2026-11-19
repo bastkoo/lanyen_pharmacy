@@ -38,7 +38,6 @@
             <div class="employee-gate-actions"><button id="employee-gate-login" class="button button-primary" type="button" aria-haspopup="dialog" hidden>Đăng nhập tài khoản nhân viên</button><button id="employee-retry" class="button button-outline" type="button" hidden>Kiểm tra lại</button><a class="quiet-link" href="../customer/home.html">Về trang nhà thuốc</a></div>
         </section>
         <div id="employee-workspace" hidden>
-            <div class="employee-page-heading"><div><p class="employee-eyebrow">KHÔNG GIAN LÀM VIỆC</p><h1>Công việc của bạn</h1><p class="employee-intro">Trao đổi với khách hàng và theo dõi các công việc tại nhà thuốc.</p></div><span class="employee-role-badge"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Nhân viên</span></div>
             <nav id="employee-navigation" class="employee-navigation" aria-label="Công việc nhân viên">
                 <a href="#messages" data-employee-view="messages" aria-current="page"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 3V11.5A8.5 8.5 0 0 1 9.5 3h3a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h8m-8 4h5"/></svg>Nhắn tin</a>
                 <a href="#orders" data-employee-view="orders"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg>Xử lý đơn hàng <span class="employee-pending-count" data-employee-pending-count hidden></span></a>
@@ -47,14 +46,14 @@
             </nav>
             <p class="employee-preview-note"><span>Giao diện đang chuẩn bị</span> Các khu vực bên dưới chưa kết nối dữ liệu và thao tác nghiệp vụ.</p>
             <section id="employee-messages" class="employee-view" aria-labelledby="employee-messages-title">
-                <div class="employee-section-heading"><div><h2 id="employee-messages-title" tabindex="-1">Nhắn tin</h2><p>Không gian trao đổi với khách hàng.</p></div></div>
+                <div class="employee-section-heading"><div><h1 id="employee-messages-title" tabindex="-1">Nhắn tin</h1><p>Không gian trao đổi với khách hàng.</p></div></div>
                 <div class="employee-message-layout employee-surface">
                     <aside class="employee-conversations" aria-label="Danh sách hội thoại"><h3>Hội thoại</h3><label class="sr-only" for="employee-message-search">Tìm hội thoại</label><input id="employee-message-search" type="search" placeholder="Tìm tên hoặc số điện thoại" disabled aria-describedby="employee-data-note"><div class="employee-list-empty"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#circle-dashed"></use></svg><p>Danh sách hội thoại sẽ hiển thị tại đây khi được kết nối.</p></div></aside>
                     <div class="employee-conversation"><div class="employee-conversation-heading"><h3>Nội dung trao đổi</h3><span>Chưa chọn hội thoại</span></div><div class="employee-empty"><span class="employee-empty-mark"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M7 8h10M7 12h6"/></svg></span><h3>Mỗi cuộc trò chuyện, một sự hỗ trợ</h3><p>Chọn hội thoại để xem nội dung và trả lời khách hàng sau khi chức năng nhắn tin được hoàn thiện.</p></div><div class="employee-composer"><label class="sr-only" for="employee-message-input">Nội dung tin nhắn</label><textarea id="employee-message-input" rows="2" placeholder="Nội dung trả lời khách hàng…" disabled aria-describedby="employee-data-note"></textarea><button class="button button-primary" type="button" disabled>Gửi tin nhắn</button></div></div>
                 </div>
             </section>
             <section id="employee-orders" class="employee-view" aria-labelledby="employee-orders-title" hidden>
-                <div class="employee-section-heading"><div><h2 id="employee-orders-title" tabindex="-1">Xử lý đơn hàng</h2><p>Ưu tiên đơn đang chờ xử lý. Chọn đơn để kiểm tra thông tin và cập nhật tiến độ.</p></div></div>
+                <div class="employee-section-heading"><div><h1 id="employee-orders-title" tabindex="-1">Xử lý đơn hàng</h1><p>Ưu tiên đơn đang chờ xử lý. Chọn đơn để kiểm tra thông tin và cập nhật tiến độ.</p></div></div>
                 <div class="employee-order-filters" role="group" aria-label="Lọc nhanh trạng thái đơn"><button type="button" data-employee-order-filter="all" aria-pressed="true">Tất cả đơn cần xử lý</button><button type="button" data-employee-order-filter="1" aria-pressed="false">Đang chờ xử lý <span class="employee-pending-count" data-employee-pending-count hidden></span></button><button type="button" data-employee-order-filter="2" aria-pressed="false">Đang giao</button></div>
                 <form id="employee-order-search-form" class="employee-order-tools" role="search"><label class="sr-only" for="employee-order-search">Tìm theo mã đơn hoặc số điện thoại khách hàng</label><input id="employee-order-search" type="search" maxlength="40" placeholder="Mã đơn hàng hoặc SĐT khách hàng" autocomplete="off"><button id="employee-order-refresh" class="quiet-link" type="button">Làm mới</button></form>
                 <p id="employee-order-state" role="status"></p><button id="employee-order-retry" class="quiet-link" type="button" hidden>Thử tải lại</button>
@@ -63,7 +62,7 @@
                 <p class="employee-order-policy">Đơn QR chưa thanh toán ở trạng thái 0 sẽ tự hủy sau 24 giờ. Đơn COD không áp dụng thời hạn này.</p>
             </section>
             <section id="employee-counter" class="employee-view" aria-labelledby="employee-counter-title" hidden>
-                <div class="employee-section-heading"><div><h2 id="employee-counter-title" tabindex="-1">Tạo đơn hàng</h2><p>Bán tại quầy, tra cứu khách hàng và hoàn tất thanh toán.</p></div><button id="counter-new" type="button" class="button button-primary">Tạo đơn hàng mới</button></div>
+                <h1 id="employee-counter-title" class="sr-only" tabindex="-1">Tạo đơn hàng</h1><div class="employee-section-heading"><button id="counter-new" type="button" class="button button-primary">Tạo đơn hàng mới</button></div>
                 <p id="counter-state" role="status"></p>
                 <dialog id="counter-editor" class="employee-modal counter-create-dialog" aria-labelledby="counter-editor-title" hidden>
                     <header class="employee-modal-heading"><div><span class="employee-eyebrow">BÁN HÀNG TẠI QUẦY</span><h2 id="counter-editor-title" tabindex="-1">Tạo đơn hàng mới</h2></div><button id="counter-close-editor" type="button" class="employee-modal-close" aria-label="Đóng tạo đơn hàng">×</button></header>
@@ -75,7 +74,7 @@
                             <p id="counter-customer-state" role="status"></p>
                             <div id="counter-name-field" hidden><label for="counter-name">Tên khách hàng mới</label><input id="counter-name" maxlength="255" autocomplete="off"></div>
                             <ul id="counter-lines" class="counter-lines"></ul>
-                            <label id="counter-coins-field" class="counter-coins" hidden><input id="counter-coins" type="checkbox" role="switch"><span>Sử dụng xu: <span id="counter-balance"></span></span></label>
+                            <label id="counter-coins-field" class="counter-coins" hidden><span>Sử dụng xu <span id="counter-coins-amount" class="counter-coins-amount"></span></span><input id="counter-coins" type="checkbox" role="switch"><span class="counter-switch-track" aria-hidden="true"></span></label>
                             <dl id="counter-totals" class="employee-order-totals"></dl>
                             <label for="counter-payment">Thanh toán</label><select id="counter-payment"><option value="0">Tiền mặt</option><option value="1">QR / SePay</option></select>
                             <p id="counter-cash-note" class="field-help">Chỉ hoàn thành sau khi đã thu đủ tiền mặt.</p>
@@ -95,7 +94,7 @@
                 <div id="counter-history" class="counter-history-list"></div><nav class="employee-order-pagination" aria-label="Phân trang đơn hoàn tất"><button id="counter-history-prev" type="button" class="quiet-link">Trang trước</button><span id="counter-history-page"></span><button id="counter-history-next" type="button" class="quiet-link">Trang sau</button></nav>
             </section>
             <section id="employee-returns" class="employee-view" aria-labelledby="employee-returns-title" hidden>
-                <div class="employee-section-heading"><div><h2 id="employee-returns-title" tabindex="-1">Đổi trả</h2><p>Khu vực tiếp nhận và xem thông tin yêu cầu đổi trả.</p></div></div>
+                <div class="employee-section-heading"><div><h1 id="employee-returns-title" tabindex="-1">Đổi trả</h1><p>Khu vực tiếp nhận và xem thông tin yêu cầu đổi trả.</p></div></div>
                 <div class="employee-returns-layout employee-surface"><aside class="employee-return-list"><h3>Yêu cầu đổi trả</h3><label class="sr-only" for="employee-return-search">Tìm yêu cầu đổi trả</label><input id="employee-return-search" type="search" placeholder="Tìm yêu cầu hoặc mã đơn" disabled aria-describedby="employee-data-note"><div class="employee-list-empty"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#circle-dashed"></use></svg><p>Danh sách yêu cầu sẽ xuất hiện khi chức năng được kết nối.</p></div></aside><div class="employee-return-detail"><div class="employee-empty"><span class="employee-empty-mark"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5H5v4m0-4 5 5M5 5a9 9 0 1 1-2 10"/><path d="M10 14h5m-5 4h3"/></svg></span><h3>Xem rõ từng yêu cầu đổi trả</h3><p>Chọn một yêu cầu để xem đơn hàng liên quan, sản phẩm và nội dung từ khách hàng. Phần xử lý sẽ được bổ sung sau.</p></div><div class="employee-return-preview"><span>Đơn hàng liên quan</span><span>Sản phẩm đổi trả</span><span>Nội dung yêu cầu</span></div></div></div>
             </section>
             <p id="employee-data-note" class="sr-only">Giao diện xem trước. Chức năng này chưa kết nối dữ liệu và hiện chưa thể sử dụng.</p>

@@ -33,38 +33,77 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
         for (const field of $('counter-editor').querySelectorAll('input,select,button')) field.disabled = locked;
         $('counter-new').disabled = busy || Boolean(submitted);
     }
+    function renderCustomer() {
+        if (!customer) return;
+        const state = $('counter-customer-state'), balance = node('span', `(${new Intl.NumberFormat('vi-VN').format(BigInt(customer.SoXu))} `, 'counter-customer-balance');
+        balance.id = 'counter-balance'; balance.append(rewardCoin(), document.createTextNode(')'));
+        state.replaceChildren(node('strong', customer.exists ? customer.HoTen : 'Khách hàng mới'), document.createTextNode(' '), balance);
+        if (!customer.exists) state.append(node('span', 'Nhập tên để tạo tài khoản khi hoàn tất đơn.', 'counter-customer-help'));
+        const unavailable = BigInt(customer.SoXu) <= 0n;
+        $('counter-coins-field').hidden = unavailable;
+        $('counter-coins').disabled = unavailable || busy || Boolean(submitted);
+        if (unavailable) $('counter-coins').checked = false;
+    }
     function renderLines() {
+        const focused = document.activeElement?.dataset.basketQuantity;
+        const focusedUnit = document.activeElement?.dataset.basketUnit ? document.activeElement.value : null;
         $('counter-lines').replaceChildren();
         for (const line of lines) {
-            const row = node('li'), title = node('strong', line.TenThuoc), controls = node('div', undefined, 'counter-line-controls');
-            const quantity = node('input'); quantity.type = 'number'; quantity.min = '1'; quantity.max = '2147483647'; quantity.value = String(line.SoLuong); quantity.setAttribute('aria-label', `Số lượng ${line.TenThuoc}`);
-            quantity.addEventListener('change', () => { if (!Number.isSafeInteger(quantity.valueAsNumber) || quantity.valueAsNumber < 1 || quantity.valueAsNumber > 2147483647) { quantity.value = String(line.SoLuong); return; } line.SoLuong = quantity.valueAsNumber; requestQuote(); });
-            const remove = node('button', 'Bỏ', 'quiet-link'); remove.type = 'button'; remove.setAttribute('aria-label', `Bỏ ${line.TenThuoc}`); remove.addEventListener('click', () => { lines = lines.filter(value => value !== line); renderLines(); requestQuote(); });
             const priced = quote?.items.find(value => value.MaDonGia === line.MaDonGia);
-            controls.append(quantity, node('span', line.DonViTinh), remove);
-            row.append(title, controls, node('p', priced ? `Thành tiền: ${money(priced.ThanhTien)}` : 'Đang tính giá…')); $('counter-lines').append(row);
+            const row = node('li'), visual = node('div', 'Chưa có ảnh', 'employee-product-image'), content = node('div', undefined, 'counter-line-content');
+            if (validHttps(line.HinhAnh)) { const image = node('img'); image.src = line.HinhAnh; image.alt = line.TenThuoc; image.width = 52; image.height = 60; image.referrerPolicy = 'no-referrer'; image.addEventListener('error', () => visual.replaceChildren(document.createTextNode('Chưa có ảnh')), { once: true }); visual.replaceChildren(image); }
+            content.append(node('strong', line.TenThuoc, 'counter-line-name'));
+            const base = priced?.GiaGoc ?? line.GiaBan, price = priced?.GiaBan ?? line.GiaKhuyenMai ?? line.GiaBan;
+            const prices = node('div', undefined, 'counter-line-prices');
+            if (BigInt(price) < BigInt(base)) prices.append(node('del', money(base), 'counter-original-price'));
+            prices.append(node('strong', money(price), 'counter-sale-price')); content.append(prices);
+            const controls = node('div', undefined, 'counter-line-controls'), quantityField = node('div'), unitField = node('div');
+            const quantity = node('input'); quantity.type = 'number'; quantity.min = '1'; quantity.max = '2147483647'; quantity.value = String(line.SoLuong); quantity.dataset.basketQuantity = line.MaDonGia; quantity.id = `counter-quantity-${line.MaDonGia}`;
+            const quantityLabel = node('label', 'Số lượng'); quantityLabel.htmlFor = quantity.id; quantityField.append(quantityLabel, quantity);
+            quantity.addEventListener('change', () => { if (!Number.isSafeInteger(quantity.valueAsNumber) || quantity.valueAsNumber < 1 || quantity.valueAsNumber > 2147483647) { quantity.value = String(line.SoLuong); return; } line.SoLuong = quantity.valueAsNumber; requestQuote(); });
+            const units = node('select'); units.id = `counter-basket-unit-${line.MaDonGia}`; units.dataset.basketUnit = line.MaDonGia; const unitLabel = node('label', 'Đơn vị tính'); unitLabel.htmlFor = units.id;
+            for (const unit of line.DonViGia) { const option = node('option', unit.DonViTinh); option.value = unit.MaDonGia; units.append(option); } units.value = String(line.MaDonGia); unitField.append(unitLabel, units);
+            units.addEventListener('change', () => {
+                const unit = line.DonViGia.find(value => String(value.MaDonGia) === units.value); if (!unit) return;
+                const existing = lines.find(value => value !== line && value.MaDonGia === unit.MaDonGia);
+                if (existing) { existing.SoLuong += line.SoLuong; lines = lines.filter(value => value !== line); } else Object.assign(line, unit);
+                requestQuote();
+            });
+            const remove = node('button', 'Bỏ', 'quiet-link'); remove.type = 'button'; remove.setAttribute('aria-label', `Bỏ ${line.TenThuoc}`); remove.addEventListener('click', () => { lines = lines.filter(value => value !== line); requestQuote(); });
+            controls.append(quantityField, unitField, remove); content.append(controls);
+            const total = priced ? priced.ThanhTien : BigInt(price) * BigInt(line.SoLuong);
+            content.append(node('p', `${priced ? 'Thành tiền' : 'Thành tiền tạm tính'}: ${money(total)}`, 'counter-line-total'));
+            if (priced?.SoLuongKhuyenMai > 0 && priced.SoLuongKhuyenMai < line.SoLuong) content.append(node('p', `Khuyến mãi áp dụng ${priced.SoLuongKhuyenMai}/${line.SoLuong} ${line.DonViTinh}.`, 'field-help'));
+            row.append(visual, content); $('counter-lines').append(row);
         }
         if (!lines.length) $('counter-lines').append(node('li', 'Chọn thuốc bên phải để thêm vào đơn.', 'field-help'));
+        if (focused) $('counter-lines').querySelector(`[data-basket-quantity="${focused}"]`)?.focus();
+        else if (focusedUnit) $('counter-lines').querySelector(`[data-basket-unit="${focusedUnit}"]`)?.focus();
     }
     function renderTotals() {
         $('counter-totals').replaceChildren();
+        let redeemable = 0n;
         if (quote) {
+            const beforeCoins = BigInt(quote.TongThanhToan) + BigInt(quote.XuSuDung) * 100n;
+            const balance = customer ? BigInt(customer.SoXu) : 0n;
+            redeemable = balance < beforeCoins / 100n ? balance : beforeCoins / 100n;
             for (const [label, value] of [['Tiền hàng', quote.TongTien], ['Giảm giá / đổi xu', String(BigInt(quote.TongTien) - BigInt(quote.TongThanhToan))], ['Tổng thanh toán', quote.TongThanhToan]]) { const row = node('div'); row.append(node('dt', label), node('dd', money(value))); $('counter-totals').append(row); }
         }
+        $('counter-coins-amount').replaceChildren(document.createTextNode(`(-${new Intl.NumberFormat('vi-VN').format(redeemable)} `), rewardCoin(), document.createTextNode(')'));
+        $('counter-coins').disabled = busy || Boolean(submitted) || !quote || redeemable <= 0n;
         $('counter-finish').disabled = busy || !customer || !quote || !lines.length;
     }
-    function payload() { return { SDT: customer.SDT, DoiDiem: $('counter-coins').checked, items: lines.map(({ MaThuoc, MaDonGia, SoLuong }) => ({ MaThuoc, MaDonGia, SoLuong })) }; }
+    function payload() { return { SDT: customer?.SDT || '', DoiDiem: Boolean(customer) && $('counter-coins').checked, items: lines.map(({ MaThuoc, MaDonGia, SoLuong }) => ({ MaThuoc, MaDonGia, SoLuong })) }; }
     function requestQuote() {
         clearTimeout(quoteTimer); const attempt = ++quoteVersion, account = owner(), run = epoch;
-        quote = null; renderTotals();
-        if (!customer || !lines.length || submitted) return;
+        quote = null; renderLines(); renderTotals();
+        if (!lines.length || submitted) return;
         quoteTimer = setTimeout(async () => {
             try {
                 const data = await quoteCounterOrder(payload(), account);
                 if (attempt !== quoteVersion || run !== epoch || account !== owner() || !allowed()) return;
-                customer.SoXu = data.SoXu;
-                $('counter-coins-field').hidden = BigInt(data.SoXu) <= 0n;
-                $('counter-balance').replaceChildren(document.createTextNode(`${new Intl.NumberFormat('vi-VN').format(BigInt(data.SoXu))} `), rewardCoin());
+                if (customer) { customer.SoXu = data.SoXu; renderCustomer(); }
+                else $('counter-coins-field').hidden = true;
                 if ($('counter-coins').checked && data.XuSuDung === 0) { $('counter-coins').checked = false; requestQuote(); return; }
                 quote = data; renderLines(); renderTotals(); setState('');
             } catch (error) { if (attempt === quoteVersion && run === epoch) fail(error); }
@@ -97,7 +136,7 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
                 }
                 units.addEventListener('change', renderPrice); renderPrice();
                 const add = node('button', 'Thêm', 'button button-outline'); add.type = 'button'; add.disabled = !available.length || Boolean(submitted); add.setAttribute('aria-label', `Thêm ${product.TenThuoc}`);
-                add.addEventListener('click', () => { if (busy || submitted) return; const unit = available.find(value => String(value.MaDonGia) === units.value); if (!unit) return; const existing = lines.find(value => value.MaDonGia === unit.MaDonGia); if (existing) existing.SoLuong++; else if (lines.length < 100) lines.push({ MaThuoc: product.MaThuoc, MaDonGia: unit.MaDonGia, SoLuong: 1, TenThuoc: product.TenThuoc, DonViTinh: unit.DonViTinh }); renderLines(); requestQuote(); });
+                add.addEventListener('click', () => { if (busy || submitted) return; const unit = available.find(value => String(value.MaDonGia) === units.value); if (!unit) return; const existing = lines.find(value => value.MaDonGia === unit.MaDonGia); if (existing) existing.SoLuong++; else if (lines.length < 100) lines.push({ ...unit, MaThuoc: product.MaThuoc, SoLuong: 1, TenThuoc: product.TenThuoc, HinhAnh: product.HinhAnh, DonViGia: available }); requestQuote(); });
                 card.append(visual, description, unitField, prices, add); $('counter-products').append(card);
             }
             $('counter-products-page').textContent = `Trang ${productPage}`; $('counter-products-prev').disabled = productPage <= 1; $('counter-products-next').disabled = productPage * 12 >= data.total;
@@ -168,15 +207,14 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
         const run = epoch;
         try { const data = await getPublicCategories({ per_page: 100 }); if (run !== epoch || !allowed()) return; $('counter-category').replaceChildren(node('option', 'Tất cả loại thuốc')); $('counter-category').firstChild.value = ''; for (const category of data.items) { const option = node('option', category.TenLoaiThuoc); option.value = category.MaLoaiThuoc; $('counter-category').append(option); } } catch (error) { if (run === epoch) fail(error, 'counter-catalog-state'); }
     });
-    $('counter-phone').addEventListener('input', () => { customer = null; quoteVersion++; quote = null; $('counter-coins').checked = false; $('counter-coins-field').hidden = $('counter-name-field').hidden = true; $('counter-customer-state').textContent = 'Bấm Kiểm tra để xác nhận SĐT.'; renderTotals(); });
+    $('counter-phone').addEventListener('input', () => { customer = null; $('counter-coins').checked = false; $('counter-coins-field').hidden = $('counter-name-field').hidden = true; $('counter-customer-state').textContent = 'Bấm Kiểm tra để xác nhận SĐT.'; requestQuote(); });
     $('counter-customer-form').addEventListener('submit', async event => {
         event.preventDefault(); if (!allowed() || busy || checking || submitted) return;
         const phone = $('counter-phone').value, run = epoch; checking = true; $('counter-check').disabled = true;
         try {
             const data = await getCounterCustomer(phone);
             if (run !== epoch || phone !== $('counter-phone').value || !allowed()) return;
-            customer = data; $('counter-name-field').hidden = data.exists; $('counter-customer-state').textContent = data.exists ? `Khách hàng: ${data.HoTen}` : 'Khách hàng mới. Nhập tên để tạo tài khoản khi hoàn tất đơn.';
-            $('counter-coins-field').hidden = BigInt(data.SoXu) <= 0n; $('counter-balance').replaceChildren(document.createTextNode(`${new Intl.NumberFormat('vi-VN').format(BigInt(data.SoXu))} `), rewardCoin()); requestQuote();
+            customer = data; $('counter-name-field').hidden = data.exists; renderCustomer(); requestQuote();
         } catch (error) { if (run === epoch && phone === $('counter-phone').value) fail(error, 'counter-customer-state'); }
         finally { if (run === epoch) { checking = false; $('counter-check').disabled = false; } }
     });

@@ -168,6 +168,17 @@ class EmployeeOrderTests(unittest.TestCase):
             self.assertEqual(error.exception.code,'OUT_OF_STOCK')
         self.award.assert_not_called(); self.commit.assert_not_called()
 
+    def test_counter_quote_without_phone_prices_items_without_customer_or_coins(self):
+        lookup = self.mock('app.services.counter_order_service.users.find_by_phone')
+        balance = self.mock('app.services.counter_order_service.points.balance')
+        self.mock('app.services.counter_order_service.get_cart', return_value={
+            'total':8000,'items':[dict(MaThuoc=7,MaDonGia=3,SoLuong=1,GiaBan=8000,GiaGoc=10000,ThanhTien=8000,ConHang=True)]})
+        response = self.client.post('/api/employee/orders/counter/quote', json={
+            'items':[dict(MaThuoc=7,MaDonGia=3,SoLuong=1)],'DoiDiem':False}, headers={'X-CSRF-Token':'csrf'})
+        self.assertEqual(response.status_code,200)
+        self.assertEqual((response.json['TongTien'],response.json['TongThanhToan'],response.json['SoXu']),('10000','8000','0'))
+        lookup.assert_not_called(); balance.assert_not_called(); self.commit.assert_not_called()
+
     def test_counter_catalog_prices_each_unit_with_available_promotion_quota(self):
         product = NS(MaThuoc=7, MaLoaiThuoc=1, TenThuoc='Thuốc', HinhAnh=None, MaVach='0893000000123')
         listing = self.mock('app.services.counter_order_service.products.list_products', return_value=([product], 1))
@@ -248,6 +259,7 @@ class EmployeeOrderTests(unittest.TestCase):
         for bad in [{**data,'DoiDiem':'true'}, {**data,'items':[data['items'][0]]*2}, {**data,'items':[{**data['items'][0],'SoLuong':0}]}, {**data,'PhuongThucThanhToan':2}, {**data,'request_id':'bad'}, {**data,'MaNhanVien':8}]:
             self.assertEqual(send(bad).status_code, 400)
         create.assert_called_once()
+        self.assertEqual(send({key:value for key,value in data.items() if key!='SDT'}).status_code,400)
         self.assertEqual(self.client.post(url,json=data).status_code, 403)
         self.actor.VaiTro=0
         self.assertEqual(send(data).status_code, 403)
