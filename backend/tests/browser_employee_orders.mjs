@@ -11,10 +11,10 @@ function reset() {
         NgayDat: index === 1 ? '2026-11-17T08:30:00+07:00' : '2026-11-19T08:30:00+07:00',
         KhachHang: { HoTen: 'Khách hàng kiểm thử', SDT: `090000000${index}` }, QuaHanThanhToan: index === 1,
         GhiChu: 'Người nhận: Khách hàng kiểm thử\nGiao tận nơi: Địa chỉ kiểm thử', XuDaCong: null,
-        items: [{ MaThuoc:7, MaDonGia:3, MaChiTiet:'1', TenThuoc:'Thuốc <b>an toàn</b>', SoLuong:3, DonViTinh:'Viên', DonGia:'10000', ThanhTien:'30000' }] }));
+        items: [{ MaThuoc:7, MaDonGia:3, MaChiTiet:'1', TenThuoc:'Thuốc <b>an toàn</b>', MaVach:'0893000000123', HinhAnh: index===1 ? 'javascript:alert(1)' : 'https://example.invalid/employee-product.png', SoLuong:3, DonViTinh:'Viên', DonGia:'10000', ThanhTien:'30000' }] }));
 }
 reset();
-const serialize = row => ({ ...row, CanPrint: [2,3].includes(row.TrangThaiDonHang) });
+const serialize = row => ({ ...row, CanPrint: row.TrangThaiDonHang === 1 });
 export async function employeeOrdersFixture(req, json) {
     const url = new URL(req.url, 'http://fixture'), parts = url.pathname.split('/'), id = parts[4];
     if (req.method === 'GET' && !id) {
@@ -61,27 +61,41 @@ export async function checkEmployeeOrders({ evaluate:run, waitFor, command, base
     assert.equal(await run(`document.querySelector('#employee-order-rows [data-employee-order]').dataset.employeeOrder`),'503');
     await run(`document.querySelector('#employee-order-search').value='';document.querySelector('#employee-order-search-form').requestSubmit()`);
     await waitFor(`document.querySelectorAll('#employee-order-rows [data-employee-order]').length===4`);
-    const choose = async id => { await run(`document.querySelector('[data-employee-order="${id}"]').click()`); await waitFor(`document.querySelector('#employee-order-detail-title').textContent==='Đơn hàng #${id}' && !document.querySelector('#employee-order-detail-content').hidden`); };
+    const choose = async id => { await run(`document.querySelector('[data-order-id="${id}"] td:nth-child(2) strong').click()`); await waitFor(`document.querySelector('#employee-order-detail-title').textContent==='Đơn hàng #${id}' && !document.querySelector('#employee-order-detail-content').hidden`); };
     await choose('503');
+    assert.equal(await run(`document.querySelector('.employee-product-barcode').textContent`), 'Mã vạch: 0893000000123');
+    assert.equal(await run(`document.querySelector('#employee-order-print')`), null);
+    assert.equal(await run(`document.querySelector('.employee-product-image img').getAttribute('src')`), 'https://example.invalid/employee-product.png');
+    assert.equal(await run(`document.querySelector('.employee-product-image img').alt`), 'Thuốc <b>an toàn</b>');
+    await waitFor(`document.querySelector('.employee-product-image img')?.naturalWidth > 0`);
+    await run(`document.querySelector('.employee-product-image img').dispatchEvent(new Event('error'))`);
+    assert.equal(await run(`document.querySelector('.employee-product-image').textContent`), 'Chưa có ảnh');
     await run(`document.querySelector('#employee-order-next-status').click();document.querySelector('#employee-order-action-confirm').click();document.querySelector('#employee-order-action-confirm').click()`);
     await waitFor(`document.querySelector('#employee-order-detail-content .employee-order-badge').dataset.status==='1'`);
     assert.equal(mutations,1);
-    await run(`document.querySelector('#employee-order-next-status').click();document.querySelector('#employee-order-action-confirm').click()`);
     await waitFor(`document.querySelector('#employee-order-print')!==null`);
+    assert.deepEqual(await run(`Array.from(document.querySelectorAll('.employee-order-detail-actions button'),button=>button.id)`), ['employee-order-print','employee-order-next-status','employee-order-cancel']);
+    assert.equal(await run(`new Set(Array.from(document.querySelectorAll('.employee-order-detail-actions button'),button=>getComputedStyle(button).backgroundColor)).size`), 3);
     assert.equal(await run(`document.querySelector('#employee-order-detail-content b')`),null);
     await run(`window.__employeePrints=0;window.print=()=>{window.__employeePrints++};document.querySelector('#employee-order-print').click()`);
     await waitFor(`window.__employeePrints===1`);
     assert.equal(await run(`document.querySelector('#employee-invoice b')`),null);
     assert.match(await run(`document.querySelector('#employee-invoice').textContent`),/25.550/);
+    assert.doesNotMatch(await run(`document.querySelector('#employee-invoice').textContent`), /0893000000123|Mã vạch/);
     await command('Emulation.setEmulatedMedia',{ media:'print' });
     assert.equal(await run(`getComputedStyle(document.querySelector('#employee-invoice')).display`),'block');
     assert.equal(await run(`getComputedStyle(document.querySelector('.employee-header')).display`),'none');
     await command('Emulation.setEmulatedMedia',{ media:'' });
     await run(`document.querySelector('#employee-order-next-status').click();document.querySelector('#employee-order-action-confirm').click()`);
+    await waitFor(`document.querySelector('#employee-order-detail-content .employee-order-badge').dataset.status==='2'`);
+    assert.equal(await run(`document.querySelector('#employee-order-print')`), null);
+    await run(`document.querySelector('#employee-order-next-status').click();document.querySelector('#employee-order-action-confirm').click()`);
     await waitFor(`document.querySelector('.employee-earned-points')?.textContent.includes('255')`);
     assert.equal(mutations,3);
     assert.equal(await run(`document.querySelector('#employee-order-next-status')`),null);
     await choose('502'); assert.equal(await run(`document.querySelector('#employee-order-next-status').disabled`),true);
+    assert.equal(await run(`document.querySelector('.employee-product-image img')`), null);
+    assert.equal(await run(`document.querySelector('.employee-product-image').textContent`), 'Chưa có ảnh');
     await run(`document.querySelector('#employee-order-cancel').click();document.querySelector('#employee-order-action-confirm').click()`);
     await waitFor(`document.querySelector('#employee-order-action-state').textContent.includes('đối soát')`);
     await run(`document.querySelector('#employee-order-action-back').click()`);
@@ -91,6 +105,7 @@ export async function checkEmployeeOrders({ evaluate:run, waitFor, command, base
         assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`),true,`Employee orders fits ${width}px`);
         if ([1440,375].includes(width)) {
             await run(`window.scrollTo({top:0,behavior:'instant'})`);
+            if (width === 1440) await waitFor(`document.querySelector('.employee-product-image img')?.naturalWidth > 0`);
             const shot=await command('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
             await writeFile(path.join(root,'docs',`EMPLOYEE_PROCESSING_${width}.png`),Buffer.from(shot.data,'base64'));
         }

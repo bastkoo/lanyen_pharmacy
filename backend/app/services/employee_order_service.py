@@ -36,9 +36,9 @@ def detail(order_id):
     if order is None:
         raise AuthError('ORDER_NOT_FOUND', 404)
     result = summary(order, orders.customer(order.MaNguoiMua))
-    value = order_service.read_detail(order.MaNguoiMua, order_id)
+    value = order_service.read_detail(order.MaNguoiMua, order_id, include_barcode=True)
     result.update(items=value['items'], GhiChu=value['GhiChu'], XuDaCong=value.get('XuDaCong'),
-                  CanPrint=order.TrangThaiDonHang in (2, 3))
+                  CanPrint=order.TrangThaiDonHang == 1)
     return result
 
 

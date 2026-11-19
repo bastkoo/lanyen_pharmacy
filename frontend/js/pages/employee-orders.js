@@ -1,6 +1,7 @@
 import { listEmployeeOrders, getEmployeeOrder, updateEmployeeOrder, cancelEmployeeOrder } from '../api/employee-orders.js';
 import { money } from '../components/cart.js';
 import { rewardCoin } from '../components/reward-coin.js';
+import { validHttps } from '../utils/product-validation.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
@@ -77,18 +78,28 @@ export function setupEmployeeOrders({ getUser, onSessionError }) {
         if (value.TrangThaiDonHang === 0 && value.QuaHanThanhToan) content.append(node('p', 'Quá thời gian xử lý', 'employee-overdue'));
         content.append(node('h4', value.KhachHang?.HoTen || 'Khách hàng'), node('p', value.KhachHang?.SDT || ''), node('p', value.GhiChu || '', 'employee-order-note'));
         const products = node('ul', undefined, 'employee-order-products');
-        for (const item of value.items) { const line = node('li'); line.append(node('strong', item.TenThuoc), node('span', `${item.SoLuong} ${item.DonViTinh} × ${money(item.DonGia)}`)); products.append(line); }
+        for (const item of value.items) {
+            const line = node('li'), visual = node('div', 'Chưa có ảnh', 'employee-product-image');
+            if (validHttps(item.HinhAnh)) {
+                const image = node('img'); image.src = item.HinhAnh; image.alt = item.TenThuoc; image.width = 56; image.height = 64; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
+                image.addEventListener('error', () => visual.replaceChildren(document.createTextNode('Chưa có ảnh')), { once: true }); visual.replaceChildren(image);
+            }
+            const description = node('div', undefined, 'employee-product-description');
+            description.append(node('strong', item.TenThuoc), node('span', `${item.SoLuong} ${item.DonViTinh} × ${money(item.DonGia)}`));
+            description.append(node('span', `Mã vạch: ${item.MaVach || 'Chưa có mã vạch'}`, 'employee-product-barcode'));
+            line.append(visual, description); products.append(line);
+        }
         content.append(products);
         const totals = node('dl', undefined, 'employee-order-totals');
         for (const [label, amount] of [['Tiền hàng', value.TongTien], ['Giảm giá / đổi xu', value.TienGiamGia], ['Tổng thanh toán', value.TongThanhToan]]) { const line = node('div'); line.append(node('dt', label), node('dd', money(amount))); totals.append(line); }
         content.append(totals, node('p', `${value.PhuongThucThanhToan === 0 ? 'COD' : 'QR'} · ${value.TrangThaiThanhToan === 1 ? 'Đã thanh toán' : 'Chưa thanh toán'}`));
         if (value.TrangThaiDonHang === 3 && value.XuDaCong !== null && value.XuDaCong !== undefined) { const earned = node('p', `Đã cộng ${new Intl.NumberFormat('vi-VN').format(BigInt(value.XuDaCong))} `, 'employee-earned-points'); earned.append(rewardCoin(), document.createTextNode(' vào tài khoản khách hàng.')); content.append(earned); }
         const actions = node('div', undefined, 'employee-order-detail-actions');
+        if (value.CanPrint) { const print = node('button', 'In hóa đơn', 'button employee-order-print'); print.type = 'button'; print.id = 'employee-order-print'; print.disabled = busy; print.addEventListener('click', printInvoice); actions.append(print); }
         if ([0, 1, 2].includes(value.TrangThaiDonHang)) {
             const next = node('button', ['Xác nhận thanh toán tại quầy', 'Chuyển sang Đang giao', 'Xác nhận Đã giao'][value.TrangThaiDonHang], 'button button-primary'); next.type = 'button'; next.id = 'employee-order-next-status'; next.disabled = busy || value.QuaHanThanhToan === true; next.addEventListener('click', () => confirmAction('update', next));
-            const cancel = node('button', 'Hủy đơn', 'button button-outline'); cancel.type = 'button'; cancel.id = 'employee-order-cancel'; cancel.disabled = busy; cancel.addEventListener('click', () => confirmAction('cancel', cancel)); actions.append(next, cancel);
+            const cancel = node('button', 'Hủy đơn hàng', 'button employee-order-cancel'); cancel.type = 'button'; cancel.id = 'employee-order-cancel'; cancel.disabled = busy; cancel.addEventListener('click', () => confirmAction('cancel', cancel)); actions.append(next, cancel);
         }
-        if (value.CanPrint) { const print = node('button', 'In hóa đơn', 'button button-outline'); print.type = 'button'; print.id = 'employee-order-print'; print.disabled = busy; print.addEventListener('click', printInvoice); actions.append(print); }
         content.append(actions);
         for (const row of $('employee-order-rows').querySelectorAll('[data-order-id]')) row.classList.toggle('is-selected', row.dataset.orderId === selected);
     }
@@ -109,7 +120,7 @@ export function setupEmployeeOrders({ getUser, onSessionError }) {
         $('employee-order-action-title').textContent = kind === 'cancel' ? 'Hủy đơn hàng?' : 'Xác nhận cập nhật đơn hàng';
         let description = kind === 'cancel' ? `Hủy đơn #${selected} và hoàn đúng xu, kho, hạn mức khuyến mãi đã sử dụng?`
             : detail.TrangThaiDonHang === 0 ? `Xác nhận đơn #${selected} đã thanh toán tại quầy và chuyển sang Đang chờ xử lý?`
-            : detail.TrangThaiDonHang === 1 ? `Chuyển đơn #${selected} sang Đang giao? Sau đó bạn có thể in hóa đơn.`
+            : detail.TrangThaiDonHang === 1 ? `Chuyển đơn #${selected} sang Đang giao?`
             : `Xác nhận đơn #${selected} đã giao${detail.PhuongThucThanhToan === 0 ? ' và đã thu tiền COD' : ''}? Khách hàng sẽ được cộng ${BigInt(detail.TongThanhToan) / 100n} xu.`;
         if (kind === 'cancel' && detail.PhuongThucThanhToan === 1 && detail.TrangThaiThanhToan === 1) description += ' Tiền QR đã thanh toán cần nhà thuốc xử lý hoàn riêng.';
         $('employee-order-action-description').textContent = description; $('employee-order-action-state').textContent = '';
@@ -154,7 +165,11 @@ export function setupEmployeeOrders({ getUser, onSessionError }) {
         } catch (error) { $('employee-order-detail-state').textContent = errorText(error); checkSession(error); }
         finally { busy = false; }
     }
-    $('employee-order-rows').addEventListener('click', event => { const button = event.target.closest('[data-employee-order]'); if (button) loadDetail(button.dataset.employeeOrder, true); });
+    $('employee-order-rows').addEventListener('click', event => {
+        const row = event.target.closest('tr[data-order-id]');
+        if (!row || event.target.closest('a,input,select,textarea,button:not([data-employee-order])')) return;
+        loadDetail(row.dataset.orderId, true);
+    });
     $('employee-order-search-form').addEventListener('submit', event => { event.preventDefault(); if (busy || loading) return; search = $('employee-order-search').value.trim(); page = 1; load(); });
     for (const filter of document.querySelectorAll('[data-employee-order-filter]')) filter.addEventListener('click', () => { if (busy || loading) return; status = filter.dataset.employeeOrderFilter; page = 1; for (const button of document.querySelectorAll('[data-employee-order-filter]')) button.setAttribute('aria-pressed', String(button === filter)); load(); });
     $('employee-order-prev').addEventListener('click', () => { if (page > 1 && !loading) { page--; load(); } });

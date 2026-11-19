@@ -37,8 +37,8 @@ class EmployeeOrderTests(unittest.TestCase):
         self.find = self.mock('app.services.employee_order_service.orders.find', side_effect=lambda *args, **kwargs: self.order)
         self.mock('app.services.employee_order_service.orders.customer', return_value=self.customer)
         self.listing = self.mock('app.services.employee_order_service.orders.employee_list', return_value=([(self.order, self.customer)], 1))
-        self.mock('app.services.order_service.orders.detail_items', return_value=[(
-            NS(MaChiTiet=1, MaThuoc=7, MaDonGia=3, SoLuong=3, DonGia=10000), NS(TenThuoc='Thuốc', HinhAnh=None), NS(DonViTinh='Viên'))])
+        self.lines = self.mock('app.services.order_service.orders.detail_items', return_value=[(
+            NS(MaChiTiet=1, MaThuoc=7, MaDonGia=3, SoLuong=3, DonGia=10000), NS(TenThuoc='Thuốc', HinhAnh=None, MaVach='0893000000123'), NS(DonViTinh='Viên'))])
         self.awards = []
         self.award = self.mock('app.services.employee_order_service.points.award', side_effect=lambda user, quantity, order, timestamp: self.awards.append(quantity))
         self.mock('app.services.order_service.points.order_award', side_effect=lambda *args: self.awards[-1] if self.awards else None)
@@ -62,7 +62,8 @@ class EmployeeOrderTests(unittest.TestCase):
         self.assertEqual(result.json['items'][0]['KhachHang']['SDT'], '0900000000')
         detail = self.client.get('/api/employee/orders/45').json['order']
         self.assertEqual(detail['items'][0]['TenThuoc'], 'Thuốc')
-        self.assertFalse(detail['CanPrint'])
+        self.assertTrue(detail['CanPrint'])
+        self.assertEqual(detail['items'][0]['MaVach'], '0893000000123')
         self.assertIsNone(detail['XuDaCong'])
         for role in [0, 2]:
             self.actor.VaiTro = role
@@ -72,15 +73,26 @@ class EmployeeOrderTests(unittest.TestCase):
             self.assertEqual(self.client.post('/api/employee/orders/45/cancel', json={}, headers={'X-CSRF-Token':'csrf'}).status_code, 403)
         self.award.assert_not_called()
 
+    def test_barcode_is_employee_only_and_print_is_processing_only(self):
+        with self.app.app_context():
+            self.assertNotIn('MaVach', order_service.read_detail(12, 45)['items'][0])
+            for state in range(6):
+                self.order.TrangThaiDonHang = state
+                self.assertEqual(service.detail(45)['CanPrint'], state == 1)
+            detail, product, unit = self.lines.return_value[0]
+            self.lines.return_value = [(detail, None, unit)]
+            self.assertIsNone(service.detail(45)['items'][0]['MaVach'])
+
     def test_allowed_transitions_counter_payment_cod_and_exactly_once_award(self):
         self.order.TrangThaiDonHang = 0; self.order.PhuongThucThanhToan = 1
         result = self.update(0, 1)
         self.assertEqual(result.status_code, 200)
+        self.assertTrue(result.json['order']['CanPrint'])
         self.assertEqual(self.order.TrangThaiThanhToan, 1)
         self.assertEqual(self.order.MaNhanVien, 8)
         self.award.assert_not_called()
         result = self.update(1, 2)
-        self.assertTrue(result.json['order']['CanPrint'])
+        self.assertFalse(result.json['order']['CanPrint'])
         self.award.assert_not_called()
         self.order.PhuongThucThanhToan = 0; self.order.TrangThaiThanhToan = 0
         result = self.update(2, 3)

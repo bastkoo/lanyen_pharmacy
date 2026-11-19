@@ -223,7 +223,7 @@ def read(user_id, order_id):
 
 
 @operation
-def read_detail(user_id, order_id):
+def read_detail(user_id, order_id, *, include_barcode=False):
     if not 0 < order_id <= 9223372036854775807:
         raise AuthError('ORDER_NOT_FOUND', 404)
     order = orders.find(order_id)
@@ -235,17 +235,20 @@ def read_detail(user_id, order_id):
     if order.TrangThaiDonHang == 3:
         award = points.order_award(order.MaNguoiMua, order.MaDonHang)
         result['XuDaCong'] = str(award) if award is not None else None
-    result['items'] = [serialize_item(detail, product, unit)
+    result['items'] = [serialize_item(detail, product, unit, include_barcode=include_barcode)
                        for detail, product, unit in orders.detail_items(order_id)]
     return result
 
 
-def serialize_item(detail, product, unit):
-    return dict(
+def serialize_item(detail, product, unit, *, include_barcode=False):
+    result = dict(
         MaChiTiet=str(detail.MaChiTiet), MaThuoc=detail.MaThuoc, MaDonGia=detail.MaDonGia,
         SoLuong=detail.SoLuong, DonGia=str(detail.DonGia), ThanhTien=str(detail.SoLuong * detail.DonGia),
         TenThuoc=product.TenThuoc if product else 'Sản phẩm không còn trong danh mục',
         HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '')
+    if include_barcode:
+        result['MaVach'] = product.MaVach if product else None
+    return result
 
 
 @operation

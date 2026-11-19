@@ -212,7 +212,7 @@ try {
     };
     await command('Page.enable');
     await command('Runtime.enable');
-    if (productTest || homepageTest || addressTest || profileTest) await command('Fetch.enable', { patterns: [...(productTest || homepageTest ? [{ urlPattern: 'https://example.invalid/*' }] : []), { urlPattern: 'https://provinces.open-api.vn/*' }] });
+    if (productTest || homepageTest || addressTest || profileTest || employeeTest) await command('Fetch.enable', { patterns: [...(productTest || homepageTest || employeeTest ? [{ urlPattern: 'https://example.invalid/*' }] : []), { urlPattern: 'https://provinces.open-api.vn/*' }] });
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
     await navigate('manager');
     await evaluate('document.fonts.ready');
