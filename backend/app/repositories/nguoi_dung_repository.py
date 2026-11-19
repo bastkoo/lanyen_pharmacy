@@ -23,7 +23,7 @@ def update_profile(user, name, avatar):
     user.AnhDaiDien = avatar
 
 
-def create_customer(phone, name):
+def create_customer(phone, name, *, commit=True):
     # PostgreSQL waits for a concurrent insert then ignores only the SDT conflict.
     # Other constraint failures propagate to the service and roll back.
     statement = insert(NguoiDung).values(
@@ -31,5 +31,6 @@ def create_customer(phone, name):
     ).on_conflict_do_nothing(index_elements=[NguoiDung.SDT])
     db.session.execute(statement)
     user = find_by_phone(phone)
-    db.session.commit()
+    if commit:
+        db.session.commit()
     return user

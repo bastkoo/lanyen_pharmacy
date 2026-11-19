@@ -17,6 +17,7 @@ reset();
 const serialize = row => ({ ...row, CanPrint: row.TrangThaiDonHang === 1 });
 export async function employeeOrdersFixture(req, json) {
     const url = new URL(req.url, 'http://fixture'), parts = url.pathname.split('/'), id = parts[4];
+    if (id === 'pending-count') return json(200, {code:'EMPLOYEE_PENDING_COUNT', count:rows.filter(row=>row.TrangThaiDonHang===1).length});
     if (req.method === 'GET' && !id) {
         const status = url.searchParams.get('status') || 'all', search = url.searchParams.get('search') || '';
         const found = rows.filter(row => [0,1,2].includes(row.TrangThaiDonHang) && (status === 'all' || String(row.TrangThaiDonHang) === status)
@@ -50,18 +51,22 @@ export async function checkEmployeeOrders({ evaluate:run, waitFor, command, base
     await command('Page.navigate', { url:`${baseUrl}/pages/employee/index.html#orders` });
     await new Promise(resolve=>setTimeout(resolve,80)); await run(`window.dispatchEvent(new Event('focus'))`);
     await waitFor(`document.querySelectorAll('#employee-order-rows [data-employee-order]').length===4`);
+    await waitFor(`document.querySelector('[data-employee-pending-count]').textContent==='1'`);
+    assert.equal(await run(`document.querySelectorAll('[data-employee-pending-count]').length`), 2);
+    assert.equal(await run(`getComputedStyle(document.querySelector('[data-employee-pending-count]')).color`),'rgb(220, 53, 69)');
+    assert.equal(await run(`document.querySelector('#employee-order-search-form button[type="submit"]')`), null);
     assert.equal(await run(`document.querySelector('#employee-order-rows [data-employee-order]').dataset.employeeOrder`),'501');
     assert.equal(await run(`document.querySelector('#employee-order-rows [data-order-id="502"] .employee-overdue').textContent`),'Quá thời gian xử lý');
     for (const [filter, count] of [['1',1],['2',1],['all',4]]) {
         await run(`document.querySelector('[data-employee-order-filter="${filter}"]').click()`);
         await waitFor(`document.querySelectorAll('#employee-order-rows [data-employee-order]').length===${count} && document.querySelector('#employee-order-list').getAttribute('aria-busy')==='false'`);
     }
-    await run(`document.querySelector('#employee-order-search').value='0900000002';document.querySelector('#employee-order-search-form').requestSubmit()`);
+    await run(`document.querySelector('#employee-order-search').value='0900000002';document.querySelector('#employee-order-search').dispatchEvent(new Event('input'))`);
     await waitFor(`document.querySelectorAll('#employee-order-rows [data-employee-order]').length===1`);
     assert.equal(await run(`document.querySelector('#employee-order-rows [data-employee-order]').dataset.employeeOrder`),'503');
     await run(`document.querySelector('#employee-order-search').value='';document.querySelector('#employee-order-search-form').requestSubmit()`);
     await waitFor(`document.querySelectorAll('#employee-order-rows [data-employee-order]').length===4`);
-    const choose = async id => { await run(`document.querySelector('[data-order-id="${id}"] td:nth-child(2) strong').click()`); await waitFor(`document.querySelector('#employee-order-detail-title').textContent==='Đơn hàng #${id}' && !document.querySelector('#employee-order-detail-content').hidden`); };
+    const choose = async id => { await run(`if(document.querySelector('#employee-order-detail').open)document.querySelector('#employee-order-detail-close').click()`); await run(`document.querySelector('[data-order-id="${id}"] td:nth-child(2) strong').click()`); await waitFor(`document.querySelector('#employee-order-detail').open && document.querySelector('#employee-order-detail-title').textContent==='Đơn hàng #${id}' && !document.querySelector('#employee-order-detail-content').hidden`); };
     await choose('503');
     assert.equal(await run(`document.querySelector('.employee-product-barcode').textContent`), 'Mã vạch: 0893000000123');
     assert.equal(await run(`document.querySelector('#employee-order-print')`), null);
@@ -103,6 +108,7 @@ export async function checkEmployeeOrders({ evaluate:run, waitFor, command, base
     for (const width of [1440, 1024, 768, 375, 320]) {
         await command('Emulation.setDeviceMetricsOverride',{width,height:1100,deviceScaleFactor:1,mobile:width<768});
         assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`),true,`Employee orders fits ${width}px`);
+        assert.equal(await run(`document.querySelector('#employee-order-detail').scrollWidth<=document.querySelector('#employee-order-detail').clientWidth`),true,`Order dialog fits ${width}px`);
         if ([1440,375].includes(width)) {
             await run(`window.scrollTo({top:0,behavior:'instant'})`);
             if (width === 1440) await waitFor(`document.querySelector('.employee-product-image img')?.naturalWidth > 0`);

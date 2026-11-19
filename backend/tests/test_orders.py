@@ -77,6 +77,49 @@ class OrderTests(unittest.TestCase):
         return self.client.post('/api/orders', json={**self.values, **changes},
                                 headers={'X-CSRF-Token': 'test-csrf'})
 
+    def test_counter_cash_reuses_checkout_stock_redemption_and_promotion_transaction(self):
+        quota = NS(SoLuong=50); self.promotion_detail.return_value = quota
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh':6}, SoLuongKhuyenMai=2)
+        award = self.mock('app.services.order_service.points.award')
+        values = {**self.values, 'HinhThucNhanHang':'pickup', 'DoiDiem':True, 'TongThanhToan':'29500'}
+        context = {'actor':8, 'id':'fixture', 'fingerprint':'fixture'}
+        with self.app.app_context():
+            result = order_service.create(self.user, values, counter=context, entries=[(7,8,3)])
+        self.assertEqual((result['TrangThaiDonHang'],result['TrangThaiThanhToan']), (3,1))
+        self.quote.assert_called_once_with({8}, lock_promotions=True, entries=[(7,8,3)])
+        self.deduct.assert_called_once_with({7:30})
+        self.assertEqual(quota.SoLuong, 30)
+        self.points_debit.assert_called_once()
+        self.assertEqual(award.call_args.args[:3], (12,295,45))
+        self.records.assert_not_called(); self.remove.assert_not_called()
+        self.assertTrue(self.create.call_args.args[0]['KenhDatHang'])
+
+    def test_counter_qr_waits_for_payment_and_zero_cash_never_awards(self):
+        award = self.mock('app.services.order_service.points.award')
+        with self.app.app_context():
+            result = order_service.create(self.user, {**self.values, 'HinhThucNhanHang':'pickup', 'PhuongThucThanhToan':1},
+                counter={'actor':8}, entries=[(7,8,3)])
+            self.assertEqual((result['TrangThaiDonHang'],result['TrangThaiThanhToan']), (0,0))
+            award.assert_not_called()
+            self.quote.return_value['total'] = 0
+            result = order_service.create(self.user, {**self.values, 'HinhThucNhanHang':'pickup', 'TongThanhToan':'0'},
+                counter={'actor':8}, entries=[(7,8,3)])
+            self.assertEqual(result['TrangThaiDonHang'], 3)
+            award.assert_not_called()
+
+    def test_counter_gateway_return_keeps_staff_workspace_without_marking_paid(self):
+        order = self.order(PhuongThucThanhToan=1, TrangThaiDonHang=0, TrangThaiThanhToan=0,
+                           MoiTruongThanhToan='sandbox')
+        self.find.return_value = order
+        with self.app.app_context(), patch.dict(self.app.config, {'SEPAY_SUCCESS_URL':'https://api.example/api/payments/sepay/return'}):
+            result = gateway.initialize(12, 45, employee=True)
+        self.assertIn('workspace=employee', result['fields']['success_url'])
+        self.assertIn('order=45', result['fields']['success_url'])
+        response = self.client.get('/api/payments/sepay/return?order=45&workspace=employee')
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.location.endswith('/pages/employee/index.html?bill=45#counter'))
+        self.assertEqual(order.TrangThaiThanhToan, 0)
+
     def cancellation_fixture(self, status=1, points=25):
         snapshot = dict(version=1, points=points, batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
                         promotions=[dict(MaChuongTrinh=6, MaThuoc=7, SoLuong=20)])

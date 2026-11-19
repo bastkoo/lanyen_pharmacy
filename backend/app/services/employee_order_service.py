@@ -13,9 +13,15 @@ from app.services.order_expiry_service import overdue, vietnam_now
 def summary(order, customer):
     result = order_service.serialize(order, legacy_payment=False)
     result.update(NgayDat=order.NgayDat.replace(tzinfo=timezone(timedelta(hours=7))).isoformat(),
+                  KenhDatHang=getattr(order, 'KenhDatHang', False),
                   KhachHang={'HoTen': customer.HoTen, 'SDT': customer.SDT} if customer else None,
                   QuaHanThanhToan=overdue(order))
     return result
+
+
+@operation
+def pending_count():
+    return orders.pending_count()
 
 
 @operation
@@ -66,7 +72,8 @@ def update(actor, order_id, from_status, to_status):
         quantity = order.TongThanhToan // 100
         if not 0 <= quantity <= 2147483647:
             raise AuthError('ORDER_POINTS_LIMIT', 409)
-        points.award(order.MaNguoiMua, quantity, order_id, vietnam_now())
+        if quantity > 0:
+            points.award(order.MaNguoiMua, quantity, order_id, vietnam_now())
     order.TrangThaiDonHang = to_status
     order.MaNhanVien = actor.MaNguoiDung
     result = detail(order_id)

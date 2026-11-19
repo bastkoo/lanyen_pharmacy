@@ -111,6 +111,8 @@ def payment_return():
     origin = current_app.config.get('SEPAY_FRONTEND_ORIGIN') or (allowed[0] if allowed else '')
     if not origin or origin not in allowed:
         return jsonify(code='GATEWAY_CONFIG_INVALID'), 503
+    if request.args.get('workspace') == 'employee':
+        return redirect(f'{origin}/pages/employee/index.html?bill={int(order_id)}#counter', code=303)
     return redirect(f'{origin}/pages/customer/order-detail.html?order={int(order_id)}', code=303)
 
 

@@ -22,6 +22,7 @@ import { checkPoints, pointsFixture } from './browser_points.mjs';
 import { checkCheckout, orderFixture } from './browser_checkout.mjs';
 import { checkEmployee } from './browser_employee.mjs';
 import { employeeOrdersFixture, checkEmployeeOrders } from './browser_employee_orders.mjs';
+import { counterFixture, counterCatalogFixture, checkEmployeeCounter } from './browser_employee_counter.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -78,8 +79,10 @@ const server = createServer(async (req, res) => {
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
     if (pathname.startsWith('/api/employee/orders')) {
         if (!['employee','forbidden'].includes(scenario)) return json(403,{code:'FORBIDDEN'});
+        if (pathname.includes('/counter') || pathname.endsWith('/completed')) return counterFixture(req,json);
         return employeeOrdersFixture(req,json);
     }
+    if (employeeTest && (pathname === '/api/products' || pathname === '/api/categories')) return counterCatalogFixture(req,json);
     if (checkingHomepage && pathname === '/api/payments/sepay/return') {
         res.writeHead(303, { Location: '/pages/customer/order-detail.html?order=' + new URL(req.url, 'http://fixture.local').searchParams.get('order') }); return res.end();
     }
@@ -419,6 +422,7 @@ try {
     if (employeeTest) {
         await checkEmployee({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
         await checkEmployeeOrders({ evaluate, waitFor, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        await checkEmployeeCounter({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
     }
     assert.deepEqual(errors, []);
     console.log('PASS: manager navigation, real CSS/fonts, 1440/1280/1024/768/375/320 widths, no overflow, drawer/keyboard/focus, account Escape, long name, anonymous/forbidden/locked/network/retry/expired, OTP UI flow, CSRF logout, customer auth dialog regression.');

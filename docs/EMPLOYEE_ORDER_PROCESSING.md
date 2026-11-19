@@ -10,6 +10,33 @@ Yêu cầu và các quyết định được người dùng duyệt ngày 19/11/
 - Cộng xu theo `TongThanhToan // 100`, dùng số tiền sau giảm giá/đổi xu, không dùng số thực. Ghi giao dịch cộng xu trong `DiemThuong` cùng transaction chuyển 2→3. Khóa tài khoản khách và đọc lại đơn dưới khóa trước khi đổi trạng thái; request có `from_status` để phát hiện cập nhật cạnh tranh. Không cho nhảy hoặc quay ngược trạng thái, không cộng lặp khi gửi lại.
 - `MaNhanVien` ghi nhận nhân viên cập nhật. `XuDaCong` đọc từ giao dịch tích xu của đơn; thông báo đã cộng xu chỉ hiện khi đơn là 3 và có giao dịch ghi nhận, gồm chi tiết nhân viên và chi tiết khách hàng. Đơn cũ đã giao nhưng chưa có giao dịch không được báo đã cộng xu.
 - Nhân viên có thể hủy 0, 1, 2. Hoàn đúng phân bổ `DuLieuHoanTra`: lô thuốc, hạn mức khuyến mãi và xu đã đổi. Dùng cùng cơ chế transaction/khóa/chống hoàn lặp đã có. Khách hàng vẫn chỉ được tự hủy 0/1. Tiền đã thanh toán QR cần xử lý hoàn riêng, không giả lập hoàn tiền.
+- Số đơn trạng thái 1 hiển thị màu đỏ ở thanh điều hướng và bộ lọc Đang chờ xử lý, cập nhật mỗi 30 giây và sau thao tác. Tìm kiếm tự chạy sau 300ms ngừng gõ, không cần nút Tìm kiếm. Đơn không phát sinh xu (`TongThanhToan // 100 = 0`) không tạo giao dịch cộng xu.
+
+## Tạo đơn tại quầy
+
+- Mục **Tạo đơn hàng** (`#counter`) mở danh sách tất cả đơn trạng thái 3, phân trang 20 đơn, tìm theo mã/SĐT, chọn để xem bill và in. Không giới hạn theo nhân viên hay kênh đặt. Quyền in trạng thái 3 ở trang này tách khỏi nút in trạng thái 1 ở trang xử lý đơn.
+- **Tạo đơn hàng mới** mở hộp thoại native `<dialog>`, giỏ bên trái khoảng 32%, thuốc bên phải 68%; trên màn hình nhỏ xếp dọc. Tra cứu SĐT với nút Kiểm tra; tài khoản mua có thể thuộc vai trò 0, 1, 2 (giữ kiểm tra trạng thái khóa). Khách chưa có tài khoản nhập tên và chỉ được tạo tài khoản khách hàng khi tạo đơn thành công. Không cấp phiên đăng nhập hay bỏ qua OTP của khách. Người vận hành trang vẫn là nhân viên vai trò 1.
+- Tìm thuốc tự động theo tên/mã vạch, lọc loại, phân trang và chọn đơn vị bán; thêm, đổi số lượng, bỏ thuốc. Báo giá từ backend bao gồm khuyến mãi và đổi xu tối đa; không dùng giá client để trừ kho. Tài khoản có số dư mới hiện lựa chọn dùng xu, quy đổi giữ nguyên 1 xu = 100đ.
+- Thuốc hiển thị thành danh sách dọc có ảnh, mã vạch, đơn vị, giá và nút Thêm. Ô chọn chỉ ghi đơn vị tính; giá màu đỏ nằm riêng. Nếu hạn mức khuyến mãi còn đủ một đơn vị đang chọn, hiển thị giá gốc gạch ngang và giá ưu đãi do cùng bộ tính giá giỏ hàng xác định. Tổng tiền gốc dùng `GiaGoc` của dòng được giảm giá, tránh tính nhầm từ giá đã giảm.
+- Chi tiết ở trang xử lý đơn và chi tiết bill tại quầy đều dùng hộp thoại: ảnh/tên/số lượng/giá/mã vạch ở trái, tổng tiền/thanh toán/nút in và thao tác ở phải; màn hình nhỏ xếp dọc. Đóng bằng nút × hoặc Escape, trả focus về thao tác mở; không đóng trong lúc gửi giao dịch. Bản in vẫn không có mã vạch.
+- Cộng xu theo quyết định cuối: **100đ = 1 xu**, tính `TongThanhToan // 100`; đơn 0đ không cộng xu. Tiền mặt: nhân viên chọn và bấm Hoàn thành sau khi thu đủ tiền, đơn được ghi nhận đã thanh toán và trạng thái 3. QR: tạo đơn 0 chưa thanh toán, mở Checkout SePay trong tab mới; chỉ IPN xác thực mới ghi nhận đã thanh toán. Trang nhân viên kiểm tra mỗi 5 giây và gọi hoàn tất có khóa/chống lặp để chuyển 1→3, cộng xu. Callback trình duyệt chỉ điều hướng về bill nhân viên, không xác nhận thanh toán. Đơn QR chưa hoàn tất có thể mở lại từ danh sách chờ; cũng dùng cơ chế tự hủy sau 24 giờ hiện có.
+- Tạo đơn tái sử dụng transaction giá, khóa tài khoản, hạn mức khuyến mãi, phân bổ lô FIFO khả dụng và trừ xu hiện có. `KenhDatHang=True`, ghi `MaNhanVien`; không thêm cột/bảng. `DuLieuHoanTra` giữ phân bổ hoàn trả và bổ sung `counter_request={actor,id,fingerprint}` để nhận diện gửi lại; khóa advisory theo nhân viên/UUID trước khi tạo khách/đơn. Gửi lại cùng nội dung trả đơn cũ, không trừ lặp; nội dung đổi cùng UUID bị từ chối. Hoàn tất QR khóa tài khoản rồi khóa đơn, chỉ cộng xu một lần. Tài khoản khách mới và đơn cùng transaction.
+- In bill dùng cùng mẫu in an toàn, không hiển thị mã vạch. Thanh toán SePay phải có cấu hình hợp lệ; kiểm thử dùng API/DB giả lập, không tạo đơn hay chuyển tiền thật.
+
+API bổ sung, đều yêu cầu nhân viên vai trò 1; các POST có CSRF:
+
+| Phương thức | Đường dẫn dưới `/api/employee/orders` | Nội dung |
+| --- | --- | --- |
+| GET | `/pending-count` | Tổng đơn trạng thái 1, không phụ thuộc tìm kiếm |
+| GET | `/completed?search=&page=1` | Tất cả đơn trạng thái 3 |
+| GET | `/counter/customer?phone=...` | Tên, tồn tại tài khoản và số xu |
+| GET | `/counter/products?search=&category_id=&page=1` | Thuốc, đơn vị, giá gốc và giá khuyến mãi đủ hạn mức |
+| POST | `/counter/quote` | `{SDT,items:[{MaThuoc,MaDonGia,SoLuong}],DoiDiem}` |
+| POST | `/counter` | Báo giá thêm `HoTen,PhuongThucThanhToan,TongThanhToan,request_id` UUID |
+| GET | `/counter/pending` | Tối đa 50 đơn tại quầy đang chờ hoàn tất gần nhất |
+| GET | `/counter/<id>` | Bill đơn hoàn tất hoặc đơn tại quầy |
+| POST | `/counter/<id>/payment` | `{}` mở Checkout đã ký |
+| POST | `/counter/<id>/complete` | `{}` hoàn tất khi thanh toán đã được xác nhận |
 
 ## API
 

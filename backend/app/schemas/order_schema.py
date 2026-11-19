@@ -22,6 +22,34 @@ class EmployeeOrderUpdateSchema(Schema):
     to_status = fields.Integer(strict=True, required=True, validate=validate.OneOf([1, 2, 3]))
 
 
+class CompletedOrderQuerySchema(EmployeeOrderQuerySchema):
+    status = fields.String(load_default='3', validate=validate.OneOf(['3']))
+
+
+class CounterLineSchema(Schema):
+    MaThuoc = fields.Integer(strict=True, required=True, validate=validate.Range(min=1, max=2147483647))
+    MaDonGia = fields.Integer(strict=True, required=True, validate=validate.Range(min=1, max=2147483647))
+    SoLuong = fields.Integer(strict=True, required=True, validate=validate.Range(min=1, max=2147483647))
+
+
+class CounterQuoteSchema(Schema):
+    SDT = fields.String(required=True, validate=validate.Length(min=1, max=24))
+    items = fields.List(fields.Nested(CounterLineSchema), required=True, validate=validate.Length(min=1, max=100))
+    DoiDiem = fields.Boolean(load_default=False)
+
+    @validates_schema(pass_original=True)
+    def validate_values(self, data, original_data, **kwargs):
+        if type(original_data.get('DoiDiem', False)) is not bool or len({line['MaDonGia'] for line in data['items']}) != len(data['items']):
+            raise ValidationError('Invalid selection.')
+
+
+class CounterCreateSchema(CounterQuoteSchema):
+    HoTen = fields.String(load_default='', validate=validate.Length(max=255))
+    PhuongThucThanhToan = fields.Integer(strict=True, required=True, validate=validate.OneOf([0, 1]))
+    TongThanhToan = fields.String(required=True, validate=validate.Regexp(r'^(0|[1-9][0-9]{0,18})$'))
+    request_id = fields.UUID(required=True)
+
+
 class OrderReorderSchema(Schema):
     MaChiTiet = fields.List(fields.String(validate=validate.Regexp(r'^[1-9][0-9]{0,18}$')),
                            required=True, validate=validate.Length(min=1, max=1000))

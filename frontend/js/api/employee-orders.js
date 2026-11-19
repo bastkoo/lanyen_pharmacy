@@ -20,6 +20,16 @@ async function request(path, method = 'GET', body, token) {
 }
 export const listEmployeeOrders = (status, search, page) => withSessionRequest(() => request(`?${new URLSearchParams({ status, search, page: String(page), per_page: '20' })}`));
 export const getEmployeeOrder = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}`));
+export const getEmployeePendingCount = () => withSessionRequest(() => request('/pending-count'));
+export const getCompletedEmployeeOrders = (search = '', page = 1) => withSessionRequest(() => request(`/completed?${new URLSearchParams({ search, page: String(page), per_page: '20' })}`));
+export const getCounterCustomer = phone => withSessionRequest(() => request(`/counter/customer?${new URLSearchParams({ phone })}`));
+export const getCounterProducts = filters => withSessionRequest(() => request(`/counter/products?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '' && value !== undefined))}`));
+export const getPendingCounterOrders = () => withSessionRequest(() => request('/counter/pending'));
+export const getCounterOrder = id => withSessionRequest(() => request(`/counter/${encodeURIComponent(id)}`));
+export const quoteCounterOrder = (values, owner) => withAuthenticatedSession(owner, token => request('/counter/quote', 'POST', values, token));
+export const createCounterOrder = (values, owner) => withAuthenticatedSession(owner, token => request('/counter', 'POST', values, token));
+export const completeCounterOrder = (id, owner) => withAuthenticatedSession(owner, token => request(`/counter/${encodeURIComponent(id)}/complete`, 'POST', {}, token));
+export const payCounterOrder = (id, owner) => withAuthenticatedSession(owner, token => request(`/counter/${encodeURIComponent(id)}/payment`, 'POST', {}, token));
 export const updateEmployeeOrder = (id, from, to, owner) => withAuthenticatedSession(owner,
     token => request(`/${encodeURIComponent(id)}/status`, 'POST', { from_status: from, to_status: to }, token));
 export const cancelEmployeeOrder = (id, owner) => withAuthenticatedSession(owner,

@@ -25,11 +25,12 @@ export function checkoutFields(payment, order) {
     return fieldOrder.filter(key => Object.hasOwn(fields, key)).map(key => [key, fields[key]]);
 }
 
-export function submitCheckout(payment, order) {
+export function submitCheckout(payment, order, newTab = false) {
     const entries = checkoutFields(payment, order);
     document.getElementById('sepay-checkout-form')?.remove();
     const form = document.createElement('form'); form.id = 'sepay-checkout-form';
     form.method = 'POST'; form.action = payment.action; form.hidden = true;
+    if (newTab) { form.target = '_blank'; form.rel = 'noopener noreferrer'; }
     for (const [name, value] of entries) {
         const input = document.createElement('input'); input.type = 'hidden'; input.name = name; input.value = value; form.append(input);
     }

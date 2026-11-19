@@ -8,6 +8,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app import create_app
 from app.services import employee_order_service as service, order_expiry_service as expiry, order_service
+from app.services import counter_order_service as counter
 from app.services.auth_service import AuthError
 from app.repositories import don_hang_repository as repository
 from app.repositories.don_hang_repository import employee_list as real_employee_list
@@ -27,6 +28,7 @@ class EmployeeOrderTests(unittest.TestCase):
         self.mock('app.services.order_expiry_service.vietnam_now', return_value=self.now)
         self.actor = NS(MaNguoiDung=8, VaiTro=1, TrangThai=False)
         self.customer = NS(MaNguoiDung=12, HoTen='Khách hàng', SDT='0900000000')
+        self.customer.VaiTro = 0; self.customer.TrangThai = False
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.actor)
         self.mock('app.services.employee_order_service.carts.lock_user', return_value=self.customer)
         self.order = NS(MaDonHang=45, MaNguoiMua=12, MaNhanVien=None, TongTien=30000, TienGiamGia=4450,
@@ -34,6 +36,7 @@ class EmployeeOrderTests(unittest.TestCase):
             MoiTruongThanhToan=None, DoiDiem=True, NgayDat=self.now-timedelta(hours=1), GhiChu='Địa chỉ đã lưu',
             DuLieuHoanTra={'version': 1, 'points': 20, 'batches': [{'MaLo': '5', 'MaThuoc': 7, 'SoLuong': 3}],
                           'promotions': [{'MaChuongTrinh': 6, 'MaThuoc': 7, 'SoLuong': 2}]})
+        self.order.KenhDatHang = False
         self.find = self.mock('app.services.employee_order_service.orders.find', side_effect=lambda *args, **kwargs: self.order)
         self.mock('app.services.employee_order_service.orders.customer', return_value=self.customer)
         self.listing = self.mock('app.services.employee_order_service.orders.employee_list', return_value=([(self.order, self.customer)], 1))
@@ -118,6 +121,136 @@ class EmployeeOrderTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('private', response.text)
         self.commit.assert_not_called(); self.rollback.assert_called()
+
+    def test_zero_value_delivered_order_does_not_create_reward_transaction(self):
+        self.order.TrangThaiDonHang = 2; self.order.TongThanhToan = 0
+        result = self.update(2, 3)
+        self.assertEqual(result.status_code, 200)
+        self.award.assert_not_called()
+        self.assertIsNone(result.json['order']['XuDaCong'])
+
+    def test_pending_count_and_completed_list_permissions_and_filters(self):
+        self.mock('app.services.employee_order_service.orders.pending_count', return_value=7)
+        self.assertEqual(self.client.get('/api/employee/orders/pending-count').json['count'], 7)
+        self.assertEqual(self.client.get('/api/employee/orders/completed').status_code, 200)
+        self.listing.assert_called_with('3', '', 1, 20)
+        self.actor.VaiTro = 0
+        for path in ['pending-count', 'completed', 'counter/customer?phone=0900000000', 'counter/pending', 'counter/45']:
+            self.assertEqual(self.client.get('/api/employee/orders/' + path).status_code, 403)
+
+    def test_counter_lookup_new_existing_and_unavailable_customer(self):
+        lookup = self.mock('app.services.counter_order_service.users.find_by_phone', return_value=self.customer)
+        self.mock('app.services.counter_order_service.points.balance', return_value=100)
+        result = self.client.get('/api/employee/orders/counter/customer?phone=0900000000')
+        self.assertEqual((result.status_code, result.json['SoXu']), (200, '100'))
+        lookup.assert_called_with('+84900000000')
+        for role in (0, 1, 2):
+            self.customer.VaiTro = role
+            self.assertEqual(self.client.get('/api/employee/orders/counter/customer?phone=0900000000').status_code, 200)
+        lookup.return_value = None
+        self.assertFalse(self.client.get('/api/employee/orders/counter/customer?phone=0900000000').json['exists'])
+        lookup.return_value = self.customer; self.customer.TrangThai = True
+        self.assertEqual(self.client.get('/api/employee/orders/counter/customer?phone=0900000000').status_code, 409)
+        self.assertEqual(self.client.get('/api/employee/orders/counter/customer?phone=bad').status_code, 400)
+
+    def test_counter_quote_uses_promotion_total_and_caps_redemption_before_award(self):
+        self.mock('app.services.counter_order_service.users.find_by_phone', return_value=self.customer)
+        self.mock('app.services.counter_order_service.points.balance', return_value=1000)
+        cart = self.mock('app.services.counter_order_service.get_cart', return_value={
+            'total':25550, 'items':[dict(MaThuoc=7,MaDonGia=3,SoLuong=3,GiaBan=7500,GiaGoc=10000,ThanhTien=25550,ConHang=True)]})
+        values = dict(SDT='0900000000',DoiDiem=True,items=[dict(MaThuoc=7,MaDonGia=3,SoLuong=3)])
+        with self.app.app_context():
+            result=counter.quote(values)
+            self.assertEqual((result['TongTien'],result['TongThanhToan'],result['XuSuDung'],result['XuSeCong']), ('30000','50',255,'0'))
+            cart.assert_called_once_with(entries=[(7,3,3)])
+            cart.return_value['items'][0]['ConHang']=False
+            with self.assertRaises(AuthError) as error: counter.quote(values)
+            self.assertEqual(error.exception.code,'OUT_OF_STOCK')
+        self.award.assert_not_called(); self.commit.assert_not_called()
+
+    def test_counter_catalog_prices_each_unit_with_available_promotion_quota(self):
+        product = NS(MaThuoc=7, MaLoaiThuoc=1, TenThuoc='Thuốc', HinhAnh=None, MaVach='0893000000123')
+        listing = self.mock('app.services.counter_order_service.products.list_products', return_value=([product], 1))
+        self.mock('app.services.counter_order_service.units.public_units', return_value=[
+            NS(MaThuoc=7,MaDonGia=3,DonViTinh='Viên',GiaBan=10000,SoLuongQuyDoi=1),
+            NS(MaThuoc=7,MaDonGia=4,DonViTinh='Hộp',GiaBan=100000,SoLuongQuyDoi=10)])
+        self.mock('app.services.counter_order_service.usable_stock', return_value={7:100})
+        offer = NS(MaThuoc=7,MaChuongTrinh=6,SoLuong=2,LoaiGiamGia=False,GiaTriGiam=2000)
+        self.mock('app.services.counter_order_service.promotions.active_for_products', return_value=[(offer,NS(MaChuongTrinh=6,TenChuongTrinh='Ưu đãi'))])
+        with self.app.app_context():
+            result = counter.catalog(dict(search='0893',category_id=1,page=1,per_page=12,sort_order='asc'))
+        self.assertEqual(result['items'][0]['MaVach'],'0893000000123')
+        single, box = result['items'][0]['DonViGia']
+        self.assertEqual((single['GiaBan'],single['GiaKhuyenMai']),(10000,8000))
+        self.assertIsNone(box['GiaKhuyenMai'], 'Not enough promotion quota for a box')
+        listing.assert_called_once_with(search='0893',category_id=1,page=1,per_page=12,sort_order='asc',sort_by='TenThuoc')
+        self.actor.VaiTro=0
+        self.assertEqual(self.client.get('/api/employee/orders/counter/products').status_code,403)
+
+    def test_counter_qr_completion_requires_verified_payment_and_awards_once(self):
+        self.order.KenhDatHang = True; self.order.TrangThaiDonHang = 0
+        self.mock('app.services.counter_order_service.users.lock_by_id', return_value=self.customer)
+        def complete():
+            return self.client.post('/api/employee/orders/counter/45/complete', json={}, headers={'X-CSRF-Token':'csrf'})
+        self.assertEqual(complete().json['code'], 'PAYMENT_PENDING')
+        self.award.assert_not_called()
+        self.order.TrangThaiDonHang = 1; self.order.TrangThaiThanhToan = 1
+        result = complete()
+        self.assertEqual((result.status_code, result.json['order']['CanPrint']), (200, True))
+        self.assertEqual(self.awards, [255])
+        self.assertEqual(complete().status_code, 200)
+        self.assertEqual(self.awards, [255])
+        self.assertEqual(self.client.post('/api/employee/orders/counter/45/complete', json={}).status_code, 403)
+
+    def test_counter_zero_completion_and_online_history_print_scope(self):
+        self.order.TrangThaiDonHang = 3
+        self.assertTrue(self.client.get('/api/employee/orders/counter/45').json['order']['CanPrint'])
+        self.order.TrangThaiDonHang = 2
+        self.assertEqual(self.client.get('/api/employee/orders/counter/45').status_code, 404)
+        self.order.KenhDatHang = True; self.order.TrangThaiDonHang = 1
+        self.order.TrangThaiThanhToan = 1; self.order.TongThanhToan = 0
+        self.mock('app.services.counter_order_service.users.lock_by_id', return_value=self.customer)
+        with self.app.app_context():
+            self.assertTrue(counter.complete(self.actor, 45)['CanPrint'])
+        self.award.assert_not_called()
+
+    def test_counter_request_retry_returns_existing_without_new_stock_write(self):
+        import uuid
+        data = dict(SDT='0900000000', HoTen='Mới', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=1)],
+                    DoiDiem=False, TongThanhToan='10000', PhuongThucThanhToan=0, request_id=uuid.uuid4())
+        request = self.mock('app.services.counter_order_service.orders.counter_request', return_value=None)
+        self.mock('app.services.counter_order_service.users.find_by_phone', return_value=None)
+        new_user = self.mock('app.services.counter_order_service.users.create_customer', return_value=self.customer)
+        self.mock('app.services.counter_order_service.users.lock_by_id', return_value=self.customer)
+        def persist(user, values, **kwargs):
+            self.order.KenhDatHang = True; self.order.TrangThaiDonHang = 3
+            self.order.DuLieuHoanTra['counter_request'] = kwargs['counter']
+            return {'MaDonHang': '45'}
+        create = self.mock('app.services.counter_order_service.order_service.create', side_effect=persist)
+        with self.app.app_context():
+            self.assertTrue(counter.create(self.actor, data)['CanPrint'])
+            new_user.assert_called_once_with('+84900000000', 'Mới', commit=False)
+            request.return_value = self.order
+            self.assertTrue(counter.create(self.actor, data)['CanPrint'])
+            create.assert_called_once()
+            data['TongThanhToan'] = '20000'
+            with self.assertRaises(AuthError) as error: counter.create(self.actor, data)
+            self.assertEqual(error.exception.code, 'COUNTER_REQUEST_CHANGED')
+
+    def test_counter_create_validates_body_and_requires_employee_csrf(self):
+        import uuid
+        data = dict(SDT='0900000000', HoTen='Khách', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=1)],
+                    DoiDiem=False, TongThanhToan='10000', PhuongThucThanhToan=0, request_id=str(uuid.uuid4()))
+        create = self.mock('app.services.counter_order_service.create', return_value={'MaDonHang':'45'})
+        url = '/api/employee/orders/counter'
+        def send(values): return self.client.post(url, json=values, headers={'X-CSRF-Token':'csrf'})
+        self.assertEqual(send(data).status_code, 200)
+        for bad in [{**data,'DoiDiem':'true'}, {**data,'items':[data['items'][0]]*2}, {**data,'items':[{**data['items'][0],'SoLuong':0}]}, {**data,'PhuongThucThanhToan':2}, {**data,'request_id':'bad'}, {**data,'MaNhanVien':8}]:
+            self.assertEqual(send(bad).status_code, 400)
+        create.assert_called_once()
+        self.assertEqual(self.client.post(url,json=data).status_code, 403)
+        self.actor.VaiTro=0
+        self.assertEqual(send(data).status_code, 403)
 
     def test_employee_cancel_including_shipping_restores_allocations(self):
         self.order.TrangThaiDonHang = 2

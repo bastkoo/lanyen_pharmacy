@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, case, cast, String, or_
+from sqlalchemy import select, func, case, cast, String, or_, text
 
 from app.extensions import db
 from app.models.don_hang import DonHang
@@ -34,7 +34,7 @@ def detail_items(order_id):
 
 def employee_list(status, search, page, per_page):
     query = select(DonHang, NguoiDung).join(NguoiDung, NguoiDung.MaNguoiDung == DonHang.MaNguoiMua)
-    query = query.where(DonHang.TrangThaiDonHang.in_((0, 1, 2)))
+    query = query.where(DonHang.TrangThaiDonHang.in_((3,) if status == '3' else (0, 1, 2)))
     if status != 'all':
         query = query.where(DonHang.TrangThaiDonHang == int(status))
     if search:
@@ -47,13 +47,36 @@ def employee_list(status, search, page, per_page):
                                *phone_queries))
     total = db.session.execute(select(func.count()).select_from(query.subquery())).scalar_one()
     priority = case((DonHang.TrangThaiDonHang == 1, 0), (DonHang.TrangThaiDonHang == 0, 1), else_=2)
-    rows = db.session.execute(query.order_by(priority, DonHang.NgayDat, DonHang.MaDonHang)
+    ordering = (DonHang.NgayDat.desc(), DonHang.MaDonHang.desc()) if status == '3' else (priority, DonHang.NgayDat, DonHang.MaDonHang)
+    rows = db.session.execute(query.order_by(*ordering)
                               .offset((page - 1) * per_page).limit(per_page)).all()
     return rows, total
 
 
 def customer(user_id):
     return db.session.get(NguoiDung, user_id)
+
+
+def pending_count():
+    return db.session.execute(select(func.count()).select_from(DonHang).where(
+        DonHang.TrangThaiDonHang == 1)).scalar_one()
+
+
+def counter_request(actor_id, request_id):
+    # Serializes retries across workers, including before a customer exists.
+    db.session.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))'),
+                       {'key': f'counter:{actor_id}:{request_id}'})
+    return db.session.execute(select(DonHang).where(
+        DonHang.KenhDatHang.is_(True),
+        DonHang.DuLieuHoanTra['counter_request']['actor'].as_integer() == actor_id,
+        DonHang.DuLieuHoanTra['counter_request']['id'].as_string() == request_id)).scalar_one_or_none()
+
+
+def pending_counter():
+    return db.session.execute(select(DonHang, NguoiDung).join(
+        NguoiDung, NguoiDung.MaNguoiDung == DonHang.MaNguoiMua).where(
+        DonHang.KenhDatHang.is_(True), DonHang.TrangThaiDonHang.in_((0, 1)))
+        .order_by(DonHang.NgayDat.desc()).limit(50)).all()
 
 
 def expired_candidates(cutoff, after_id=0, limit=100):

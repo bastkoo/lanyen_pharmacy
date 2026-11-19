@@ -11,7 +11,7 @@ export async function checkEmployee({ evaluate: run, waitFor, command, key, base
     const ready = () => waitFor(`document.querySelector('#employee-workspace')?.hidden===false`);
     try {
         setScenario('employee'); await navigate('#messages'); await ready();
-        assert.equal(await run(`document.querySelectorAll('[data-employee-view]').length`), 3);
+        assert.equal(await run(`document.querySelectorAll('[data-employee-view]').length`), 4);
         assert.equal(await run(`new Set(Array.from(document.querySelectorAll('[id]'),node=>node.id)).size===document.querySelectorAll('[id]').length`), true);
         for (const view of ['messages', 'orders', 'returns']) {
             await run(`if(innerWidth<=760&&document.querySelector('#employee-menu-toggle').getAttribute('aria-expanded')==='false')document.querySelector('#employee-menu-toggle').click()`);
