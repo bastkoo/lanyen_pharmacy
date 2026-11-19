@@ -1,10 +1,11 @@
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case, cast, String, or_
 
 from app.extensions import db
 from app.models.don_hang import DonHang
 from app.models.chi_tiet_don_hang import ChiTietDonHang
 from app.models.thuoc import Thuoc
 from app.models.don_vi_gia_thuoc import DonViGiaThuoc
+from app.models.nguoi_dung import NguoiDung
 
 
 def find(order_id, lock=False):
@@ -29,6 +30,38 @@ def detail_items(order_id):
                               .outerjoin(DonViGiaThuoc, DonViGiaThuoc.MaDonGia == ChiTietDonHang.MaDonGia)
                               .where(ChiTietDonHang.MaDonHang == order_id)
                               .order_by(ChiTietDonHang.MaChiTiet)).all()
+
+
+def employee_list(status, search, page, per_page):
+    query = select(DonHang, NguoiDung).join(NguoiDung, NguoiDung.MaNguoiDung == DonHang.MaNguoiMua)
+    query = query.where(DonHang.TrangThaiDonHang.in_((0, 1, 2)))
+    if status != 'all':
+        query = query.where(DonHang.TrangThaiDonHang == int(status))
+    if search:
+        phone_queries = [NguoiDung.SDT.contains(search, autoescape=True)]
+        if search.startswith('0') and len(search) > 1:
+            phone_queries.append(NguoiDung.SDT.contains('+84' + search[1:], autoescape=True))
+        elif search.startswith('+84'):
+            phone_queries.append(NguoiDung.SDT.contains('0' + search[3:], autoescape=True))
+        query = query.where(or_(cast(DonHang.MaDonHang, String).contains(search, autoescape=True),
+                               *phone_queries))
+    total = db.session.execute(select(func.count()).select_from(query.subquery())).scalar_one()
+    priority = case((DonHang.TrangThaiDonHang == 1, 0), (DonHang.TrangThaiDonHang == 0, 1), else_=2)
+    rows = db.session.execute(query.order_by(priority, DonHang.NgayDat, DonHang.MaDonHang)
+                              .offset((page - 1) * per_page).limit(per_page)).all()
+    return rows, total
+
+
+def customer(user_id):
+    return db.session.get(NguoiDung, user_id)
+
+
+def expired_candidates(cutoff, after_id=0, limit=100):
+    return db.session.execute(select(DonHang.MaDonHang, DonHang.MaNguoiMua).where(
+        DonHang.MaDonHang > after_id, DonHang.TrangThaiDonHang == 0,
+        DonHang.TrangThaiThanhToan == 0, DonHang.PhuongThucThanhToan == 1,
+        DonHang.NgayDat < cutoff, DonHang.DuLieuHoanTra.is_not(None))
+        .order_by(DonHang.MaDonHang).limit(limit)).all()
 
 
 def list_owned(user_id, statuses, page, per_page):

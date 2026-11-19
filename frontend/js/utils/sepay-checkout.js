@@ -46,6 +46,7 @@ export function paymentMessage(error) {
         GATEWAY_ENVIRONMENT_COLLISION: 'Cấu hình hai môi trường thanh toán chưa được tách biệt. Vui lòng liên hệ nhà thuốc.',
         ORDER_ALREADY_PAID: 'Đơn đã được thanh toán. Hãy kiểm tra lại trạng thái.',
         ORDER_NOT_PAYABLE: 'Đơn không còn ở trạng thái chờ thanh toán.',
+        ORDER_EXPIRED: 'Đơn đã quá 24 giờ chưa thanh toán. Hãy kiểm tra trạng thái đơn hoặc liên hệ nhà thuốc.',
         ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
         SESSION_CHANGED: 'Tài khoản đã thay đổi. Hãy tải lại trang.',
         UNAUTHENTICATED: 'Vui lòng đăng nhập lại để thanh toán.',

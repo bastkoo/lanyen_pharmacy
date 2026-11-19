@@ -93,6 +93,9 @@ def sign_fields(fields, secret):
 
 
 def require_pending(order):
+    from app.services.order_expiry_service import overdue
+    if overdue(order):
+        raise AuthError('ORDER_EXPIRED', 409)
     if order.PhuongThucThanhToan != 1:
         raise AuthError('ORDER_PAYMENT_METHOD_INVALID', 409)
     if order.TrangThaiThanhToan == 1:

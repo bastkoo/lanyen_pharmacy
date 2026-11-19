@@ -43,6 +43,7 @@ class OrderTests(unittest.TestCase):
             'SEPAY_PRODUCTION_API_BASE_URL': gateway.ENVIRONMENTS['production'][1],
         })
         self.mock('sqlalchemy.engine.Engine.connect', side_effect=AssertionError('Real database forbidden'))
+        self.mock('app.services.order_expiry_service.vietnam_now', return_value=datetime(2026, 11, 18, 10))
         self.user = NS(MaNguoiDung=12, VaiTro=0, TrangThai=False, HoTen='An', SDT='0900000000')
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
         self.mock('app.services.order_service.carts.lock_user', return_value=self.user)
@@ -65,6 +66,7 @@ class OrderTests(unittest.TestCase):
         self.rollback = self.mock('app.services.order_service.db.session.rollback')
         self.points_balance = self.mock('app.services.order_service.points.balance', return_value=25)
         self.points_debit = self.mock('app.services.order_service.points.debit')
+        self.mock('app.services.order_service.points.order_award', return_value=None)
         self.client = self.app.test_client()
         with self.client.session_transaction() as state:
             state.update(user_id=12, csrf_token='test-csrf')

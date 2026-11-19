@@ -10,6 +10,18 @@ class OrderListQuerySchema(Schema):
     per_page = fields.Integer(load_default=10, validate=validate.Range(min=1, max=50))
 
 
+class EmployeeOrderQuerySchema(Schema):
+    status = fields.String(load_default='all', validate=validate.OneOf(['all', '0', '1', '2']))
+    search = fields.String(load_default='', validate=validate.Length(max=40))
+    page = fields.Integer(load_default=1, validate=validate.Range(min=1, max=2147483647))
+    per_page = fields.Integer(load_default=20, validate=validate.Range(min=1, max=50))
+
+
+class EmployeeOrderUpdateSchema(Schema):
+    from_status = fields.Integer(strict=True, required=True, validate=validate.OneOf([0, 1, 2]))
+    to_status = fields.Integer(strict=True, required=True, validate=validate.OneOf([1, 2, 3]))
+
+
 class OrderReorderSchema(Schema):
     MaChiTiet = fields.List(fields.String(validate=validate.Regexp(r'^[1-9][0-9]{0,18}$')),
                            required=True, validate=validate.Length(min=1, max=1000))

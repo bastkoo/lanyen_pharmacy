@@ -25,6 +25,18 @@ def refund(user_id, quantity, order_id, timestamp):
         LyDo=f'Hoàn xu do hủy đơn hàng #{order_id}'))
 
 
+def award(user_id, quantity, order_id, timestamp):
+    db.session.add(DiemThuong(MaNguoiDung=user_id, SoDiem=quantity,
+        LoaiGiaoDich=True, ThoiGianTichDiem=timestamp, LyDo=f'Tích xu đơn hàng #{order_id}'))
+
+
+def order_award(user_id, order_id):
+    amount, count = db.session.execute(select(func.coalesce(func.sum(cast(DiemThuong.SoDiem, BigInteger)), 0),
+        func.count(DiemThuong.MaDiemThuong)).where(DiemThuong.MaNguoiDung == user_id,
+        DiemThuong.LoaiGiaoDich.is_(True), DiemThuong.LyDo == f'Tích xu đơn hàng #{order_id}')).one()
+    return int(amount) if count else None
+
+
 def list_owned(user_id, page, per_page):
     owned = DiemThuong.MaNguoiDung == user_id
     amount = cast(DiemThuong.SoDiem, BigInteger)

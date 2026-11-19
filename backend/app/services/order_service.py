@@ -141,7 +141,7 @@ def create(user, data, reorder_id=None):
 
 
 @operation
-def cancel(user_id, order_id):
+def cancel(user_id, order_id, *, expired_before=None, employee_id=None, allowed_states=(0, 1)):
     if not 0 < order_id <= 9223372036854775807:
         raise AuthError('ORDER_NOT_FOUND', 404)
     if carts.lock_user(user_id) is None:
@@ -149,8 +149,11 @@ def cancel(user_id, order_id):
     order = orders.find(order_id, lock=True)
     if order is None or order.MaNguoiMua != user_id:
         raise AuthError('ORDER_NOT_FOUND', 404)
-    if order.TrangThaiDonHang not in (0, 1):
+    if order.TrangThaiDonHang not in allowed_states:
         raise AuthError('ORDER_NOT_CANCELLABLE', 409)
+    if expired_before is not None and not (order.TrangThaiDonHang == 0 and order.TrangThaiThanhToan == 0
+            and order.PhuongThucThanhToan == 1 and order.NgayDat < expired_before):
+        raise AuthError('ORDER_NOT_EXPIRED', 409)
     data = order.DuLieuHoanTra
     if not valid_return_data(data) or bool(data['points']) != bool(order.DoiDiem):
         raise AuthError('ORDER_REFUND_REVIEW_REQUIRED', 409)
@@ -174,6 +177,8 @@ def cancel(user_id, order_id):
         points.refund(user_id, data['points'], order_id,
                       datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None))
     order.TrangThaiDonHang = 4
+    if employee_id is not None:
+        order.MaNhanVien = employee_id
     result = serialize(order, legacy_payment=False)
     db.session.commit()
     return result
@@ -227,6 +232,9 @@ def read_detail(user_id, order_id):
     result = serialize(order, legacy_payment=False)
     result['NgayDat'] = order.NgayDat.isoformat()
     result['GhiChu'] = order.GhiChu
+    if order.TrangThaiDonHang == 3:
+        award = points.order_award(order.MaNguoiMua, order.MaDonHang)
+        result['XuDaCong'] = str(award) if award is not None else None
     result['items'] = [serialize_item(detail, product, unit)
                        for detail, product, unit in orders.detail_items(order_id)]
     return result

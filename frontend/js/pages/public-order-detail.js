@@ -4,6 +4,7 @@ import { money } from '../components/cart.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
 import { validHttps } from '../utils/product-validation.js';
 import { setupOrderCancellation } from '../components/order-cancel.js';
+import { rewardCoin } from '../components/reward-coin.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
@@ -24,6 +25,7 @@ function dateText(value) {
 }
 
 function clearPrivate() {
+    $('order-earned-points').hidden = true; $('order-earned-points').replaceChildren();
     cancellation.clear();
     clearTimeout(timer); order = null; user = null; snapshot = '';
     $('order-detail-layout').hidden = true;
@@ -102,6 +104,11 @@ function render(value) {
     $('order-discount').textContent = `${BigInt(value.TienGiamGia) > 0n ? '−' : ''}${money(value.TienGiamGia)}`;
     $('order-discount').previousElementSibling.textContent = value.DoiDiem ? 'Giảm giá sản phẩm và đổi xu' : 'Giảm giá sản phẩm';
     $('order-total').textContent = money(value.TongThanhToan);
+    const earned = $('order-earned-points'); earned.hidden = true; earned.replaceChildren();
+    if (value.TrangThaiDonHang === 3 && value.XuDaCong !== null && value.XuDaCong !== undefined) {
+        earned.append(document.createTextNode(`Đã cộng ${new Intl.NumberFormat('vi-VN').format(BigInt(value.XuDaCong))} `), rewardCoin(), document.createTextNode(' vào tài khoản của bạn.'));
+        earned.hidden = false;
+    }
     $('order-shipping').textContent = receipt.pickup ? 'Không áp dụng' : 'Chưa xác nhận';
     $('order-total-note').textContent = receipt.pickup ? 'Nhận hàng tại nhà thuốc Lan Yến.' : 'Phí giao hàng nếu có được nhà thuốc xác nhận riêng.';
     $('order-payment-method').textContent = value.PhuongThucThanhToan === 0 ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản QR qua SePay';

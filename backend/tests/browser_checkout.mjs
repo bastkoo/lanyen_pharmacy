@@ -7,7 +7,8 @@ import { setPointsFixtureMode } from './browser_points.mjs';
 
 const cart = [{ MaThuoc: 1, MaDonGia: 11, SoLuong: 1 }, { MaThuoc: 2, MaDonGia: 21, SoLuong: 2 }];
 const addresses = [{ MaDiaChi: 1, DiaChiGiao: true, TinhThanh: 'Thành phố Huế', PhuongXa: 'Phường Vỹ Dạ', DiaChiCuThe: 'Nhà chính' }, { MaDiaChi: 2, DiaChiGiao: false, TinhThanh: 'Thành phố Hà Nội', PhuongXa: 'Phường B', DiaChiCuThe: '<b>Nhà phụ</b>' }];
-let fixtureOrder, paymentConfirmed = false, orderCreates = 0, orderMode = 'normal';
+let fixtureOrder = { MaDonHang: '9007199254741000', TongThanhToan: '50000', PhuongThucThanhToan: 0,
+    TrangThaiThanhToan: 0, TrangThaiDonHang: 1 }, paymentConfirmed = false, orderCreates = 0, orderMode = 'normal';
 let gatewayInitializations = 0;
 let fixtureEnvironment = 'sandbox';
 let listMode = 'normal';
@@ -73,6 +74,7 @@ export async function orderFixture(req, json) {
             ...fixtureOrder, TongTien: '50000', TienGiamGia: '0', NgayDat: '2026-11-18T09:15:00',
             GhiChu: 'Người nhận: Nguyễn Lan Yến · 0900000000\nGiao tận nơi: 126 Dương Văn An, Phường Vỹ Dạ, Thành phố Huế\nGọi trước khi giao hàng.',
             ...(paymentConfirmed ? { TrangThaiThanhToan: 1, TrangThaiDonHang: 1 } : {}),
+            ...(fixtureOrder.TrangThaiDonHang === 3 ? { XuDaCong: '500' } : {}),
             items: [{ MaChiTiet: '9007199254741001', MaThuoc: 1, MaDonGia: 11, TenThuoc: '<b>Vitamin tổng hợp</b>',
                 HinhAnh: 'javascript:alert(1)', DonViTinh: 'Hộp', SoLuong: 1, DonGia: '50000', ThanhTien: '50000' }] } });
     }
@@ -223,6 +225,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
             fixtureOrder.TrangThaiDonHang = status;
             await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
             await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Đang xử lý đơn','Đang giao','Đã giao'][status])}`);
+            assert.equal(await run(`document.querySelector('#order-earned-points').hidden`), status !== 3);
             assert.equal(await run(`document.querySelector('#order-cancel').hidden`), status > 1);
             assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).indexOf(document.querySelector('[aria-current="step"]'))`), status);
             assert.equal(await run(`document.querySelectorAll('.is-approaching').length`), status === 1 || status === 2 ? 1 : 0);

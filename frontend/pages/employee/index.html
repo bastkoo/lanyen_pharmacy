@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Khu vực nhân viên Lan Yến Pharmacy.">
+    <meta name="description" content="Không gian làm việc của nhân viên Lan Yến Pharmacy: nhắn tin, xử lý đơn hàng và đổi trả.">
     <meta name="theme-color" content="#16865B">
-    <title>Trang chủ nhân viên · Lan Yến Pharmacy</title>
+    <title>Nhân viên · Lan Yến Pharmacy</title>
     <link rel="icon" href="../../assets/images/LY-removebg-preview.png">
     <link rel="preload" href="../../assets/fonts/be-vietnam-pro-400.ttf" as="font" type="font/ttf" crossorigin>
     <link rel="stylesheet" href="../../css/base/variables.css">
@@ -13,52 +13,66 @@
     <link rel="stylesheet" href="../../css/base/global.css">
     <link rel="stylesheet" href="../../css/pages/home.css">
     <link rel="stylesheet" href="../../css/components/auth.css">
-    <link rel="stylesheet" href="../../css/pages/public-profile.css">
-    <script type="module" src="../../js/pages/home.js"></script>
-    <script type="module" src="../../js/pages/public-home.js"></script>
+    <link rel="stylesheet" href="../../css/pages/employee-home.css">
     <script type="module" src="../../js/pages/employee-home.js"></script>
 </head>
-<body class="public-home public-profile">
+<body class="employee-app">
     <a class="skip-link" href="#main">Đến nội dung chính</a>
-    <header class="site-header">
-        <div class="header-inner">
-            <a class="brand" href="../customer/home.html" aria-label="Lan Yến Pharmacy — Trang chủ">
-                <img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56">
-                <span>Lan Yến<span class="brand-caption">PHARMACY</span></span>
-            </a>
-            <div class="header-search">
-                <form id="public-search-form" class="public-search" role="search" action="../customer/products.html" method="get" novalidate>
-                    <label class="sr-only" for="public-search">Tìm thuốc và sản phẩm chăm sóc sức khỏe</label>
-                    <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m16 16 5 5"></path></svg>
-                    <input id="public-search" name="search" type="search" placeholder="Tìm tên thuốc, vitamin, sản phẩm chăm sóc sức khỏe..." aria-describedby="public-search-status" maxlength="255" autocomplete="off">
-                    <button class="button button-primary" type="submit">Tìm kiếm</button>
-                </form>
-                <p id="public-search-status" class="search-status" role="status"></p>
-            </div>
-            <div class="header-account">
-                <span id="header-status" class="sr-only">Đang kiểm tra phiên…</span>
-                <button type="button" class="account-button" id="login-button" aria-haspopup="dialog"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg><span>Đăng nhập</span></button>
-                <button type="button" class="account-button" id="logout-button" hidden>Đăng xuất</button>
-                <span class="header-divider" aria-hidden="true"></span>
-                <a class="account-button" data-cart href="../customer/cart.html"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 3h2l2.4 12h11l2-8H6"></path><circle cx="9" cy="20" r="1"></circle><circle cx="18" cy="20" r="1"></circle></svg><span>Giỏ hàng</span></a>
-            </div>
+    <header class="employee-header">
+        <button id="employee-menu-toggle" class="icon-button" type="button" aria-label="Mở điều hướng nhân viên" aria-expanded="false" aria-controls="employee-navigation" hidden><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#menu"></use></svg></button>
+        <a class="brand" href="../customer/home.html" aria-label="Lan Yến Pharmacy — Trang chủ"><img src="../../assets/images/LY-removebg-preview.png" alt="" width="48" height="48"><span>Lan Yến<span class="brand-caption">PHARMACY</span></span></a>
+        <span class="employee-header-label">Không gian nhân viên</span>
+        <div class="employee-header-account">
+            <button id="employee-login" class="button button-outline" type="button" aria-haspopup="dialog" hidden>Đăng nhập</button>
+            <details id="employee-account" class="employee-account" hidden>
+                <summary><span id="employee-avatar" class="customer-avatar" aria-hidden="true"></span><span class="employee-account-caption"><strong id="employee-name"></strong><small id="employee-role"></small></span><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#chevron-down"></use></svg></summary>
+                <nav aria-label="Tài khoản"><a href="../customer/profile.html">Thông tin cá nhân</a><a href="../customer/home.html">Về trang nhà thuốc</a><button id="employee-logout" type="button">Đăng xuất</button></nav>
+            </details>
         </div>
     </header>
-    <main id="main" tabindex="-1" class="page-width profile-page">
-        <a href="../customer/home.html" class="quiet-link">← Trở về nhà thuốc</a><h1>Trang chủ nhân viên</h1>
-        <div class="account-placeholder"><p id="employee-state" role="status">Đang kiểm tra tài khoản…</p><p id="employee-placeholder" hidden>Khu vực làm việc của nhân viên đang được hoàn thiện.</p><button id="employee-retry" class="quiet-link" type="button">Kiểm tra lại tài khoản</button></div>
-        <p id="page-status" class="sr-only" role="status"></p><button id="retry-session" class="quiet-link" type="button" hidden>Thử kiểm tra đăng nhập lại</button>
-    </main>
-    <footer id="contact" class="site-footer" tabindex="-1">
-        <div class="page-width footer-grid">
-            <div class="footer-brand"><a href="../customer/home.html" class="brand" aria-label="Lan Yến Pharmacy — Trang chủ"><img src="../../assets/images/LY-removebg-preview.png" alt="" width="56" height="56" loading="lazy"><span>Lan Yến<span class="brand-caption">PHARMACY</span></span></a><p>Chăm sóc sức khỏe, <br>bắt đầu từ sự an tâm.</p></div>
-            <div><h2>Khám phá</h2><nav aria-label="Điều hướng cuối trang"><a href="../customer/home.html">Trang chủ</a><a href="../customer/home.html#categories">Danh mục</a><a href="../customer/home.html#health-journal">Góc sức khỏe</a><a href="#contact">Liên hệ</a></nav></div>
-            <div><h2>Hỗ trợ khách hàng</h2><ul><li><button type="button" data-coming="shopping" aria-haspopup="dialog">Hướng dẫn mua hàng</button></li><li><button type="button" data-coming="privacy" aria-haspopup="dialog">Chính sách bảo mật</button></li><li><button type="button" data-coming="terms" aria-haspopup="dialog">Điều khoản sử dụng</button></li></ul></div>
-            <div><h2>Liên hệ Lan Yến</h2><p>Thông tin liên hệ đang được cập nhật.</p><p class="footer-note">Địa chỉ, số điện thoại và email sẽ được công bố tại đây khi có thông tin chính thức.</p></div>
+    <main id="main" tabindex="-1" class="employee-main">
+        <section id="employee-gate" class="employee-gate" aria-labelledby="employee-gate-title">
+            <span class="employee-gate-icon"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg></span>
+            <p class="employee-eyebrow">LAN YẾN · NHÂN VIÊN</p><h1 id="employee-gate-title">Đang kiểm tra tài khoản</h1>
+            <p id="employee-state" role="status">Vui lòng chờ trong giây lát…</p>
+            <div class="employee-gate-actions"><button id="employee-gate-login" class="button button-primary" type="button" aria-haspopup="dialog" hidden>Đăng nhập tài khoản nhân viên</button><button id="employee-retry" class="button button-outline" type="button" hidden>Kiểm tra lại</button><a class="quiet-link" href="../customer/home.html">Về trang nhà thuốc</a></div>
+        </section>
+        <div id="employee-workspace" hidden>
+            <div class="employee-page-heading"><div><p class="employee-eyebrow">KHÔNG GIAN LÀM VIỆC</p><h1>Công việc của bạn</h1><p class="employee-intro">Trao đổi với khách hàng và theo dõi các công việc tại nhà thuốc.</p></div><span class="employee-role-badge"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Nhân viên</span></div>
+            <nav id="employee-navigation" class="employee-navigation" aria-label="Công việc nhân viên">
+                <a href="#messages" data-employee-view="messages" aria-current="page"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 3V11.5A8.5 8.5 0 0 1 9.5 3h3a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h8m-8 4h5"/></svg>Nhắn tin</a>
+                <a href="#orders" data-employee-view="orders"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg>Xử lý đơn hàng</a>
+                <a href="#returns" data-employee-view="returns"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5H5v4m0-4 5 5M5 5a9 9 0 1 1-2 10"/><path d="M10 14h5m-5 4h3"/></svg>Đổi trả</a>
+            </nav>
+            <p class="employee-preview-note"><span>Giao diện đang chuẩn bị</span> Các khu vực bên dưới chưa kết nối dữ liệu và thao tác nghiệp vụ.</p>
+            <section id="employee-messages" class="employee-view" aria-labelledby="employee-messages-title">
+                <div class="employee-section-heading"><div><h2 id="employee-messages-title" tabindex="-1">Nhắn tin</h2><p>Không gian trao đổi với khách hàng.</p></div></div>
+                <div class="employee-message-layout employee-surface">
+                    <aside class="employee-conversations" aria-label="Danh sách hội thoại"><h3>Hội thoại</h3><label class="sr-only" for="employee-message-search">Tìm hội thoại</label><input id="employee-message-search" type="search" placeholder="Tìm tên hoặc số điện thoại" disabled aria-describedby="employee-data-note"><div class="employee-list-empty"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#circle-dashed"></use></svg><p>Danh sách hội thoại sẽ hiển thị tại đây khi được kết nối.</p></div></aside>
+                    <div class="employee-conversation"><div class="employee-conversation-heading"><h3>Nội dung trao đổi</h3><span>Chưa chọn hội thoại</span></div><div class="employee-empty"><span class="employee-empty-mark"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M7 8h10M7 12h6"/></svg></span><h3>Mỗi cuộc trò chuyện, một sự hỗ trợ</h3><p>Chọn hội thoại để xem nội dung và trả lời khách hàng sau khi chức năng nhắn tin được hoàn thiện.</p></div><div class="employee-composer"><label class="sr-only" for="employee-message-input">Nội dung tin nhắn</label><textarea id="employee-message-input" rows="2" placeholder="Nội dung trả lời khách hàng…" disabled aria-describedby="employee-data-note"></textarea><button class="button button-primary" type="button" disabled>Gửi tin nhắn</button></div></div>
+                </div>
+            </section>
+            <section id="employee-orders" class="employee-view" aria-labelledby="employee-orders-title" hidden>
+                <div class="employee-section-heading"><div><h2 id="employee-orders-title" tabindex="-1">Xử lý đơn hàng</h2><p>Ưu tiên đơn đang chờ xử lý. Chọn đơn để kiểm tra thông tin và cập nhật tiến độ.</p></div></div>
+                <div class="employee-order-filters" role="group" aria-label="Lọc nhanh trạng thái đơn"><button type="button" data-employee-order-filter="all" aria-pressed="true">Tất cả đơn cần xử lý</button><button type="button" data-employee-order-filter="1" aria-pressed="false">Đang chờ xử lý</button><button type="button" data-employee-order-filter="2" aria-pressed="false">Đang giao</button></div>
+                <form id="employee-order-search-form" class="employee-order-tools" role="search"><label class="sr-only" for="employee-order-search">Tìm theo mã đơn hoặc số điện thoại khách hàng</label><input id="employee-order-search" type="search" maxlength="40" placeholder="Mã đơn hàng hoặc SĐT khách hàng" autocomplete="off"><button class="button button-outline" type="submit">Tìm kiếm</button><button id="employee-order-refresh" class="quiet-link" type="button">Làm mới</button></form>
+                <p id="employee-order-state" role="status"></p><button id="employee-order-retry" class="quiet-link" type="button" hidden>Thử tải lại</button>
+                <div class="employee-orders-layout"><div class="employee-surface employee-order-list" id="employee-order-list" aria-busy="false"><div class="employee-table-scroll"><table><caption class="sr-only">Đơn ở trạng thái 0, 1 và 2, ưu tiên trạng thái 1</caption><thead><tr><th scope="col">Đơn hàng / Thời gian đặt</th><th scope="col">Khách hàng</th><th scope="col">Thanh toán</th><th scope="col">Trạng thái</th></tr></thead><tbody id="employee-order-rows"></tbody></table></div><nav id="employee-order-pagination" class="employee-order-pagination" aria-label="Phân trang đơn hàng" hidden><button id="employee-order-prev" class="quiet-link" type="button">Trang trước</button><span id="employee-order-page"></span><button id="employee-order-next" class="quiet-link" type="button">Trang sau</button></nav></div>
+                <aside id="employee-order-detail" class="employee-surface employee-order-detail" aria-labelledby="employee-order-detail-title"><span class="employee-eyebrow">CHI TIẾT ĐƠN HÀNG</span><h3 id="employee-order-detail-title" tabindex="-1">Chọn đơn để xem thông tin</h3><p id="employee-order-detail-state" role="status">Chọn một đơn hàng trong danh sách bên trái.</p><button id="employee-order-detail-retry" class="quiet-link" type="button" hidden>Thử tải chi tiết lại</button><div id="employee-order-detail-content" hidden></div></aside></div>
+                <p class="employee-order-policy">Đơn QR chưa thanh toán ở trạng thái 0 sẽ tự hủy sau 24 giờ. Đơn COD không áp dụng thời hạn này.</p>
+            </section>
+            <section id="employee-returns" class="employee-view" aria-labelledby="employee-returns-title" hidden>
+                <div class="employee-section-heading"><div><h2 id="employee-returns-title" tabindex="-1">Đổi trả</h2><p>Khu vực tiếp nhận và xem thông tin yêu cầu đổi trả.</p></div></div>
+                <div class="employee-returns-layout employee-surface"><aside class="employee-return-list"><h3>Yêu cầu đổi trả</h3><label class="sr-only" for="employee-return-search">Tìm yêu cầu đổi trả</label><input id="employee-return-search" type="search" placeholder="Tìm yêu cầu hoặc mã đơn" disabled aria-describedby="employee-data-note"><div class="employee-list-empty"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#circle-dashed"></use></svg><p>Danh sách yêu cầu sẽ xuất hiện khi chức năng được kết nối.</p></div></aside><div class="employee-return-detail"><div class="employee-empty"><span class="employee-empty-mark"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5H5v4m0-4 5 5M5 5a9 9 0 1 1-2 10"/><path d="M10 14h5m-5 4h3"/></svg></span><h3>Xem rõ từng yêu cầu đổi trả</h3><p>Chọn một yêu cầu để xem đơn hàng liên quan, sản phẩm và nội dung từ khách hàng. Phần xử lý sẽ được bổ sung sau.</p></div><div class="employee-return-preview"><span>Đơn hàng liên quan</span><span>Sản phẩm đổi trả</span><span>Nội dung yêu cầu</span></div></div></div>
+            </section>
+            <p id="employee-data-note" class="sr-only">Giao diện xem trước. Chức năng này chưa kết nối dữ liệu và hiện chưa thể sử dụng.</p>
         </div>
-        <div class="page-width footer-bottom"><span>© Lan Yến Pharmacy.</span><span>Quan tâm mỗi ngày. An tâm mỗi lựa chọn.</span></div>
-    </footer>
-    <dialog id="feature-dialog" class="feature-dialog" aria-labelledby="feature-title" aria-describedby="feature-description"><button id="feature-close" class="icon-button" type="button" aria-label="Đóng thông báo"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button><p class="eyebrow">LAN YẾN PHARMACY</p><h2 id="feature-title">Chức năng đang được phát triển</h2><p id="feature-description"></p><button id="feature-done" class="button button-primary" type="button">Đã hiểu</button></dialog>
+        <p id="employee-feedback" class="employee-feedback" role="status"></p>
+        <noscript><p>Bật JavaScript để kiểm tra tài khoản và sử dụng giao diện nhân viên.</p></noscript>
+    </main>
+    <footer class="employee-footer"><span>Lan Yến Pharmacy</span><span>Không gian làm việc dành cho nhân viên</span></footer>
+    <dialog id="employee-order-action-dialog" class="feature-dialog" aria-labelledby="employee-order-action-title" aria-describedby="employee-order-action-description"><h2 id="employee-order-action-title"></h2><p id="employee-order-action-description"></p><p id="employee-order-action-state" role="status"></p><div class="order-cancel-actions"><button id="employee-order-action-back" class="button button-outline" type="button">Quay lại</button><button id="employee-order-action-confirm" class="button button-primary" type="button">Xác nhận</button></div></dialog>
+    <section id="employee-invoice" class="employee-invoice" aria-label="Hóa đơn bán hàng" data-auth-background hidden></section>
     <div id="auth-backdrop" hidden aria-hidden="true"></div>
     <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
         <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>

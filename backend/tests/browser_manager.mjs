@@ -20,6 +20,8 @@ import { checkProfile, profileFixture } from './browser_profile.mjs';
 import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
 import { checkPoints, pointsFixture } from './browser_points.mjs';
 import { checkCheckout, orderFixture } from './browser_checkout.mjs';
+import { checkEmployee } from './browser_employee.mjs';
+import { employeeOrdersFixture, checkEmployeeOrders } from './browser_employee_orders.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const frontend = path.join(root, 'frontend');
@@ -36,6 +38,7 @@ const profileTest = process.argv.includes('--profile');
 const addressTest = process.argv.includes('--addresses');
 const pointsTest = process.argv.includes('--points');
 const checkoutTest = process.argv.includes('--checkout');
+const employeeTest = process.argv.includes('--employee');
 let checkingHomepage = false;
 const homepageRequests = [];
 let checkingAccounts = false;
@@ -73,6 +76,10 @@ const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    if (pathname.startsWith('/api/employee/orders')) {
+        if (!['employee','forbidden'].includes(scenario)) return json(403,{code:'FORBIDDEN'});
+        return employeeOrdersFixture(req,json);
+    }
     if (checkingHomepage && pathname === '/api/payments/sepay/return') {
         res.writeHead(303, { Location: '/pages/customer/order-detail.html?order=' + new URL(req.url, 'http://fixture.local').searchParams.get('order') }); return res.end();
     }
@@ -95,7 +102,7 @@ const server = createServer(async (req, res) => {
         if (scenario === 'error') return json(503, { code: 'DATABASE_UNAVAILABLE' });
         if (scenario === 'anonymous') return json(401, { code: 'UNAUTHENTICATED', csrf_token: 'fixture-csrf' });
         if (scenario === 'locked') return json(403, { code: 'ACCOUNT_LOCKED', csrf_token: 'fixture-csrf' });
-        return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...(checkingAccounts ? accountActor() : fixtureUser), VaiTro: scenario === 'forbidden' ? 1 : scenario === 'customer' ? 0 : 2 } });
+        return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...(checkingAccounts ? accountActor() : fixtureUser), VaiTro: ['forbidden', 'employee'].includes(scenario) ? 1 : scenario === 'customer' ? 0 : 2 } });
     }
     if (pathname === '/api/auth/logout' && req.method === 'POST') {
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
@@ -408,6 +415,10 @@ try {
         if (checkoutTest && !homepageTest) await checkCartPage({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
         if (homepageTest || checkoutTest) await checkCheckout({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; }, requests: homepageRequests });
         checkingHomepage = false;
+    }
+    if (employeeTest) {
+        await checkEmployee({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
+        await checkEmployeeOrders({ evaluate, waitFor, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
     }
     assert.deepEqual(errors, []);
     console.log('PASS: manager navigation, real CSS/fonts, 1440/1280/1024/768/375/320 widths, no overflow, drawer/keyboard/focus, account Escape, long name, anonymous/forbidden/locked/network/retry/expired, OTP UI flow, CSRF logout, customer auth dialog regression.');
