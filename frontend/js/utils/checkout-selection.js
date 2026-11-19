@@ -2,9 +2,9 @@ const validId = value => /^[1-9][0-9]*$/.test(value) && Number(value) <= 2147483
 export function checkoutRedemption(total, balance, enabled) {
     total = BigInt(total);
     balance = BigInt(balance);
-    const maximum = total / 100n;
+    const maximum = total / 10n;
     const quantity = enabled ? (balance < 0n ? 0n : balance < maximum ? balance : maximum) : 0n;
-    return { quantity, discount: quantity * 100n, total: total - quantity * 100n };
+    return { quantity, discount: quantity * 10n, total: total - quantity * 10n };
 }
 
 export function readCheckoutSelection(search) {

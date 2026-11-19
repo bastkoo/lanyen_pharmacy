@@ -1,10 +1,10 @@
 # Đổi xu khi xác nhận mua hàng
 
-Yêu cầu được duyệt ngày 18/11/2026: thêm `DonHang.DoiDiem` boolean; hiển thị xu vàng thay đơn vị điểm; đổi 1 xu = 100đ. Khi bật đổi xu, tự dùng số xu nguyên tối đa, giới hạn bởi số dư và tiền hàng sau khuyến mãi.
+Yêu cầu ban đầu được duyệt ngày 18/11/2026: thêm `DonHang.DoiDiem` boolean; hiển thị xu vàng thay đơn vị điểm. Quy đổi hiện tại theo cập nhật mới nhất: **1 xu = 10đ**, áp dụng đơn online và tại quầy. Khi bật đổi xu, tự dùng số xu nguyên tối đa, giới hạn bởi số dư và tiền hàng sau khuyến mãi.
 
 - Migration `58bd14a72f93` nối tiếp `31ac74d9e206`, chỉ thêm `DoiDiem`, `NOT NULL DEFAULT false`. Các đơn cũ nhận `false`.
 - Cả POST `/api/orders` và POST `/api/orders/<id>/reorder/checkout` nhận tùy chọn `DoiDiem` boolean, mặc định `false`. Các request cũ vẫn dùng được.
-- Backend lấy số dư từ `DiemThuong`, cộng `SoDiem` khi `LoaiGiaoDich=true`, trừ khi `false`. Số xu đổi = `min(max(số dư, 0), tiền sau khuyến mãi // 100)`.
+- Backend lấy số dư từ `DiemThuong`, cộng `SoDiem` khi `LoaiGiaoDich=true`, trừ khi `false`. Số xu đổi = `min(max(số dư, 0), tiền sau khuyến mãi // 10)`, giảm tiền bằng số xu đổi nhân 10. Cộng thưởng vẫn theo 1.000đ thanh toán = 1 xu. Đơn/giao dịch cũ không bị sửa; hủy đơn hoàn đúng số xu đã ghi nhận trong phân bổ ban đầu.
 - Không nhận số dư hay giá trị quy đổi do client cung cấp. `TongThanhToan` là tổng sau khuyến mãi và đổi xu, được đối chiếu lại trước khi tạo đơn.
 - `TienGiamGia` bao gồm cả khuyến mãi và tiền đổi xu. `DoiDiem=true` khi thực tế đã dùng xu. Chi tiết giao dịch trừ xu nằm trong `DiemThuong`, lý do có mã đơn hàng.
 - Khóa tài khoản trước khi kiểm tra số dư. Ghi giao dịch trừ xu cùng transaction với đơn, kho, hạn mức khuyến mãi và giỏ hàng; không commit riêng. Mua lại trực tiếp vẫn giữ nguyên giỏ.

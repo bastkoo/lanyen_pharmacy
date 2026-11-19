@@ -16,7 +16,7 @@ def debit(user_id, quantity, order_id, timestamp):
     # The caller holds the account lock and commits this with the order.
     db.session.add(DiemThuong(MaNguoiDung=user_id, SoDiem=quantity,
         LoaiGiaoDich=False, ThoiGianTichDiem=timestamp,
-        LyDo=f'Đổi xu thanh toán đơn hàng #{order_id} (1 xu = 100đ)'))
+        LyDo=f'Đổi xu thanh toán đơn hàng #{order_id} (1 xu = 10đ)'))
 
 
 def refund(user_id, quantity, order_id, timestamp):

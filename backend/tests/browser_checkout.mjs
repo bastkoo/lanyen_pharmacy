@@ -150,8 +150,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await waitFor(`!document.querySelector('#checkout-use-points').disabled`);
         assert.equal(await run(`document.querySelector('#checkout-points-balance').textContent`), '195');
         assert.equal(await run(`document.querySelector('#checkout-use-points').checked`), false);
-        await click($('checkout-use-points')); await ready('20.500 ₫');
-        assert.equal(await run(`document.querySelector('#checkout-points-discount').textContent`), '−19.500 ₫');
+        await click($('checkout-use-points')); await ready('38.050 ₫');
+        assert.equal(await run(`document.querySelector('#checkout-points-discount').textContent`), '−1.950 ₫');
         assert.equal(await run(`document.querySelector('#checkout-points-option').textContent.trim()`), 'Sử dụng xu: 195');
         assert.equal(await run(`document.querySelector('#checkout-points-option .reward-coin').getAttribute('aria-label')`), 'xu');
         assert.equal(await run(`document.querySelector('#checkout-use-points').getAttribute('role')`), 'switch');
@@ -425,7 +425,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         setPointsFixtureMode('normal');
         await navigate('checkout.html?unit=11'); await ready('40.000 ₫');
         await waitFor(`!document.querySelector('#checkout-use-points').disabled`);
-        await click($('checkout-use-points')); await ready('20.500 ₫');
+        await click($('checkout-use-points')); await ready('38.050 ₫');
         for (const width of [1440, 375, 320]) {
             await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
             assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Redemption fits ${width}px`);
@@ -434,8 +434,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await click($('checkout-complete'));
         await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
         assert.equal(fixtureOrder.DoiDiem, true);
-        assert.equal(fixtureOrder.TongThanhToan, '20500');
-        assert.equal(await run(`document.querySelector('#order-total').textContent`), '20.500 ₫');
+        assert.equal(fixtureOrder.TongThanhToan, '38050');
+        assert.equal(await run(`document.querySelector('#order-total').textContent`), '38.050 ₫');
         await navigate('orders.html'); await waitFor(`document.querySelectorAll('[data-cancel-order]').length===2`);
         assert.deepEqual(await run(`Array.from(document.querySelectorAll('[data-cancel-order]')).map(button => ({ label: button.textContent, status: button.closest('article').querySelector('.orders-status').dataset.status, visible: button.getClientRects().length > 0 }))`),
             [{ label: 'Hủy đơn', status: '0', visible: true }, { label: 'Hủy đơn', status: '1', visible: true }]);

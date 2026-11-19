@@ -140,7 +140,7 @@ export function setupEmployeeOrders({ getUser, onSessionError }) {
             : kind === 'complete' ? `Hoàn tất đơn tại quầy #${selected} đã thanh toán?`
             : detail.TrangThaiDonHang === 0 ? `Xác nhận đơn #${selected} đã thanh toán tại quầy và chuyển sang Đang chờ xử lý?`
             : detail.TrangThaiDonHang === 1 ? `Chuyển đơn #${selected} sang Đang giao?`
-            : `Xác nhận đơn #${selected} đã giao${detail.PhuongThucThanhToan === 0 ? ' và đã thu tiền COD' : ''}?${BigInt(detail.TongThanhToan) >= 100n ? ` Khách hàng sẽ được cộng ${BigInt(detail.TongThanhToan) / 100n} xu.` : ''}`;
+            : `Xác nhận đơn #${selected} đã giao${detail.PhuongThucThanhToan === 0 ? ' và đã thu tiền COD' : ''}?${BigInt(detail.TongThanhToan) >= 1000n ? ` Khách hàng sẽ được cộng ${BigInt(detail.TongThanhToan) / 1000n} xu.` : ''}`;
         if (kind === 'cancel' && detail.PhuongThucThanhToan === 1 && detail.TrangThaiThanhToan === 1) description += ' Tiền QR đã thanh toán cần nhà thuốc xử lý hoàn riêng.';
         $('employee-order-action-description').textContent = description; $('employee-order-action-state').textContent = '';
         $('employee-order-action-back').disabled = $('employee-order-action-confirm').disabled = false;

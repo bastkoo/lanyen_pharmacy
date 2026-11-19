@@ -18,7 +18,7 @@ from app.services.cart_service import get_cart, operation, require_unit, add_dat
 from app.services.inventory_service import usable_stock, deduct_order_stock
 from app.services.sepay_gateway_service import gateway_config
 from app.schemas.order_schema import ORDER_FILTERS
-from app.services.points_service import redemption
+from app.services.points_service import redemption, earned_points
 
 
 def payment_config():
@@ -135,7 +135,7 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None):
         points.debit(user.MaNguoiDung, redeemed, order.MaDonHang, order.NgayDat)
     if counter:
         order.DuLieuHoanTra = {**order.DuLieuHoanTra, 'counter_request': counter}
-        quantity = total // 100
+        quantity = earned_points(total)
         if quantity > 2147483647:
             raise AuthError('ORDER_POINTS_LIMIT', 409)
         if order.TrangThaiDonHang == 3 and quantity > 0:

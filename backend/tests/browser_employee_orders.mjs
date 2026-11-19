@@ -42,7 +42,7 @@ export async function employeeOrdersFixture(req, json) {
     if (row.QuaHanThanhToan) return json(409, { code:'ORDER_EXPIRED' });
     row.TrangThaiDonHang=data.to_status; mutations++;
     if (data.to_status === 1 || (data.to_status === 3 && row.PhuongThucThanhToan === 0)) row.TrangThaiThanhToan=1;
-    if (data.to_status === 3) row.XuDaCong=String(BigInt(row.TongThanhToan)/100n);
+    if (data.to_status === 3) row.XuDaCong=String(BigInt(row.TongThanhToan)/1000n);
     return json(200, { code:'EMPLOYEE_ORDER_UPDATED', order:serialize(row) });
 }
 
@@ -103,7 +103,7 @@ export async function checkEmployeeOrders({ evaluate:run, waitFor, command, base
     await waitFor(`document.querySelector('#employee-order-detail-content .employee-order-badge').dataset.status==='2'`);
     assert.equal(await run(`document.querySelector('#employee-order-print')`), null);
     await run(`document.querySelector('#employee-order-next-status').click();document.querySelector('#employee-order-action-confirm').click()`);
-    await waitFor(`document.querySelector('.employee-earned-points')?.textContent.includes('255')`);
+    await waitFor(`document.querySelector('.employee-earned-points')?.textContent.includes('Đã cộng 25 ')`);
     assert.equal(mutations,3);
     assert.equal(await run(`document.querySelector('#employee-order-next-status')`),null);
     await choose('502'); assert.equal(await run(`document.querySelector('#employee-order-next-status').disabled`),true);

@@ -100,10 +100,10 @@ class EmployeeOrderTests(unittest.TestCase):
         self.order.PhuongThucThanhToan = 0; self.order.TrangThaiThanhToan = 0
         result = self.update(2, 3)
         self.assertEqual((result.status_code, self.order.TrangThaiThanhToan), (200, 1))
-        self.assertEqual(result.json['order']['XuDaCong'], '255')
-        self.assertEqual(self.awards, [255])
+        self.assertEqual(result.json['order']['XuDaCong'], '25')
+        self.assertEqual(self.awards, [25])
         self.assertEqual(self.update(2, 3).json['code'], 'ORDER_STATE_CHANGED')
-        self.assertEqual(self.awards, [255])
+        self.assertEqual(self.awards, [25])
 
     def test_skipped_stale_invalid_or_missing_csrf_requests_cannot_mutate(self):
         self.assertEqual(self.update(0, 3).json['code'], 'INVALID_TRANSITION')
@@ -123,11 +123,21 @@ class EmployeeOrderTests(unittest.TestCase):
         self.commit.assert_not_called(); self.rollback.assert_called()
 
     def test_zero_value_delivered_order_does_not_create_reward_transaction(self):
-        self.order.TrangThaiDonHang = 2; self.order.TongThanhToan = 0
-        result = self.update(2, 3)
-        self.assertEqual(result.status_code, 200)
-        self.award.assert_not_called()
-        self.assertIsNone(result.json['order']['XuDaCong'])
+        for total in (0, 999):
+            with self.subTest(total=total):
+                self.order.TrangThaiDonHang = 2; self.order.TongThanhToan = total
+                result = self.update(2, 3)
+                self.assertEqual(result.status_code, 200)
+                self.award.assert_not_called()
+                self.assertIsNone(result.json['order']['XuDaCong'])
+
+    def test_online_reward_rounds_down_at_one_thousand_vnd(self):
+        for total in (1000, 1999):
+            with self.subTest(total=total):
+                self.awards.clear(); self.order.TrangThaiDonHang = 2; self.order.TongThanhToan = total
+                result = self.update(2, 3)
+                self.assertEqual(result.status_code, 200)
+                self.assertEqual(result.json['order']['XuDaCong'], '1')
 
     def test_pending_count_and_completed_list_permissions_and_filters(self):
         self.mock('app.services.employee_order_service.orders.pending_count', return_value=7)
@@ -155,13 +165,13 @@ class EmployeeOrderTests(unittest.TestCase):
 
     def test_counter_quote_uses_promotion_total_and_caps_redemption_before_award(self):
         self.mock('app.services.counter_order_service.users.find_by_phone', return_value=self.customer)
-        self.mock('app.services.counter_order_service.points.balance', return_value=1000)
+        self.mock('app.services.counter_order_service.points.balance', return_value=10000)
         cart = self.mock('app.services.counter_order_service.get_cart', return_value={
-            'total':25550, 'items':[dict(MaThuoc=7,MaDonGia=3,SoLuong=3,GiaBan=7500,GiaGoc=10000,ThanhTien=25550,ConHang=True)]})
+            'total':25557, 'items':[dict(MaThuoc=7,MaDonGia=3,SoLuong=3,GiaBan=7500,GiaGoc=10000,ThanhTien=25557,ConHang=True)]})
         values = dict(SDT='0900000000',DoiDiem=True,items=[dict(MaThuoc=7,MaDonGia=3,SoLuong=3)])
         with self.app.app_context():
             result=counter.quote(values)
-            self.assertEqual((result['TongTien'],result['TongThanhToan'],result['XuSuDung'],result['XuSeCong']), ('30000','50',255,'0'))
+            self.assertEqual((result['TongTien'],result['TongThanhToan'],result['XuSuDung'],result['XuSeCong']), ('30000','7',2555,'0'))
             cart.assert_called_once_with(entries=[(7,3,3)])
             cart.return_value['items'][0]['ConHang']=False
             with self.assertRaises(AuthError) as error: counter.quote(values)
@@ -208,9 +218,9 @@ class EmployeeOrderTests(unittest.TestCase):
         self.order.TrangThaiDonHang = 1; self.order.TrangThaiThanhToan = 1
         result = complete()
         self.assertEqual((result.status_code, result.json['order']['CanPrint']), (200, True))
-        self.assertEqual(self.awards, [255])
+        self.assertEqual(self.awards, [25])
         self.assertEqual(complete().status_code, 200)
-        self.assertEqual(self.awards, [255])
+        self.assertEqual(self.awards, [25])
         self.assertEqual(self.client.post('/api/employee/orders/counter/45/complete', json={}).status_code, 403)
 
     def test_counter_zero_completion_and_online_history_print_scope(self):

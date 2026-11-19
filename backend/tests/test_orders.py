@@ -81,7 +81,7 @@ class OrderTests(unittest.TestCase):
         quota = NS(SoLuong=50); self.promotion_detail.return_value = quota
         self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh':6}, SoLuongKhuyenMai=2)
         award = self.mock('app.services.order_service.points.award')
-        values = {**self.values, 'HinhThucNhanHang':'pickup', 'DoiDiem':True, 'TongThanhToan':'29500'}
+        values = {**self.values, 'HinhThucNhanHang':'pickup', 'DoiDiem':True, 'TongThanhToan':'31750'}
         context = {'actor':8, 'id':'fixture', 'fingerprint':'fixture'}
         with self.app.app_context():
             result = order_service.create(self.user, values, counter=context, entries=[(7,8,3)])
@@ -90,7 +90,7 @@ class OrderTests(unittest.TestCase):
         self.deduct.assert_called_once_with({7:30})
         self.assertEqual(quota.SoLuong, 30)
         self.points_debit.assert_called_once()
-        self.assertEqual(award.call_args.args[:3], (12,295,45))
+        self.assertEqual(award.call_args.args[:3], (12,31,45))
         self.records.assert_not_called(); self.remove.assert_not_called()
         self.assertTrue(self.create.call_args.args[0]['KenhDatHang'])
 
@@ -101,11 +101,12 @@ class OrderTests(unittest.TestCase):
                 counter={'actor':8}, entries=[(7,8,3)])
             self.assertEqual((result['TrangThaiDonHang'],result['TrangThaiThanhToan']), (0,0))
             award.assert_not_called()
-            self.quote.return_value['total'] = 0
-            result = order_service.create(self.user, {**self.values, 'HinhThucNhanHang':'pickup', 'TongThanhToan':'0'},
-                counter={'actor':8}, entries=[(7,8,3)])
-            self.assertEqual(result['TrangThaiDonHang'], 3)
-            award.assert_not_called()
+            for total in (0, 999):
+                self.quote.return_value['total'] = total
+                result = order_service.create(self.user, {**self.values, 'HinhThucNhanHang':'pickup', 'TongThanhToan':str(total)},
+                    counter={'actor':8}, entries=[(7,8,3)])
+                self.assertEqual(result['TrangThaiDonHang'], 3)
+                award.assert_not_called()
 
     def test_counter_gateway_return_keeps_staff_workspace_without_marking_paid(self):
         order = self.order(PhuongThucThanhToan=1, TrangThaiDonHang=0, TrangThaiThanhToan=0,
@@ -211,18 +212,18 @@ class OrderTests(unittest.TestCase):
     def test_create_persists_allocations_needed_for_later_cancellation(self):
         self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=2)
         self.promotion_detail.return_value = NS(SoLuong=100)
-        self.assertEqual(self.post(DoiDiem=True, TongThanhToan='29500').status_code, 201)
+        self.assertEqual(self.post(DoiDiem=True, TongThanhToan='31750').status_code, 201)
         snapshot = self.create.call_args.args[0]['DuLieuHoanTra']
         self.assertEqual(snapshot, dict(version=1, points=25,
             batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
             promotions=[dict(MaChuongTrinh=6, MaThuoc=7, SoLuong=20)]))
 
     def test_redeem_points_discounts_and_debits_in_order_transaction(self):
-        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        response = self.post(DoiDiem=True, TongThanhToan='31750')
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.json['order']['DoiDiem'])
-        self.assertEqual(response.json['order']['TongThanhToan'], '29500')
-        self.assertEqual(response.json['order']['TienGiamGia'], '6500')
+        self.assertEqual(response.json['order']['TongThanhToan'], '31750')
+        self.assertEqual(response.json['order']['TienGiamGia'], '4250')
         self.points_balance.assert_called_once_with(12)
         self.points_debit.assert_called_once_with(12, 25, 45, self.create.call_args.args[0]['NgayDat'])
         self.commit.assert_called_once()
@@ -235,12 +236,12 @@ class OrderTests(unittest.TestCase):
         self.points_debit.assert_not_called()
 
     def test_redeem_caps_at_whole_coins_and_preserves_remainder(self):
-        self.points_balance.return_value = 500
-        self.quote.return_value['total'] = 32050
-        response = self.post(DoiDiem=True, TongThanhToan='50')
+        self.points_balance.return_value = 5000
+        self.quote.return_value['total'] = 32055
+        response = self.post(DoiDiem=True, TongThanhToan='5')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['order']['TongThanhToan'], '50')
-        self.assertEqual(self.points_debit.call_args.args[1], 320)
+        self.assertEqual(response.json['order']['TongThanhToan'], '5')
+        self.assertEqual(self.points_debit.call_args.args[1], 3205)
 
     def test_redemption_rejects_unavailable_changed_balance_and_invalid_boolean(self):
         for balance in [0, -2]:
@@ -248,7 +249,7 @@ class OrderTests(unittest.TestCase):
             response = self.post(DoiDiem=True)
             self.assertEqual((response.status_code, response.json['code']), (409, 'POINTS_UNAVAILABLE'))
         self.points_balance.return_value = 20
-        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        response = self.post(DoiDiem=True, TongThanhToan='31750')
         self.assertEqual(response.json['code'], 'QUOTE_CHANGED')
         for flag in [0, 1, 'true', 'false', None, [], {}]:
             self.assertEqual(self.post(DoiDiem=flag).status_code, 400)
@@ -257,17 +258,17 @@ class OrderTests(unittest.TestCase):
         self.commit.assert_not_called()
 
     def test_full_redemption_allows_cod_but_rejects_zero_amount_qr(self):
-        self.points_balance.return_value = 500
+        self.points_balance.return_value = 5000
         response = self.post(DoiDiem=True, TongThanhToan='0', PhuongThucThanhToan=1)
         self.assertEqual(response.json['code'], 'QR_AMOUNT_INVALID')
         self.points_debit.assert_not_called()
         response = self.post(DoiDiem=True, TongThanhToan='0')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(self.points_debit.call_args.args[1], 320)
+        self.assertEqual(self.points_debit.call_args.args[1], 3200)
 
     def test_redemption_failure_rolls_back_order_and_never_commits(self):
         self.points_debit.side_effect = SQLAlchemyError('private')
-        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        response = self.post(DoiDiem=True, TongThanhToan='31750')
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('private', response.text)
         self.rollback.assert_called_once()
@@ -277,7 +278,7 @@ class OrderTests(unittest.TestCase):
         detail, _ = self.reorder_fixture()
         values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
         response = self.client.post('/api/orders/45/reorder/checkout',
-            json={**values, 'MaChiTiet': [str(detail.MaChiTiet)], 'DoiDiem': True, 'TongThanhToan': '29500'},
+            json={**values, 'MaChiTiet': [str(detail.MaChiTiet)], 'DoiDiem': True, 'TongThanhToan': '31750'},
             headers={'X-CSRF-Token': 'test-csrf'})
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.json['order']['DoiDiem'])

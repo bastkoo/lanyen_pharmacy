@@ -7,7 +7,7 @@ const wallet = phone => !phone || ['0900000001','0900000002'].includes(phone) ? 
 const product = { MaThuoc:7, MaLoaiThuoc:1, TenThuoc:'Thuốc <b>quầy</b>', MaVach:'0893000000123', HinhAnh:'https://example.invalid/counter.png', DonViGia:[{ MaDonGia:3, DonViTinh:'Viên', GiaBan:10000, GiaKhuyenMai:8000, KhuyenMai:{TenChuongTrinh:'Ưu đãi tại quầy'}, ConHang:true }, {MaDonGia:4,DonViTinh:'Hộp',GiaBan:100000,GiaKhuyenMai:null,ConHang:true}] };
 function order(id, total, method, name = 'Khách kiểm thử', state = 3) {
     return { MaDonHang:String(id), NgayDat:'2026-11-19T10:00:00+07:00', KenhDatHang:true, KhachHang:{ HoTen:name, SDT:'+84900000000' }, TongTien:'10000', TienGiamGia:String(10000-total), TongThanhToan:String(total), DoiDiem:total<10000,
-        TrangThaiDonHang:state, TrangThaiThanhToan:state===3?1:0, PhuongThucThanhToan:method, CanPrint:state===3, payment_environment:method===1?'sandbox':undefined, GhiChu:'Bán tại quầy', XuDaCong:state===3&&total>=100?String(Math.floor(total/100)):null,
+        TrangThaiDonHang:state, TrangThaiThanhToan:state===3?1:0, PhuongThucThanhToan:method, CanPrint:state===3, payment_environment:method===1?'sandbox':undefined, GhiChu:'Bán tại quầy', XuDaCong:state===3&&total>=1000?String(Math.floor(total/1000)):null,
         items:[{ ...product, MaChiTiet:'1', SoLuong:1, DonViTinh:'Viên', DonGia:'10000', ThanhTien:'10000', MaVach:'0893000000123' }] };
 }
 export function counterCatalogFixture(req, json) {
@@ -25,11 +25,11 @@ export async function counterFixture(req,json) {
     if(req.method==='GET') { const value=orders.find(value=>value.MaDonHang===id); if(paid&&value?.TrangThaiDonHang===0){value.TrangThaiDonHang=1;value.TrangThaiThanhToan=1;} return json(200,{code:'EMPLOYEE_ORDER_DETAIL',order:value}); }
     assert.equal(req.headers['x-csrf-token'],'fixture-csrf'); let raw='';for await(const chunk of req)raw+=chunk;const data=JSON.parse(raw);
     const value=orders.find(value=>value.MaDonHang===id);
-    if(url.pathname.endsWith('/complete')) { assert.deepEqual(data,{}); if(value.TrangThaiThanhToan!==1)return json(409,{code:'PAYMENT_PENDING'});if(value.TrangThaiDonHang!==3){value.TrangThaiDonHang=3;value.CanPrint=true;value.XuDaCong=String(Math.floor(Number(value.TongThanhToan)/100));awards++;} return json(200,{code:'COUNTER_COMPLETED',order:value}); }
+    if(url.pathname.endsWith('/complete')) { assert.deepEqual(data,{}); if(value.TrangThaiThanhToan!==1)return json(409,{code:'PAYMENT_PENDING'});if(value.TrangThaiDonHang!==3){value.TrangThaiDonHang=3;value.CanPrint=true;value.XuDaCong=String(Math.floor(Number(value.TongThanhToan)/1000));awards++;} return json(200,{code:'COUNTER_COMPLETED',order:value}); }
     if(url.pathname.endsWith('/payment')) return json(200,{payment:{environment:'sandbox',action:'https://pay-sandbox.sepay.vn/v1/checkout/init',method:'POST',fields:{merchant:'SP-TEST-EXAMPLE',currency:'VND',operation:'PURCHASE',order_amount:value.TongThanhToan,order_invoice_number:`LYSGTEST${id}`,order_description:'Thanh toán kiểm thử',customer_id:'12',payment_method:'BANK_TRANSFER',signature:'A'.repeat(43)+'='}}});
     const sale=line=>line.MaDonGia===3?8000:100000, base=line=>line.MaDonGia===3?10000:100000;
-    const beforeCoins=data.items.reduce((sum,line)=>sum+line.SoLuong*sale(line),0), redeemed=data.DoiDiem?Math.min(wallet(data.SDT),Math.floor(beforeCoins/100)):0, total=beforeCoins-redeemed*100;
-    if(url.pathname.endsWith('/quote')) return json(200,{code:'COUNTER_QUOTED',items:data.items.map(line=>({...line,TenThuoc:product.TenThuoc,GiaBan:sale(line),GiaGoc:base(line),ThanhTien:line.SoLuong*sale(line)})),TongTien:String(data.items.reduce((sum,line)=>sum+line.SoLuong*base(line),0)),TongThanhToan:String(total),SoXu:String(wallet(data.SDT)),XuSuDung:redeemed,XuSeCong:String(Math.floor(total/100))});
+    const beforeCoins=data.items.reduce((sum,line)=>sum+line.SoLuong*sale(line),0), redeemed=data.DoiDiem?Math.min(wallet(data.SDT),Math.floor(beforeCoins/10)):0, total=beforeCoins-redeemed*10;
+    if(url.pathname.endsWith('/quote')) return json(200,{code:'COUNTER_QUOTED',items:data.items.map(line=>({...line,TenThuoc:product.TenThuoc,GiaBan:sale(line),GiaGoc:base(line),ThanhTien:line.SoLuong*sale(line)})),TongTien:String(data.items.reduce((sum,line)=>sum+line.SoLuong*base(line),0)),TongThanhToan:String(total),SoXu:String(wallet(data.SDT)),XuSuDung:redeemed,XuSeCong:String(Math.floor(total/1000))});
     if(requests.has(data.request_id))return json(200,{code:'COUNTER_CREATED',order:requests.get(data.request_id)});
     created++;const result=order(901+created,total,data.PhuongThucThanhToan,data.HoTen||'Khách kiểm thử',data.PhuongThucThanhToan===0?3:0);orders.push(result);requests.set(data.request_id,result);if(result.TrangThaiDonHang===3)awards++;return json(200,{code:'COUNTER_CREATED',order:result});
 }
@@ -126,7 +126,7 @@ export async function checkEmployeeCounter({evaluate:run,waitFor,command,key,roo
     await run(`document.querySelector('#counter-products button').click();document.querySelector('#counter-payment').value='1';document.querySelector('#counter-payment').dispatchEvent(new Event('change'))`);
     await waitFor(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-20 ')&&!document.querySelector('#counter-coins').disabled`);
     await run(`document.querySelector('#counter-coins').click()`);
-    await waitFor(`document.querySelector('#counter-totals').textContent.includes('6.000')&&document.querySelector('#counter-finish').disabled===false`);
+    await waitFor(`document.querySelector('#counter-totals').textContent.includes('7.800')&&document.querySelector('#counter-finish').disabled===false`);
     assert.equal(await run(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-20 ')`),true);
     await run(`document.querySelector('#counter-finish').click()`);
     await waitFor(`document.querySelector('#counter-bill-title').textContent.includes('903')&&document.querySelector('#counter-pay').hidden===false`);
@@ -135,23 +135,23 @@ export async function checkEmployeeCounter({evaluate:run,waitFor,command,key,roo
     await waitFor(`window.__counterCheckout?.target==='_blank'`);
     assert.equal(await run(`window.__counterCheckout.action`),'https://pay-sandbox.sepay.vn/v1/checkout/init');
     paid=true;await run(`document.querySelector('#counter-payment-check').click()`);
-    await waitFor(`document.querySelector('#counter-print').hidden===false&&document.querySelector('#counter-bill-rewards').textContent.includes('Đã cộng 60')`);
+    await waitFor(`document.querySelector('#counter-print').hidden===false&&document.querySelector('#counter-bill-rewards').textContent.includes('Đã cộng 7 ')`);
     assert.equal(created,2);assert.equal(awards,2);
     await run(`document.querySelector('#counter-payment-check').click()`);assert.equal(awards,2);
     await run(`document.querySelector('#counter-bill-close').click()`);
     await run(`document.querySelector('#counter-new').click();document.querySelector('#counter-phone').value='0900000003';document.querySelector('#counter-customer-form').requestSubmit()`);
     await waitFor(`document.querySelector('#counter-balance')?.textContent.includes('1.000')&&document.querySelector('#counter-products button')!==null`);
     await run(`document.querySelector('#counter-products button').click()`);
-    await waitFor(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-80 ')&&!document.querySelector('#counter-coins').disabled`);
+    await waitFor(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-800 ')&&!document.querySelector('#counter-coins').disabled`);
     assert.equal(await run(`document.querySelector('#counter-coins-amount .reward-coin')!==null`),true);
     await run(`document.querySelector('#counter-coins').click()`);
     await waitFor(`document.querySelector('#counter-totals dd:last-child')!==null&&!document.querySelector('#counter-coins').disabled`);
-    assert.equal(await run(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-80 ')`),true);
+    assert.equal(await run(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-800 ')`),true);
     assert.equal(await run(`document.querySelector('#counter-totals > div:last-child dd').textContent`),'0 ₫');
     await run(`document.querySelector('#counter-lines input').value='2';document.querySelector('#counter-lines input').dispatchEvent(new Event('change'))`);
-    await waitFor(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-160 ')&&!document.querySelector('#counter-coins').disabled`);
+    await waitFor(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-1.000 ')&&!document.querySelector('#counter-coins').disabled`);
     await run(`document.querySelector('#counter-coins').click()`);
     await waitFor(`document.querySelector('#counter-totals > div:last-child dd')?.textContent==='16.000 ₫'`);
-    assert.equal(await run(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-160 ')`),true);
+    assert.equal(await run(`document.querySelector('#counter-coins-amount').textContent.startsWith('(-1.000 ')`),true);
     console.log('PASS: counter completed history/detail/print, new/existing customer, barcode search, basket, coins, cash, duplicate click, verified QR completion, no barcode on invoice, safe DOM and 1440–320px. MOCK APIs; no real payment/print/DB.');
 }

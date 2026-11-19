@@ -84,9 +84,9 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
         $('counter-totals').replaceChildren();
         let redeemable = 0n;
         if (quote) {
-            const beforeCoins = BigInt(quote.TongThanhToan) + BigInt(quote.XuSuDung) * 100n;
+            const beforeCoins = BigInt(quote.TongThanhToan) + BigInt(quote.XuSuDung) * 10n;
             const balance = customer ? BigInt(customer.SoXu) : 0n;
-            redeemable = balance < beforeCoins / 100n ? balance : beforeCoins / 100n;
+            redeemable = balance < beforeCoins / 10n ? balance : beforeCoins / 10n;
             for (const [label, value] of [['Tiền hàng', quote.TongTien], ['Giảm giá / đổi xu', String(BigInt(quote.TongTien) - BigInt(quote.TongThanhToan))], ['Tổng thanh toán', quote.TongThanhToan]]) { const row = node('div'); row.append(node('dt', label), node('dd', money(value))); $('counter-totals').append(row); }
         }
         $('counter-coins-amount').replaceChildren(document.createTextNode(`(-${new Intl.NumberFormat('vi-VN').format(redeemable)} `), rewardCoin(), document.createTextNode(')'));

@@ -8,6 +8,7 @@ from app.services.auth_service import AuthError
 from app.services.cart_service import operation
 from app.services import order_service
 from app.services.order_expiry_service import overdue, vietnam_now
+from app.services.points_service import earned_points
 
 
 def summary(order, customer):
@@ -69,7 +70,7 @@ def update(actor, order_id, from_status, to_status):
     if (from_status, to_status) == (2, 3):
         if order.PhuongThucThanhToan == 0:
             order.TrangThaiThanhToan = 1
-        quantity = order.TongThanhToan // 100
+        quantity = earned_points(order.TongThanhToan)
         if not 0 <= quantity <= 2147483647:
             raise AuthError('ORDER_POINTS_LIMIT', 409)
         if quantity > 0:

@@ -9,7 +9,7 @@ from app.services import order_service, employee_order_service
 from app.services.auth_service import AuthError
 from app.services.cart_service import operation, get_cart
 from app.services.otp_service import normalize_phone
-from app.services.points_service import redemption
+from app.services.points_service import redemption, earned_points
 from app.services.order_expiry_service import vietnam_now
 from app.services import sepay_gateway_service as gateway
 from app.repositories import thuoc_repository as products, don_vi_gia_thuoc_repository as units
@@ -69,7 +69,7 @@ def quote(data):
     redeemed, discount = redemption(value['total'], balance) if data['DoiDiem'] else (0, 0)
     return dict(items=value['items'], TongTien=str(sum(line.get('GiaGoc', line['GiaBan']) * line['SoLuong'] for line in value['items'])),
                 TongThanhToan=str(value['total'] - discount), XuSuDung=redeemed,
-                SoXu=str(balance), XuSeCong=str((value['total'] - discount) // 100))
+                SoXu=str(balance), XuSeCong=str(earned_points(value['total'] - discount)))
 
 
 @operation
@@ -128,7 +128,7 @@ def complete(actor, order_id):
         return result
     if order.TrangThaiDonHang != 1 or order.TrangThaiThanhToan != 1:
         raise AuthError('PAYMENT_PENDING', 409)
-    quantity = order.TongThanhToan // 100
+    quantity = earned_points(order.TongThanhToan)
     if not 0 <= quantity <= 2147483647:
         raise AuthError('ORDER_POINTS_LIMIT', 409)
     if quantity > 0:
