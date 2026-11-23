@@ -66,6 +66,9 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None):
              if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True, **({'entries': entries} if counter is not None else {})))
     if not quote['items'] or any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
+    if counter is None:
+        from app.services.consultation_service import require_authorization
+        require_authorization(user.MaNguoiDung, [(item['MaThuoc'], item['MaDonGia']) for item in quote['items']])
     # Multiple units of the same product must fit the combined base-unit stock.
     required = {}
     promotion_required = {}
@@ -262,7 +265,8 @@ def serialize_item(detail, product, unit, *, include_barcode=False):
         MaChiTiet=str(detail.MaChiTiet), MaThuoc=detail.MaThuoc, MaDonGia=detail.MaDonGia,
         SoLuong=detail.SoLuong, DonGia=str(detail.DonGia), ThanhTien=str(detail.SoLuong * detail.DonGia),
         TenThuoc=product.TenThuoc if product else 'Sản phẩm không còn trong danh mục',
-        HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '')
+        HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '',
+        PhanLoai=getattr(product, 'PhanLoai', False) is True)
     if include_barcode:
         result['MaVach'] = product.MaVach if product else None
     return result
@@ -298,7 +302,10 @@ def reorder_lines(user_id, order_id, lock=False):
         raise AuthError('ORDER_NOT_FOUND', 404)
     if order.TrangThaiDonHang not in (3, 4):
         raise AuthError('ORDER_NOT_REORDERABLE', 409)
-    return orders.detail_items(order_id)
+    lines = orders.detail_items(order_id)
+    if any(getattr(product, 'PhanLoai', False) is True for _, product, _ in lines):
+        raise AuthError('CONSULTATION_REQUIRED', 409)
+    return lines
 
 
 @operation

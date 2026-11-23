@@ -61,6 +61,8 @@ def require_unit(product_id, unit_id, check_stock=False, for_update=False):
 def add_database(user_id, entries, check_stock=False):
     if carts.lock_user(user_id) is None:
         raise AuthError('UNAUTHENTICATED', 401)
+    from app.services.consultation_service import require_authorization
+    require_authorization(user_id, [(product, unit) for product, unit, _ in entries])
     existing = carts.list_items(user_id)
     for product_id, unit_id, quantity in entries:
         require_unit(product_id, unit_id, check_stock=check_stock)
@@ -93,6 +95,8 @@ def add_item(product_id, unit_id):
         add_database(user_id, [(product_id, unit_id, 1)], check_stock=True)
     else:
         require_unit(product_id, unit_id, check_stock=True)
+        from app.services.consultation_service import require_authorization
+        require_authorization(None, [(product_id, unit_id)])
         entries = guest_items()
         match = next((item for item in entries if item[:2] == [product_id, unit_id]), None)
         if match:
@@ -175,6 +179,8 @@ def update_item(unit_id, destination_id, quantity):
     if source is None:
         raise AuthError('CART_ITEM_NOT_FOUND', 404)
     product_id = source.MaThuoc if user_id is not None else source[0]
+    from app.services.consultation_service import require_authorization
+    require_authorization(user_id, [(product_id, destination_id)])
     unit = require_unit(product_id, destination_id)
     total = quantity + sum(count for product, existing_id, count in entries
                            if product == product_id and existing_id == destination_id and existing_id != unit_id)
