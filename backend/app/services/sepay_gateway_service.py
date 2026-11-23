@@ -93,6 +93,9 @@ def sign_fields(fields, secret):
 
 
 def require_pending(order):
+    from app.services.order_expiry_service import overdue
+    if overdue(order):
+        raise AuthError('ORDER_EXPIRED', 409)
     if order.PhuongThucThanhToan != 1:
         raise AuthError('ORDER_PAYMENT_METHOD_INVALID', 409)
     if order.TrangThaiThanhToan == 1:
@@ -104,7 +107,7 @@ def require_pending(order):
 
 
 @operation
-def initialize(user_id, order_id):
+def initialize(user_id, order_id, *, employee=False):
     config = gateway_config()
     if not 0 < order_id <= MAX_ID:
         raise AuthError('ORDER_NOT_FOUND', 404)
@@ -124,6 +127,9 @@ def initialize(user_id, order_id):
             parsed = urlsplit(config['SEPAY_' + name.upper()])
             query = [(key, value) for key, value in parse_qsl(parsed.query) if key != 'order']
             query.append(('order', str(order.MaDonHang)))
+            if employee:
+                query = [(key, value) for key, value in query if key != 'workspace']
+                query.append(('workspace', 'employee'))
             fields[name] = urlunsplit(parsed._replace(query=urlencode(query)))
     fields['signature'] = sign_fields(fields, config['SEPAY_SECRET_KEY'])
     # Release the row lock before the customer leaves for hosted checkout.

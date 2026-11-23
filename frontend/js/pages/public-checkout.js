@@ -26,7 +26,7 @@ const key = value => value ? String(value.MaNguoiDung) : 'guest';
 function updateComplete() {
     $('checkout-complete').disabled = submitting || !ready || Boolean(activeOrderId);
     $('checkout-use-points').disabled = submitting || !ready || Boolean(activeOrderId) || pointsBalance === null
-        || pointsBalance <= 0n || quoteTotal === null || quoteTotal < 100n;
+        || pointsBalance <= 0n || quoteTotal === null || quoteTotal < 10n;
 }
 function updateRedemption() {
     if (quoteTotal === null || activeOrderId) return;
@@ -307,7 +307,7 @@ $('checkout-complete').addEventListener('click', async () => {
     const account = currentKey;
     try {
         const values = {
-            DoiDiem: $('checkout-use-points').checked && pointsBalance !== null && pointsBalance > 0n && quoteTotal >= 100n,
+            DoiDiem: $('checkout-use-points').checked && pointsBalance !== null && pointsBalance > 0n && quoteTotal >= 10n,
             PhuongThucThanhToan: document.querySelector('input[name="payment"]:checked').value === 'cod' ? 0 : 1,
             HinhThucNhanHang: receipt, MaDiaChi: receipt === 'delivery' ? addressId : null,
             GhiChu: $('checkout-note').value, TongThanhToan: totalToPay };

@@ -18,7 +18,7 @@ from app.services.cart_service import get_cart, operation, require_unit, add_dat
 from app.services.inventory_service import usable_stock, deduct_order_stock
 from app.services.sepay_gateway_service import gateway_config
 from app.schemas.order_schema import ORDER_FILTERS
-from app.services.points_service import redemption
+from app.services.points_service import redemption, earned_points
 
 
 def payment_config():
@@ -51,25 +51,25 @@ def serialize(order, legacy_payment=True):
 
 
 @operation
-def create(user, data, reorder_id=None):
+def create(user, data, reorder_id=None, *, counter=None, entries=None):
     # Serialize checkout with cart mutations and other orders for this account.
     if carts.lock_user(user.MaNguoiDung) is None:
         raise AuthError('UNAUTHENTICATED', 401)
     environment = gateway_config()['SEPAY_ENV'] if data['PhuongThucThanhToan'] == 1 else None
-    records = ([] if reorder_id is not None else
+    records = ([] if reorder_id is not None or counter is not None else
                [item for item in carts.list_items(user.MaNguoiDung) if item.MaDonGia in data['MaDonGia']])
-    if reorder_id is None and {item.MaDonGia for item in records} != set(data['MaDonGia']):
+    if reorder_id is None and counter is None and {item.MaDonGia for item in records} != set(data['MaDonGia']):
         raise AuthError('CART_CHANGED', 409)
     # Lock quotas before pricing: a concurrent checkout must reprice after the
     # previous order commits, rather than both using the same remaining quota.
     quote = (reorder_quote(user.MaNguoiDung, reorder_id, data['MaChiTiet'], lock=True)
-             if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True))
+             if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True, **({'entries': entries} if counter is not None else {})))
     if not quote['items'] or any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
     # Multiple units of the same product must fit the combined base-unit stock.
     required = {}
     promotion_required = {}
-    details, original = [], 0
+    details, original, return_lines = [], 0, []
     for item in sorted(quote['items'], key=lambda item: item['MaDonGia']):
         unit = require_unit(item['MaThuoc'], item['MaDonGia'], for_update=True)
         if unit.SoLuongQuyDoi <= 0:
@@ -78,6 +78,8 @@ def create(user, data, reorder_id=None):
         original += item['SoLuong'] * unit.GiaBan
         details.append(dict(MaThuoc=item['MaThuoc'], MaDonGia=item['MaDonGia'],
                             SoLuong=item['SoLuong'], DonGia=unit.GiaBan))
+        return_lines.append(dict(MaDonGia=item['MaDonGia'], conversion=unit.SoLuongQuyDoi,
+                                 amount=item['ThanhTien']))
         if item.get('KhuyenMai') and item.get('SoLuongKhuyenMai', 0) > 0:
             key = (item['KhuyenMai']['MaChuongTrinh'], item['MaThuoc'])
             promotion_required[key] = (promotion_required.get(key, 0)
@@ -117,22 +119,37 @@ def create(user, data, reorder_id=None):
     # Both COD and QR debit on completion, exactly once with order/cart writes.
     # Gateway initialization and IPN only update payment status, never stock.
     allocations = deduct_order_stock(required)
+    # Allocate redeemed-point discount cumulatively so line amounts sum exactly
+    # to the paid total, while retaining each line's original promotion price.
+    running = previous = 0
+    for line in return_lines:
+        running += line['amount']
+        cumulative = running * total // quote['total'] if quote['total'] else 0
+        line['amount'] = cumulative - previous
+        previous = cumulative
     for detail, quantity in quotas:
         detail.SoLuong -= quantity
     order = orders.create(dict(
-        MaNguoiMua=user.MaNguoiDung, MaNhanVien=None, TongTien=original,
+        MaNguoiMua=user.MaNguoiDung, MaNhanVien=counter['actor'] if counter else None, TongTien=original,
         TienGiamGia=original - total, TongThanhToan=total,
         DoiDiem=redeemed > 0,
-        DuLieuHoanTra={'version': 1, 'batches': allocations, 'points': redeemed,
+        DuLieuHoanTra={'version': 1, 'batches': allocations, 'points': redeemed, 'lines': return_lines,
             'promotions': [dict(MaChuongTrinh=promotion_id, MaThuoc=product_id, SoLuong=quantity)
                            for (promotion_id, product_id), quantity in sorted(promotion_required.items())]},
-        TrangThaiDonHang=1 if data['PhuongThucThanhToan'] == 0 else 0,
-        PhuongThucThanhToan=data['PhuongThucThanhToan'], TrangThaiThanhToan=0,
+        TrangThaiDonHang=(3 if counter else 1) if data['PhuongThucThanhToan'] == 0 else 0,
+        PhuongThucThanhToan=data['PhuongThucThanhToan'], TrangThaiThanhToan=1 if counter and data['PhuongThucThanhToan'] == 0 else 0,
         MoiTruongThanhToan=environment,
-        NgayDat=datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None), KenhDatHang=False,
+        NgayDat=datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None), KenhDatHang=counter is not None,
         GhiChu='\n'.join([recipient, receipt, data['GhiChu'].strip()]).rstrip()), details)
     if redeemed:
         points.debit(user.MaNguoiDung, redeemed, order.MaDonHang, order.NgayDat)
+    if counter:
+        order.DuLieuHoanTra = {**order.DuLieuHoanTra, 'counter_request': counter}
+        quantity = earned_points(total)
+        if quantity > 2147483647:
+            raise AuthError('ORDER_POINTS_LIMIT', 409)
+        if order.TrangThaiDonHang == 3 and quantity > 0:
+            points.award(user.MaNguoiDung, quantity, order.MaDonHang, order.NgayDat)
     for record in records:
         carts.remove(record)
     result = serialize(order, legacy_payment=False)
@@ -141,7 +158,7 @@ def create(user, data, reorder_id=None):
 
 
 @operation
-def cancel(user_id, order_id):
+def cancel(user_id, order_id, *, expired_before=None, employee_id=None, allowed_states=(0, 1)):
     if not 0 < order_id <= 9223372036854775807:
         raise AuthError('ORDER_NOT_FOUND', 404)
     if carts.lock_user(user_id) is None:
@@ -149,8 +166,11 @@ def cancel(user_id, order_id):
     order = orders.find(order_id, lock=True)
     if order is None or order.MaNguoiMua != user_id:
         raise AuthError('ORDER_NOT_FOUND', 404)
-    if order.TrangThaiDonHang not in (0, 1):
+    if order.TrangThaiDonHang not in allowed_states:
         raise AuthError('ORDER_NOT_CANCELLABLE', 409)
+    if expired_before is not None and not (order.TrangThaiDonHang == 0 and order.TrangThaiThanhToan == 0
+            and order.PhuongThucThanhToan == 1 and order.NgayDat < expired_before):
+        raise AuthError('ORDER_NOT_EXPIRED', 409)
     data = order.DuLieuHoanTra
     if not valid_return_data(data) or bool(data['points']) != bool(order.DoiDiem):
         raise AuthError('ORDER_REFUND_REVIEW_REQUIRED', 409)
@@ -174,6 +194,8 @@ def cancel(user_id, order_id):
         points.refund(user_id, data['points'], order_id,
                       datetime.now(timezone(timedelta(hours=7))).replace(tzinfo=None))
     order.TrangThaiDonHang = 4
+    if employee_id is not None:
+        order.MaNhanVien = employee_id
     result = serialize(order, legacy_payment=False)
     db.session.commit()
     return result
@@ -218,7 +240,7 @@ def read(user_id, order_id):
 
 
 @operation
-def read_detail(user_id, order_id):
+def read_detail(user_id, order_id, *, include_barcode=False):
     if not 0 < order_id <= 9223372036854775807:
         raise AuthError('ORDER_NOT_FOUND', 404)
     order = orders.find(order_id)
@@ -227,17 +249,23 @@ def read_detail(user_id, order_id):
     result = serialize(order, legacy_payment=False)
     result['NgayDat'] = order.NgayDat.isoformat()
     result['GhiChu'] = order.GhiChu
-    result['items'] = [serialize_item(detail, product, unit)
+    if order.TrangThaiDonHang == 3:
+        award = points.order_award(order.MaNguoiMua, order.MaDonHang)
+        result['XuDaCong'] = str(award) if award is not None else None
+    result['items'] = [serialize_item(detail, product, unit, include_barcode=include_barcode)
                        for detail, product, unit in orders.detail_items(order_id)]
     return result
 
 
-def serialize_item(detail, product, unit):
-    return dict(
+def serialize_item(detail, product, unit, *, include_barcode=False):
+    result = dict(
         MaChiTiet=str(detail.MaChiTiet), MaThuoc=detail.MaThuoc, MaDonGia=detail.MaDonGia,
         SoLuong=detail.SoLuong, DonGia=str(detail.DonGia), ThanhTien=str(detail.SoLuong * detail.DonGia),
         TenThuoc=product.TenThuoc if product else 'Sản phẩm không còn trong danh mục',
         HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '')
+    if include_barcode:
+        result['MaVach'] = product.MaVach if product else None
+    return result
 
 
 @operation

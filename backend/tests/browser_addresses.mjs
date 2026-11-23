@@ -55,7 +55,7 @@ export async function checkAddresses({ evaluate: run, waitFor, command, key, bas
         setScenario('forbidden'); await navigate('customer/home.html'); await waitFor(`document.querySelector('[data-management]')?.hidden===false`);
         assert.equal(await run(`document.querySelector('[data-management]').getAttribute('href')`), '../employee/index.html');
         await click($('account-avatar-button')); await click(`document.querySelector('[data-management]')`);
-        await waitFor(`document.querySelector('#employee-placeholder')?.hidden===false`);
+        await waitFor(`document.querySelector('#employee-workspace')?.hidden===false`);
         assert.equal(await run('location.pathname'), '/pages/employee/index.html');
         setScenario('manager'); await navigate('customer/addresses.html'); await ready(0);
         await waitFor(`document.querySelector('.account-sidebar-identity p').textContent==='Nguyễn Lan Yến'`);
@@ -123,10 +123,9 @@ export async function checkAddresses({ evaluate: run, waitFor, command, key, bas
             }
         }
         await click(`document.querySelector('.customer-account-sidebar a[href="orders.html"]')`);
-        await waitFor(`document.querySelector('.customer-account-sidebar a[aria-current]')?.getAttribute('href')==='orders.html'`);
-        await waitFor(`${$('account-page-state')}.textContent.includes('đang được hoàn thiện')`);
-        assert.match(await run(`${$('account-page-state')}.textContent`), /đang được hoàn thiện/);
-        await click(`document.querySelector('.customer-account-sidebar a[href="addresses.html"]')`); await ready(2);
+        await waitFor(`location.pathname.endsWith('/orders.html') && document.querySelector('#orders-list .orders-card')!==null`);
+        assert.equal(await run(`document.querySelector('#orders-content').getAttribute('aria-busy')`), 'false');
+        await navigate('customer/addresses.html'); await ready(2);
         await click(action(2, 'Xóa')); await click($('address-delete-confirm')); await ready(1);
         await click(action(1, 'Xóa')); await click($('address-delete-confirm')); await ready(0);
         await add('Địa chỉ mới sau khi xóa hết'); await ready(1); assert.equal(rows[0].DiaChiGiao, true);

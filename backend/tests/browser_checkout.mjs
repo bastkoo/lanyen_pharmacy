@@ -7,7 +7,8 @@ import { setPointsFixtureMode } from './browser_points.mjs';
 
 const cart = [{ MaThuoc: 1, MaDonGia: 11, SoLuong: 1 }, { MaThuoc: 2, MaDonGia: 21, SoLuong: 2 }];
 const addresses = [{ MaDiaChi: 1, DiaChiGiao: true, TinhThanh: 'Thành phố Huế', PhuongXa: 'Phường Vỹ Dạ', DiaChiCuThe: 'Nhà chính' }, { MaDiaChi: 2, DiaChiGiao: false, TinhThanh: 'Thành phố Hà Nội', PhuongXa: 'Phường B', DiaChiCuThe: '<b>Nhà phụ</b>' }];
-let fixtureOrder, paymentConfirmed = false, orderCreates = 0, orderMode = 'normal';
+let fixtureOrder = { MaDonHang: '9007199254741000', TongThanhToan: '50000', PhuongThucThanhToan: 0,
+    TrangThaiThanhToan: 0, TrangThaiDonHang: 1 }, paymentConfirmed = false, orderCreates = 0, orderMode = 'normal';
 let gatewayInitializations = 0;
 let fixtureEnvironment = 'sandbox';
 let listMode = 'normal';
@@ -73,6 +74,7 @@ export async function orderFixture(req, json) {
             ...fixtureOrder, TongTien: '50000', TienGiamGia: '0', NgayDat: '2026-11-18T09:15:00',
             GhiChu: 'Người nhận: Nguyễn Lan Yến · 0900000000\nGiao tận nơi: 126 Dương Văn An, Phường Vỹ Dạ, Thành phố Huế\nGọi trước khi giao hàng.',
             ...(paymentConfirmed ? { TrangThaiThanhToan: 1, TrangThaiDonHang: 1 } : {}),
+            ...(fixtureOrder.TrangThaiDonHang === 3 ? { XuDaCong: '500' } : {}),
             items: [{ MaChiTiet: '9007199254741001', MaThuoc: 1, MaDonGia: 11, TenThuoc: '<b>Vitamin tổng hợp</b>',
                 HinhAnh: 'javascript:alert(1)', DonViTinh: 'Hộp', SoLuong: 1, DonGia: '50000', ThanhTien: '50000' }] } });
     }
@@ -148,8 +150,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await waitFor(`!document.querySelector('#checkout-use-points').disabled`);
         assert.equal(await run(`document.querySelector('#checkout-points-balance').textContent`), '195');
         assert.equal(await run(`document.querySelector('#checkout-use-points').checked`), false);
-        await click($('checkout-use-points')); await ready('20.500 ₫');
-        assert.equal(await run(`document.querySelector('#checkout-points-discount').textContent`), '−19.500 ₫');
+        await click($('checkout-use-points')); await ready('38.050 ₫');
+        assert.equal(await run(`document.querySelector('#checkout-points-discount').textContent`), '−1.950 ₫');
         assert.equal(await run(`document.querySelector('#checkout-points-option').textContent.trim()`), 'Sử dụng xu: 195');
         assert.equal(await run(`document.querySelector('#checkout-points-option .reward-coin').getAttribute('aria-label')`), 'xu');
         assert.equal(await run(`document.querySelector('#checkout-use-points').getAttribute('role')`), 'switch');
@@ -223,6 +225,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
             fixtureOrder.TrangThaiDonHang = status;
             await navigate(`order-detail.html?order=${fixtureOrder.MaDonHang}`);
             await waitFor(`document.querySelector('#order-status').textContent===${JSON.stringify(['Đặt hàng','Đang xử lý đơn','Đang giao','Đã giao'][status])}`);
+            assert.equal(await run(`document.querySelector('#order-earned-points').hidden`), status !== 3);
             assert.equal(await run(`document.querySelector('#order-cancel').hidden`), status > 1);
             assert.equal(await run(`Array.from(document.querySelector('#order-progress').children).indexOf(document.querySelector('[aria-current="step"]'))`), status);
             assert.equal(await run(`document.querySelectorAll('.is-approaching').length`), status === 1 || status === 2 ? 1 : 0);
@@ -422,7 +425,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         setPointsFixtureMode('normal');
         await navigate('checkout.html?unit=11'); await ready('40.000 ₫');
         await waitFor(`!document.querySelector('#checkout-use-points').disabled`);
-        await click($('checkout-use-points')); await ready('20.500 ₫');
+        await click($('checkout-use-points')); await ready('38.050 ₫');
         for (const width of [1440, 375, 320]) {
             await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
             assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Redemption fits ${width}px`);
@@ -431,8 +434,8 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await click($('checkout-complete'));
         await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
         assert.equal(fixtureOrder.DoiDiem, true);
-        assert.equal(fixtureOrder.TongThanhToan, '20500');
-        assert.equal(await run(`document.querySelector('#order-total').textContent`), '20.500 ₫');
+        assert.equal(fixtureOrder.TongThanhToan, '38050');
+        assert.equal(await run(`document.querySelector('#order-total').textContent`), '38.050 ₫');
         await navigate('orders.html'); await waitFor(`document.querySelectorAll('[data-cancel-order]').length===2`);
         assert.deepEqual(await run(`Array.from(document.querySelectorAll('[data-cancel-order]')).map(button => ({ label: button.textContent, status: button.closest('article').querySelector('.orders-status').dataset.status, visible: button.getClientRects().length > 0 }))`),
             [{ label: 'Hủy đơn', status: '0', visible: true }, { label: 'Hủy đơn', status: '1', visible: true }]);

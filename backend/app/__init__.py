@@ -59,4 +59,14 @@ def create_app(test_config=None):
     from app.routes.account_routes import account_bp
     app.register_blueprint(account_bp)
 
+    from app.routes.employee_order_routes import employee_order_bp
+    app.register_blueprint(employee_order_bp)
+    from app.services.order_expiry_service import register_cli, start_worker
+    register_cli(app)
+
+    @app.before_request
+    def ensure_expiry_worker():
+        # WSGI/Flask CLI also keep maintenance running after the first request.
+        start_worker(app)
+
     return app

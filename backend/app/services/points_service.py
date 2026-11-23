@@ -5,7 +5,12 @@ from app.repositories import diem_thuong_repository as points
 from app.services.auth_service import AuthError
 
 
-POINT_VALUE_VND = 100
+POINT_VALUE_VND = 10
+EARNING_SPEND_VND = 1000
+
+
+def earned_points(total):
+    return total // EARNING_SPEND_VND
 
 
 def redemption(total, balance):

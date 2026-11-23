@@ -43,6 +43,7 @@ class OrderTests(unittest.TestCase):
             'SEPAY_PRODUCTION_API_BASE_URL': gateway.ENVIRONMENTS['production'][1],
         })
         self.mock('sqlalchemy.engine.Engine.connect', side_effect=AssertionError('Real database forbidden'))
+        self.mock('app.services.order_expiry_service.vietnam_now', return_value=datetime(2026, 11, 18, 10))
         self.user = NS(MaNguoiDung=12, VaiTro=0, TrangThai=False, HoTen='An', SDT='0900000000')
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
         self.mock('app.services.order_service.carts.lock_user', return_value=self.user)
@@ -65,6 +66,7 @@ class OrderTests(unittest.TestCase):
         self.rollback = self.mock('app.services.order_service.db.session.rollback')
         self.points_balance = self.mock('app.services.order_service.points.balance', return_value=25)
         self.points_debit = self.mock('app.services.order_service.points.debit')
+        self.mock('app.services.order_service.points.order_award', return_value=None)
         self.client = self.app.test_client()
         with self.client.session_transaction() as state:
             state.update(user_id=12, csrf_token='test-csrf')
@@ -74,6 +76,50 @@ class OrderTests(unittest.TestCase):
     def post(self, **changes):
         return self.client.post('/api/orders', json={**self.values, **changes},
                                 headers={'X-CSRF-Token': 'test-csrf'})
+
+    def test_counter_cash_reuses_checkout_stock_redemption_and_promotion_transaction(self):
+        quota = NS(SoLuong=50); self.promotion_detail.return_value = quota
+        self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh':6}, SoLuongKhuyenMai=2)
+        award = self.mock('app.services.order_service.points.award')
+        values = {**self.values, 'HinhThucNhanHang':'pickup', 'DoiDiem':True, 'TongThanhToan':'31750'}
+        context = {'actor':8, 'id':'fixture', 'fingerprint':'fixture'}
+        with self.app.app_context():
+            result = order_service.create(self.user, values, counter=context, entries=[(7,8,3)])
+        self.assertEqual((result['TrangThaiDonHang'],result['TrangThaiThanhToan']), (3,1))
+        self.quote.assert_called_once_with({8}, lock_promotions=True, entries=[(7,8,3)])
+        self.deduct.assert_called_once_with({7:30})
+        self.assertEqual(quota.SoLuong, 30)
+        self.points_debit.assert_called_once()
+        self.assertEqual(award.call_args.args[:3], (12,31,45))
+        self.records.assert_not_called(); self.remove.assert_not_called()
+        self.assertTrue(self.create.call_args.args[0]['KenhDatHang'])
+
+    def test_counter_qr_waits_for_payment_and_zero_cash_never_awards(self):
+        award = self.mock('app.services.order_service.points.award')
+        with self.app.app_context():
+            result = order_service.create(self.user, {**self.values, 'HinhThucNhanHang':'pickup', 'PhuongThucThanhToan':1},
+                counter={'actor':8}, entries=[(7,8,3)])
+            self.assertEqual((result['TrangThaiDonHang'],result['TrangThaiThanhToan']), (0,0))
+            award.assert_not_called()
+            for total in (0, 999):
+                self.quote.return_value['total'] = total
+                result = order_service.create(self.user, {**self.values, 'HinhThucNhanHang':'pickup', 'TongThanhToan':str(total)},
+                    counter={'actor':8}, entries=[(7,8,3)])
+                self.assertEqual(result['TrangThaiDonHang'], 3)
+                award.assert_not_called()
+
+    def test_counter_gateway_return_keeps_staff_workspace_without_marking_paid(self):
+        order = self.order(PhuongThucThanhToan=1, TrangThaiDonHang=0, TrangThaiThanhToan=0,
+                           MoiTruongThanhToan='sandbox')
+        self.find.return_value = order
+        with self.app.app_context(), patch.dict(self.app.config, {'SEPAY_SUCCESS_URL':'https://api.example/api/payments/sepay/return'}):
+            result = gateway.initialize(12, 45, employee=True)
+        self.assertIn('workspace=employee', result['fields']['success_url'])
+        self.assertIn('order=45', result['fields']['success_url'])
+        response = self.client.get('/api/payments/sepay/return?order=45&workspace=employee')
+        self.assertEqual(response.status_code, 303)
+        self.assertTrue(response.location.endswith('/pages/employee/index.html?bill=45#counter'))
+        self.assertEqual(order.TrangThaiThanhToan, 0)
 
     def cancellation_fixture(self, status=1, points=25):
         snapshot = dict(version=1, points=points, batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
@@ -166,18 +212,19 @@ class OrderTests(unittest.TestCase):
     def test_create_persists_allocations_needed_for_later_cancellation(self):
         self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=2)
         self.promotion_detail.return_value = NS(SoLuong=100)
-        self.assertEqual(self.post(DoiDiem=True, TongThanhToan='29500').status_code, 201)
+        self.assertEqual(self.post(DoiDiem=True, TongThanhToan='31750').status_code, 201)
         snapshot = self.create.call_args.args[0]['DuLieuHoanTra']
         self.assertEqual(snapshot, dict(version=1, points=25,
             batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
+            lines=[dict(MaDonGia=8, conversion=10, amount=31750)],
             promotions=[dict(MaChuongTrinh=6, MaThuoc=7, SoLuong=20)]))
 
     def test_redeem_points_discounts_and_debits_in_order_transaction(self):
-        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        response = self.post(DoiDiem=True, TongThanhToan='31750')
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.json['order']['DoiDiem'])
-        self.assertEqual(response.json['order']['TongThanhToan'], '29500')
-        self.assertEqual(response.json['order']['TienGiamGia'], '6500')
+        self.assertEqual(response.json['order']['TongThanhToan'], '31750')
+        self.assertEqual(response.json['order']['TienGiamGia'], '4250')
         self.points_balance.assert_called_once_with(12)
         self.points_debit.assert_called_once_with(12, 25, 45, self.create.call_args.args[0]['NgayDat'])
         self.commit.assert_called_once()
@@ -190,12 +237,12 @@ class OrderTests(unittest.TestCase):
         self.points_debit.assert_not_called()
 
     def test_redeem_caps_at_whole_coins_and_preserves_remainder(self):
-        self.points_balance.return_value = 500
-        self.quote.return_value['total'] = 32050
-        response = self.post(DoiDiem=True, TongThanhToan='50')
+        self.points_balance.return_value = 5000
+        self.quote.return_value['total'] = 32055
+        response = self.post(DoiDiem=True, TongThanhToan='5')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json['order']['TongThanhToan'], '50')
-        self.assertEqual(self.points_debit.call_args.args[1], 320)
+        self.assertEqual(response.json['order']['TongThanhToan'], '5')
+        self.assertEqual(self.points_debit.call_args.args[1], 3205)
 
     def test_redemption_rejects_unavailable_changed_balance_and_invalid_boolean(self):
         for balance in [0, -2]:
@@ -203,7 +250,7 @@ class OrderTests(unittest.TestCase):
             response = self.post(DoiDiem=True)
             self.assertEqual((response.status_code, response.json['code']), (409, 'POINTS_UNAVAILABLE'))
         self.points_balance.return_value = 20
-        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        response = self.post(DoiDiem=True, TongThanhToan='31750')
         self.assertEqual(response.json['code'], 'QUOTE_CHANGED')
         for flag in [0, 1, 'true', 'false', None, [], {}]:
             self.assertEqual(self.post(DoiDiem=flag).status_code, 400)
@@ -212,17 +259,17 @@ class OrderTests(unittest.TestCase):
         self.commit.assert_not_called()
 
     def test_full_redemption_allows_cod_but_rejects_zero_amount_qr(self):
-        self.points_balance.return_value = 500
+        self.points_balance.return_value = 5000
         response = self.post(DoiDiem=True, TongThanhToan='0', PhuongThucThanhToan=1)
         self.assertEqual(response.json['code'], 'QR_AMOUNT_INVALID')
         self.points_debit.assert_not_called()
         response = self.post(DoiDiem=True, TongThanhToan='0')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(self.points_debit.call_args.args[1], 320)
+        self.assertEqual(self.points_debit.call_args.args[1], 3200)
 
     def test_redemption_failure_rolls_back_order_and_never_commits(self):
         self.points_debit.side_effect = SQLAlchemyError('private')
-        response = self.post(DoiDiem=True, TongThanhToan='29500')
+        response = self.post(DoiDiem=True, TongThanhToan='31750')
         self.assertEqual(response.status_code, 503)
         self.assertNotIn('private', response.text)
         self.rollback.assert_called_once()
@@ -232,7 +279,7 @@ class OrderTests(unittest.TestCase):
         detail, _ = self.reorder_fixture()
         values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
         response = self.client.post('/api/orders/45/reorder/checkout',
-            json={**values, 'MaChiTiet': [str(detail.MaChiTiet)], 'DoiDiem': True, 'TongThanhToan': '29500'},
+            json={**values, 'MaChiTiet': [str(detail.MaChiTiet)], 'DoiDiem': True, 'TongThanhToan': '31750'},
             headers={'X-CSRF-Token': 'test-csrf'})
         self.assertEqual(response.status_code, 201)
         self.assertTrue(response.json['order']['DoiDiem'])
@@ -368,8 +415,10 @@ class OrderTests(unittest.TestCase):
         self.records.return_value = [NS(MaDonGia=8), NS(MaDonGia=9)]
         self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1)
         self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=1,
-            GiaBan=12000, ConHang=True, KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1))
-        self.assertEqual(self.post(MaDonGia=[8, 9]).status_code, 201)
+            GiaBan=12000, ThanhTien=12000, ConHang=True, KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1))
+        self.quote.return_value['total'] += 12000
+        self.assertEqual(self.post(MaDonGia=[8, 9], TongThanhToan='44000').status_code, 201)
+        self.assertEqual(sum(line['amount'] for line in self.create.call_args.args[0]['DuLieuHoanTra']['lines']), 44000)
         self.assertEqual(quota.SoLuong, 10)
         self.promotion_detail.assert_called_once_with(6, 7, for_update=True)
 
@@ -460,7 +509,7 @@ class OrderTests(unittest.TestCase):
 
     def test_combined_product_units_cannot_exceed_stock(self):
         self.records.return_value = [NS(MaDonGia=8), NS(MaDonGia=9)]
-        self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=8, GiaBan=12000, ConHang=True))
+        self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=8, GiaBan=12000, ThanhTien=96000, ConHang=True))
         self.assertEqual(self.post(MaDonGia=[8, 9]).json['code'], 'OUT_OF_STOCK')
         self.create.assert_not_called()
 

@@ -54,7 +54,7 @@ class DonHang(db.Model):
     # 2: Đang giao
     # 3: Hoàn thành
     # 4: Đã hủy
-    # 5: Đổi trả
+    # 5: Đã trả
     TrangThaiDonHang = db.Column(
         db.Integer,
         nullable=False
