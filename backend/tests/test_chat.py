@@ -42,7 +42,7 @@ class ChatTests(unittest.TestCase):
         self.mock('app.services.chat_service.require_unit', return_value=self.unit)
         self.stock = self.mock('app.services.chat_service.usable_stock', return_value={7: 100})
         self.cart_add = self.mock('app.services.chat_service.add_database')
-        self.quote = self.mock('app.services.chat_service.get_cart', return_value={'items': [{'GiaBan': 9000, 'ConHang': True}], 'total': 9000})
+        self.quote = self.mock('app.services.chat_service.get_cart', return_value={'items': [{'MaDonGia': 3, 'GiaBan': 9000, 'ThanhTien': 9000, 'ConHang': True}], 'total': 9000})
         self.image = self.mock('app.services.chat_service.validate_product_image_url')
         self.commit = self.mock('app.extensions.db.session.commit')
         self.rollback = self.mock('app.extensions.db.session.rollback')
@@ -117,6 +117,7 @@ class ChatTests(unittest.TestCase):
     def test_offer_remains_usable_after_finish_and_requires_owner(self):
         self.staff(); self.post('/threads/1/claim'); self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3)])
         self.post('/threads/1/finish'); self.actor.VaiTro = 0; self.actor.MaNguoiDung = 12
+        self.quote.reset_mock()
         self.assertEqual(self.post('/offers/1/cart').status_code, 200)
         self.quote.assert_called_once_with(entries=[(7, 3, 1)])
         self.cart_add.assert_called_once_with(12, [(7, 3, 1)], check_stock=True)
@@ -179,6 +180,29 @@ class ChatTests(unittest.TestCase):
         self.mock('app.repositories.gio_thuoc_repository.list_items', return_value=[NS(MaThuoc=99, MaDonGia=999, SoLuong=1)])
         self.assertEqual(self.post('/offers/1/cart').status_code, 200)
         self.stock.assert_called_once_with([7])
+
+    def test_offer_quantity_price_snapshot_and_purchase_quantity(self):
+        self.staff(); self.post('/threads/1/claim')
+        self.quote.return_value = {'items': [{'MaDonGia': 3, 'GiaBan': 9000, 'ThanhTien': 28000, 'SoLuongKhuyenMai': 2, 'ConHang': True}], 'total': 28000}
+        first = self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=3)])
+        self.assertEqual(first.status_code, 200)
+        item = first.json['message']['items'][0]
+        self.assertEqual((item['SoLuong'], item['DonGia'], item['ThanhTien']), (3, '9000', '28000'))
+        self.quote.assert_called_with(entries=[(7, 3, 3)])
+        self.quote.return_value['items'][0]['ThanhTien'] = 29000
+        self.quote.return_value['total'] = 29000
+        self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=3)]).json, first.json)
+        self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=2)]).json['code'], 'CHAT_REQUEST_CHANGED')
+        self.actor.VaiTro = 0; self.actor.MaNguoiDung = 12
+        self.assertEqual(self.post('/offers/1/cart').json['total'], '29000')
+        self.cart_add.assert_called_once_with(12, [(7, 3, 3)], check_stock=True)
+
+    def test_invalid_offer_quantities_and_client_prices_are_rejected(self):
+        self.staff(); self.post('/threads/1/claim')
+        for quantity in (0, -1, 1.5, True, '3', 2147483648):
+            self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=quantity)]).status_code, 400)
+        self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, DonGia=1)]).status_code, 400)
+        self.add.assert_not_called()
 
 
 if __name__ == '__main__': unittest.main()

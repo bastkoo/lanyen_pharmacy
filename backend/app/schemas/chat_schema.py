@@ -13,6 +13,7 @@ class ChatQueueSchema(Schema):
 class ChatUnitSchema(Schema):
     MaThuoc = fields.Integer(required=True, strict=True, validate=validate.Range(min=1, max=2147483647))
     MaDonGia = fields.Integer(required=True, strict=True, validate=validate.Range(min=1, max=2147483647))
+    SoLuong = fields.Integer(load_default=1, strict=True, validate=validate.Range(min=1, max=2147483647))
 
 
 class ChatSendSchema(Schema):

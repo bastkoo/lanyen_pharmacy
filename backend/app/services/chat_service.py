@@ -80,7 +80,7 @@ def claim(actor, thread_id, finish=False):
     return result
 
 
-def product_cards(items):
+def product_cards(items, priced=False):
     details = carts.catalog_details([(line['MaThuoc'], line['MaDonGia'], 1) for line in items])
     result = []
     for line in items:
@@ -89,6 +89,15 @@ def product_cards(items):
             raise AuthError('UNIT_NOT_FOUND', 404)
         product, unit = record
         result.append(dict(line, TenThuoc=product.TenThuoc, HinhAnh=product.HinhAnh, DonViTinh=unit.DonViTinh))
+    if priced:
+        quote = get_cart(entries=[(line['MaThuoc'], line['MaDonGia'], line.get('SoLuong', 1)) for line in items])
+        prices = {line['MaDonGia']: line for line in quote['items']}
+        for line in result:
+            price = prices.get(line['MaDonGia'])
+            if price is None or price['GiaBan'] is None:
+                raise AuthError('UNIT_UNAVAILABLE', 409)
+            line.update(DonGia=str(price['GiaBan']), ThanhTien=str(price['ThanhTien']),
+                        SoLuongKhuyenMai=price.get('SoLuongKhuyenMai', 0))
     return result
 
 
@@ -112,7 +121,7 @@ def send(actor, values, thread_id=None):
         if payload.get('request_id') == values['request_id'] and message.NguoiGui == actor.MaNguoiDung:
             comparable = {key: payload.get(key) for key in values}
             if 'items' in comparable:
-                comparable['items'] = [{key: line[key] for key in ('MaThuoc', 'MaDonGia')} for line in comparable['items']]
+                comparable['items'] = [dict(MaThuoc=line['MaThuoc'], MaDonGia=line['MaDonGia'], SoLuong=line.get('SoLuong', 1)) for line in comparable['items']]
             if comparable != values:
                 raise AuthError('CHAT_REQUEST_CHANGED', 409)
             return serialize(message, actor.VaiTro)
@@ -120,7 +129,7 @@ def send(actor, values, thread_id=None):
     if values['kind'] == 'image':
         validate_product_image_url(values['url'], folder=CHAT_FOLDER)
     if 'items' in values:
-        payload['items'] = product_cards(values['items'])
+        payload['items'] = product_cards(values['items'], priced=values['kind'] == 'offer')
     if thread is None:
         thread = chats.active_customer(actor.MaNguoiDung) or chats.create_thread(actor.MaNguoiDung)
     message = chats.add(thread.MaTinNhan, actor.MaNguoiDung,
@@ -164,7 +173,7 @@ def purchase(actor, message_id):
     combined = {(record.MaThuoc, record.MaDonGia): record.SoLuong for record in carts.list_items(actor.MaNguoiDung)
                 if record.MaThuoc in product_ids}
     for item in items:
-        key = (item['MaThuoc'], item['MaDonGia']); combined[key] = combined.get(key, 0) + 1
+        key = (item['MaThuoc'], item['MaDonGia']); combined[key] = combined.get(key, 0) + item.get('SoLuong', 1)
     required = {}
     for (product_id, unit_id), quantity in sorted(combined.items()):
         unit = require_unit(product_id, unit_id, for_update=True)
@@ -176,7 +185,7 @@ def purchase(actor, message_id):
         raise AuthError('OUT_OF_STOCK', 409)
     # Reprice the proposed units with today's promotions; no price is trusted
     # from the saved card. Checkout will lock and recheck the quote again.
-    entries = [(item['MaThuoc'], item['MaDonGia'], 1) for item in items]
+    entries = [(item['MaThuoc'], item['MaDonGia'], item.get('SoLuong', 1)) for item in items]
     quote = get_cart(entries=entries)
     if any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
