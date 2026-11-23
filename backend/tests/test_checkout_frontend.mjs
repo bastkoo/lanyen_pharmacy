@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkoutUrl, readCheckoutSelection, readReorderSelection, reorderCheckoutUrl, checkoutRedemption } from '../../frontend/js/utils/checkout-selection.js';
+import { checkoutUrl, readCheckoutSelection, readReorderSelection, reorderCheckoutUrl, checkoutRedemption, chatOfferCheckoutUrl, readChatOfferSelection } from '../../frontend/js/utils/checkout-selection.js';
 import { checkoutFields } from '../../frontend/js/utils/sepay-checkout.js';
+
+test('direct chat checkout transfers only the offer identifier and rejects mixed selections', () => {
+    assert.equal(chatOfferCheckoutUrl('9007199254741001'), 'checkout.html?offer=9007199254741001');
+    assert.equal(readChatOfferSelection('?offer=9007199254741001'), '9007199254741001');
+    assert.equal(readChatOfferSelection('?unit=3'), null);
+    for (const query of ['?offer=0', '?offer=', '?offer=9223372036854775808', '?offer=1&offer=2', '?offer=1&unit=3', '?offer=1&reorder=2', '?offer=1&quantity=9']) assert.throws(() => readChatOfferSelection(query));
+});
 
 test('redemption uses maximum whole coins at 10 VND, caps at balance and total, and stays opt-in', () => {
     assert.deepEqual(checkoutRedemption('25055', '3000', true), { quantity: 2505n, discount: 25050n, total: 5n });

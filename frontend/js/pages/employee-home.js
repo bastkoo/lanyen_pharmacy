@@ -4,11 +4,33 @@ import { renderAvatar } from '../components/customer-account.js';
 import { setupEmployeeOrders } from './employee-orders.js';
 import { getEmployeePendingCount } from '../api/employee-orders.js';
 import { setupEmployeeCounter } from './employee-counter.js';
+import { setupEmployeeReturns } from './employee-returns.js';
+import { setupEmployeeChat } from './employee-chat.js';
+import { readChat } from '../api/chat.js';
 
 const $ = id => document.getElementById(id);
 const views = { messages: 'Nhắn tin', orders: 'Xử lý đơn hàng', counter: 'Tạo đơn hàng', returns: 'Đổi trả' };
 let version = 0, user = null, checking = false, signingOut = false, disposed = false;
-let countTimer, countVersion = 0;
+let countTimer, countVersion = 0, chatCountTimer, chatCountVersion = 0;
+async function refreshWaitingChatCount() {
+    clearTimeout(chatCountTimer);
+    const id = user?.MaNguoiDung, attempt = ++chatCountVersion;
+    if (user?.VaiTro !== 1 || disposed) return;
+    try {
+        const data = await readChat('/threads/pending-count');
+        if (attempt !== chatCountVersion || id !== user?.MaNguoiDung || user?.VaiTro !== 1 || disposed) return;
+        if (!Number.isSafeInteger(data.count) || data.count < 0) throw { code: 'INVALID_RESPONSE' };
+        for (const badge of document.querySelectorAll('[data-employee-chat-count]')) {
+            badge.textContent = String(data.count); badge.hidden = data.count === 0;
+            badge.setAttribute('aria-label', `${data.count} khách hàng chờ tiếp nhận tư vấn`); badge.removeAttribute('title');
+        }
+    } catch {
+        if (attempt === chatCountVersion && id === user?.MaNguoiDung && user?.VaiTro === 1 && !disposed) {
+            for (const badge of document.querySelectorAll('[data-employee-chat-count]')) { badge.textContent = '?'; badge.hidden = false; badge.setAttribute('aria-label', 'Chưa tải được số khách chờ tư vấn'); badge.title = 'Chưa tải được số khách chờ tư vấn. Hệ thống sẽ thử lại.'; }
+        }
+    } finally { if (attempt === chatCountVersion && user?.VaiTro === 1 && !disposed) chatCountTimer = setTimeout(refreshWaitingChatCount, 5000); }
+}
+window.addEventListener('employee-chats-changed', refreshWaitingChatCount);
 async function refreshPendingCount() {
     clearTimeout(countTimer);
     const id = user?.MaNguoiDung, attempt = ++countVersion;
@@ -31,6 +53,8 @@ const account = $('employee-account'), trigger = account.querySelector('summary'
 trigger.setAttribute('aria-label', 'Tài khoản nhân viên');
 const ordersUI = setupEmployeeOrders({ getUser: () => user, onSessionError: () => { receive(null); load(); } });
 const counterUI = setupEmployeeCounter({ getUser: () => user, onSessionError: () => { receive(null); load(); } });
+const returnsUI = setupEmployeeReturns({ getUser: () => user, onSessionError: () => { receive(null); load(); } });
+const chatUI = setupEmployeeChat({ getUser: () => user, onSessionError: () => { receive(null); load(); } });
 function closeNavigation() { document.body.classList.remove('employee-nav-open'); $('employee-menu-toggle').setAttribute('aria-expanded', 'false'); }
 
 function selectView(focus = false) {
@@ -43,24 +67,29 @@ function selectView(focus = false) {
         else link.removeAttribute('aria-current');
     }
     document.title = `${views[current]} · Nhân viên Lan Yến`;
-    document.querySelector('.employee-preview-note').hidden = ['orders', 'counter'].includes(current);
+    document.querySelector('.employee-preview-note').hidden = true;
     if (current === 'orders' && user?.VaiTro === 1) ordersUI.activate(); else ordersUI.deactivate();
     if (current === 'counter' && user?.VaiTro === 1) counterUI.activate(); else counterUI.deactivate();
+    if (current === 'returns' && user?.VaiTro === 1) returnsUI.activate(); else returnsUI.deactivate();
+    if (current === 'messages' && user?.VaiTro === 1) chatUI.activate(); else chatUI.deactivate();
     closeNavigation();
     if (focus && user?.VaiTro === 1) $(`employee-${current}-title`).focus();
 }
 function showGate(title, message, { login = false, retry = false } = {}) {
-    ordersUI.clear(); counterUI.clear(); document.body.classList.remove('employee-authorized'); closeNavigation(); $('employee-menu-toggle').hidden = true;
+    ordersUI.clear(); counterUI.clear(); returnsUI.clear(); chatUI.clear(); document.body.classList.remove('employee-authorized'); closeNavigation(); $('employee-menu-toggle').hidden = true;
     $('employee-workspace').hidden = true; $('employee-gate').hidden = false;
     $('employee-gate-title').textContent = title; $('employee-state').textContent = message;
     $('employee-gate-login').hidden = !login; $('employee-retry').hidden = !retry;
 }
 function receive(next) {
-    if (String(user?.MaNguoiDung) !== String(next?.MaNguoiDung)) { ordersUI.clear(); counterUI.clear(); }
+    if (String(user?.MaNguoiDung) !== String(next?.MaNguoiDung)) { ordersUI.clear(); counterUI.clear(); returnsUI.clear(); chatUI.clear(); }
     version++; user = next || null;
     clearTimeout(countTimer);
+    clearTimeout(chatCountTimer);
     for (const badge of document.querySelectorAll('[data-employee-pending-count]')) badge.hidden = true;
+    for (const badge of document.querySelectorAll('[data-employee-chat-count]')) badge.hidden = true;
     refreshPendingCount();
+    refreshWaitingChatCount();
     $('employee-login').hidden = Boolean(user); account.hidden = !user; account.open = false;
     $('employee-name').textContent = user?.HoTen || '';
     $('employee-role').textContent = user ? ({ 0: 'Khách hàng', 1: 'Nhân viên', 2: 'Quản lý' }[user.VaiTro] || 'Tài khoản') : '';
@@ -114,6 +143,6 @@ document.addEventListener('focusin', event => { if (!account.contains(event.targ
 window.addEventListener('hashchange', () => selectView(true));
 window.addEventListener('auth-changed', event => { if (!disposed) receive(event.detail?.user); });
 window.addEventListener('focus', load);
-window.addEventListener('pagehide', () => { disposed = true; version++; clearTimeout(countTimer); user = null; ordersUI.clear(); counterUI.clear(); $('employee-workspace').hidden = true; account.hidden = true; account.open = false; });
+window.addEventListener('pagehide', () => { disposed = true; version++; clearTimeout(countTimer); clearTimeout(chatCountTimer); user = null; ordersUI.clear(); counterUI.clear(); returnsUI.clear(); chatUI.clear(); $('employee-workspace').hidden = true; account.hidden = true; account.open = false; });
 window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; checking = false; showGate('Đang kiểm tra tài khoản', 'Vui lòng chờ trong giây lát…'); load(); } });
 selectView(); load();

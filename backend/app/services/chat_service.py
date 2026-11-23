@@ -65,6 +65,11 @@ def queue(actor, search, page):
 
 
 @operation
+def pending_count():
+    return dict(count=chats.pending_count())
+
+
+@operation
 def claim(actor, thread_id, finish=False):
     thread = access(actor, thread_id, lock=True)
     if finish:
@@ -90,15 +95,49 @@ def product_cards(items, priced=False):
         product, unit = record
         result.append(dict(line, TenThuoc=product.TenThuoc, HinhAnh=product.HinhAnh, DonViTinh=unit.DonViTinh))
     if priced:
+        validate_stock(items)
         quote = get_cart(entries=[(line['MaThuoc'], line['MaDonGia'], line.get('SoLuong', 1)) for line in items])
         prices = {line['MaDonGia']: line for line in quote['items']}
         for line in result:
             price = prices.get(line['MaDonGia'])
             if price is None or price['GiaBan'] is None:
                 raise AuthError('UNIT_UNAVAILABLE', 409)
+            if not price['ConHang']:
+                raise AuthError('OUT_OF_STOCK', 409)
             line.update(DonGia=str(price['GiaBan']), ThanhTien=str(price['ThanhTien']),
                         SoLuongKhuyenMai=price.get('SoLuongKhuyenMai', 0))
     return result
+
+
+def validate_stock(items):
+    required = {}
+    for item in sorted(items, key=lambda line: line['MaDonGia']):
+        unit = require_unit(item['MaThuoc'], item['MaDonGia'])
+        if unit.SoLuongQuyDoi <= 0:
+            raise AuthError('OUT_OF_STOCK', 409)
+        required[item['MaThuoc']] = required.get(item['MaThuoc'], 0) + item.get('SoLuong', 1) * unit.SoLuongQuyDoi
+    stock = usable_stock(list(required))
+    if any(count > stock.get(product_id, 0) for product_id, count in required.items()):
+        raise AuthError('OUT_OF_STOCK', 409)
+
+
+def offer_items(actor, message_id):
+    offer = next((message for message in chats.customer_payloads(actor.MaNguoiDung)
+                  if message.MaNoiDung == message_id), None)
+    if offer is None or decode(offer.NoiDung)['kind'] != 'offer' or not chats.is_staff_message(offer):
+        raise AuthError('CHAT_OFFER_NOT_FOUND', 404)
+    return decode(offer.NoiDung)['items']
+
+
+@operation
+def quote_offer(actor, message_id, lock_promotions=False):
+    items = offer_items(actor, message_id)
+    quote = get_cart(entries=[(item['MaThuoc'], item['MaDonGia'], item.get('SoLuong', 1)) for item in items],
+                     lock_promotions=lock_promotions)
+    validate_stock(items)
+    if any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
+        raise AuthError('OUT_OF_STOCK', 409)
+    return quote
 
 
 @operation

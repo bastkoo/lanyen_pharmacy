@@ -110,11 +110,19 @@ test('employee UI claims before replying and removes finished conversations', as
         const { setupEmployeeChat } = await import('../../frontend/js/pages/employee-chat.js');
         const ui = setupEmployeeChat({ getUser: () => ({ MaNguoiDung: '8', VaiTro: 1 }), onSessionError() { assert.fail('Unexpected auth failure'); } });
         ui.activate(); await settle();
+        assert.equal(root.dataset.chatOpen, 'false');
         await root.querySelectorAll('button').find(item => item.className === 'employee-chat-thread').click(); await settle();
+        assert.equal(root.dataset.chatOpen, 'true');
         const fieldset = root.querySelectorAll('fieldset')[0]; assert.equal(fieldset.disabled, true);
         await root.querySelectorAll('button').find(item => item.textContent === 'Tiếp nhận').click(); await settle();
+        assert.ok(env.events.some(value => value?.type === 'employee-chats-changed'));
         assert.equal(fieldset.disabled, false);
+        await root.querySelectorAll('button').find(item => item.attributes['aria-label'] === 'Trở về danh sách hội thoại').click();
+        assert.equal(root.dataset.chatOpen, 'false'); assert.equal(fieldset.disabled, true);
+        await root.querySelectorAll('button').find(item => item.className === 'employee-chat-thread').click(); await settle();
+        assert.equal(root.dataset.chatOpen, 'true'); assert.equal(fieldset.disabled, false);
         await root.querySelectorAll('button').find(item => item.textContent === 'Kết thúc tư vấn').click(); await settle();
+        assert.equal(root.dataset.chatOpen, 'false');
         assert.equal(fieldset.disabled, true); assert.equal(root.querySelectorAll('button').filter(item => item.className === 'employee-chat-thread').length, 0);
         ui.clear();
     } finally { env.restore(); }
@@ -128,10 +136,10 @@ test('employee product tool opens a modal and sends the selected unit and quanti
         globalThis.fetch = async (url, options) => {
             if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '8' }, csrf_token: 'csrf' });
             if (url.includes('/threads?')) return reply({ items: [{ id: '1', status: 1, assigned: '8', customer: { HoTen: 'Khách', SDT: '0900000000' } }], total: 1, per_page: 20 });
-            if (url.includes('/counter/products?')) return reply({ items: [{ MaThuoc: 7, TenThuoc: 'Thuốc A', DonViGia: [
-                { MaDonGia: 3, DonViTinh: 'Viên', GiaBan: 1000 }, { MaDonGia: 4, DonViTinh: 'Hộp', GiaBan: 10000, GiaKhuyenMai: 8000, SoLuongKhuyenMai: 2 }
-            ] }], total: 1 });
-            if (options.method === 'POST') { posts.push(JSON.parse(options.body)); return reply({ message: { id: '1' } }); }
+            if (url.includes('/counter/products?')) return reply({ items: [{ MaThuoc: 7, TenThuoc: 'Thuốc A', HinhAnh: 'https://example.com/product-a.png', DonViGia: [
+                { MaDonGia: 3, DonViTinh: 'Viên', GiaBan: 1000, ConHang: true }, { MaDonGia: 4, DonViTinh: 'Hộp', GiaBan: 10000, GiaKhuyenMai: 8000, SoLuongKhuyenMai: 2, ConHang: true }
+            ] }, { MaThuoc: 8, TenThuoc: 'Thuốc đã hết', HinhAnh: 'https://example.com/product-b.png', DonViGia: [{ MaDonGia: 5, DonViTinh: 'Hộp', GiaBan: 10000, ConHang: false }] }], total: 2 });
+            if (options.method === 'POST') { posts.push(JSON.parse(options.body)); return posts.length === 1 ? reply({ code: 'OUT_OF_STOCK' }, 409) : reply({ message: { id: '1' } }); }
             return reply({ items: [], has_more: false, thread: { id: '1', status: 1, assigned: '8' } });
         };
         const { setupEmployeeChat } = await import('../../frontend/js/pages/employee-chat.js');
@@ -143,15 +151,76 @@ test('employee product tool opens a modal and sends the selected unit and quanti
         assert.equal(attach.querySelectorAll('svg').length, 1);
         await root.querySelectorAll('button').find(item => item.attributes['aria-label'] === 'Thêm sản phẩm tư vấn').click(); await settle();
         assert.equal(picker.open, true);
+        const outOfStock = picker.querySelectorAll('article').find(item => item.dataset.available === 'false');
+        assert.ok(outOfStock.querySelectorAll('span').some(item => item.textContent === 'Hết hàng'));
+        assert.equal(outOfStock.querySelectorAll('button')[0].disabled, true);
+        assert.equal(outOfStock.querySelectorAll('select')[0].disabled, true);
+        assert.equal(outOfStock.querySelectorAll('input')[0].disabled, true);
+        assert.equal(picker.querySelectorAll('img').length, 2);
+        assert.equal(picker.querySelectorAll('img')[0].referrerPolicy, 'no-referrer');
+        await picker.querySelectorAll('img')[0].fire('error');
+        assert.equal(picker.querySelectorAll('img').length, 1);
         const units = picker.querySelectorAll('select')[0], quantity = picker.querySelectorAll('input').find(item => item.type === 'number');
         units.value = '4'; quantity.value = '3'; await quantity.fire('input');
         assert.ok(picker.querySelectorAll('p').some(item => item.textContent === 'Tạm tính: 26.000 ₫'));
         await picker.querySelectorAll('button').find(item => item.textContent === 'Chọn').click();
+        assert.equal(picker.querySelectorAll('dd')[0].textContent, '26.000 ₫');
+        assert.ok(picker.querySelectorAll('img').some(item => item.src === 'https://example.com/product-a.png'));
         await picker.querySelectorAll('button').find(item => item.textContent === 'Gửi thẻ sản phẩm').click(); await settle();
         assert.deepEqual(posts[0].items, [{ MaThuoc: 7, MaDonGia: 4, SoLuong: 3 }]);
+        assert.equal(picker.open, true);
+        assert.ok(picker.querySelectorAll('p').some(item => item.textContent?.includes('không còn đủ hàng')));
+        await picker.querySelectorAll('button').find(item => item.textContent === 'Bỏ').click();
+        quantity.value = '2'; await quantity.fire('input');
+        await picker.querySelectorAll('button').find(item => item.textContent === 'Chọn').click();
+        await picker.querySelectorAll('button').find(item => item.textContent === 'Gửi thẻ sản phẩm').click(); await settle();
+        assert.deepEqual(posts[1].items, [{ MaThuoc: 7, MaDonGia: 4, SoLuong: 2 }]);
+        assert.notEqual(posts[0].request_id, posts[1].request_id);
         assert.equal(picker.open, false);
         const { renderChatMessage } = await import('../../frontend/js/components/chat.js');
         const message = renderChatMessage({ id: '1', role: 1, kind: 'offer', at: '2026-11-23T10:00:00+07:00', items: [{ TenThuoc: 'Thuốc A', DonViTinh: 'Hộp', SoLuong: 3, DonGia: '8000', ThanhTien: '26000', SoLuongKhuyenMai: 2 }] });
         assert.ok(message.querySelectorAll('strong').some(item => item.textContent === 'Thành tiền: 26.000 ₫'));
     } finally { ui?.clear(); env.restore(); }
+});
+
+test('customer Buy now only reads the offer quote and navigates without any cart mutation', async () => {
+    const env = environment();
+    try {
+        const calls = [];
+        globalThis.fetch = async (url, options) => {
+            calls.push([url, options]);
+            if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' });
+            return reply({ unit_ids: [3, 4] });
+        };
+        const { renderChatMessage } = await import('../../frontend/js/components/chat.js');
+        const message = renderChatMessage({ id: '21', kind: 'offer', role: 1, at: '2026-11-23T10:00:00+07:00', items: [
+            { TenThuoc: 'Thuốc A', DonViTinh: 'Hộp', SoLuong: 2 }
+        ] }, { customer: true, getOwner: () => '12' });
+        const buttons = message.querySelectorAll('button');
+        assert.equal(buttons.length, 1); assert.equal(buttons[0].textContent, 'Mua ngay');
+        await buttons[0].click();
+        assert.equal(calls.length, 1);
+        assert.ok(calls[0][0].endsWith('/chat/offers/21/quote'));
+        assert.equal(calls[0][1].method, 'GET');
+        assert.equal(env.events.some(value => value?.type === 'cart-changed'), false);
+        assert.ok(env.events.some(value => typeof value === 'string' && value.endsWith('/pages/customer/checkout.html?offer=21')));
+    } finally { env.restore(); }
+});
+
+test('direct chat quote and checkout use their own API and never call a cart endpoint', async () => {
+    const env = environment();
+    try {
+        const calls = [];
+        globalThis.fetch = async (url, options) => {
+            calls.push([new URL(url).pathname, options]);
+            return reply(url.endsWith('/auth/me') ? { user: { MaNguoiDung: '12' }, csrf_token: 'csrf' } : { code: 'ORDER_CREATED', order: { MaDonHang: '45' } });
+        };
+        const { quoteChatOffer, checkoutChatOffer } = await import('../../frontend/js/api/chat.js');
+        await quoteChatOffer('21');
+        const values = { PhuongThucThanhToan: 0, HinhThucNhanHang: 'pickup', GhiChu: '', TongThanhToan: '26000' };
+        await checkoutChatOffer('21', values, '12');
+        assert.deepEqual(calls.map(([path]) => path), ['/api/chat/offers/21/quote', '/api/auth/me', '/api/chat/offers/21/checkout']);
+        assert.equal(calls[0][1].method, 'GET'); assert.equal(calls[2][1].method, 'POST');
+        assert.deepEqual(JSON.parse(calls[2][1].body), values); assert.equal(calls[2][1].headers['X-CSRF-Token'], 'csrf');
+    } finally { env.restore(); }
 });

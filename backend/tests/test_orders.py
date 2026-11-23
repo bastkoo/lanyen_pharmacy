@@ -296,6 +296,22 @@ class OrderTests(unittest.TestCase):
         self.records.assert_not_called()
         self.remove.assert_not_called()
 
+    def test_direct_chat_checkout_preserves_cart_for_cod_and_qr(self):
+        quote_offer = self.mock('app.services.chat_service.quote_offer', return_value=self.quote.return_value)
+        values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
+        for cart_quantity in (None, 99):
+            existing = NS(MaThuoc=7, MaDonGia=8, SoLuong=cart_quantity)
+            self.records.return_value = [] if cart_quantity is None else [existing]
+            for method in (0, 1):
+                response = self.client.post('/api/chat/offers/21/checkout', json={**values, 'PhuongThucThanhToan': method}, headers={'X-CSRF-Token': 'test-csrf'})
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(self.create.call_args.args[1][0]['SoLuong'], 3)
+                self.assertEqual(existing.SoLuong, cart_quantity)
+        quote_offer.assert_called_with(self.user, 21, lock_promotions=True)
+        self.records.assert_not_called(); self.remove.assert_not_called(); self.quote.assert_not_called()
+        result = self.client.post('/api/chat/offers/21/checkout', json={**values, 'MaDonGia': [8]}, headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual(result.status_code, 400)
+
     def order(self, **changes):
         return NS(**{**dict(MaDonHang=45, MaNguoiMua=12, TongTien=36000, TienGiamGia=4000,
                            TongThanhToan=32000, PhuongThucThanhToan=1,

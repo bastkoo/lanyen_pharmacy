@@ -22,6 +22,19 @@ export function checkoutUrl(ids) {
 }
 
 const validOrderId = value => /^[1-9][0-9]{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n;
+export function readChatOfferSelection(search) {
+    const params = new URLSearchParams(search);
+    if (!params.has('offer')) return null;
+    const id = params.get('offer');
+    if (params.getAll('offer').length !== 1 || [...params.keys()].some(key => key !== 'offer') || !validOrderId(id)) throw new Error('INVALID_SELECTION');
+    return id;
+}
+export function chatOfferCheckoutUrl(messageId) {
+    const params = new URLSearchParams({ offer: String(messageId) });
+    readChatOfferSelection(`?${params}`);
+    return `checkout.html?${params}`;
+}
+
 export function readReorderSelection(search) {
     const params = new URLSearchParams(search);
     if (!params.has('reorder')) return null;

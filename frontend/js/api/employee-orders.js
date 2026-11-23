@@ -21,6 +21,10 @@ async function request(path, method = 'GET', body, token) {
 export const listEmployeeOrders = (status, search, page) => withSessionRequest(() => request(`?${new URLSearchParams({ status, search, page: String(page), per_page: '20' })}`));
 export const getEmployeeOrder = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}`));
 export const getEmployeePendingCount = () => withSessionRequest(() => request('/pending-count'));
+export const listReturnOrders = (search, page) => withSessionRequest(() => request(`/returns?${new URLSearchParams({ search, page: String(page), per_page: '20' })}`));
+export const getReturnOrder = id => withSessionRequest(() => request(`/${encodeURIComponent(id)}/returns`));
+export const submitReturn = (id, values, owner) => withAuthenticatedSession(owner,
+    token => request(`/${encodeURIComponent(id)}/returns`, 'POST', values, token));
 export const getCompletedEmployeeOrders = (search = '', page = 1) => withSessionRequest(() => request(`/completed?${new URLSearchParams({ search, page: String(page), per_page: '20' })}`));
 export const getCounterCustomer = phone => withSessionRequest(() => request(`/counter/customer?${new URLSearchParams({ phone })}`));
 export const getCounterProducts = filters => withSessionRequest(() => request(`/counter/products?${new URLSearchParams(Object.entries(filters).filter(([, value]) => value !== '' && value !== undefined))}`));

@@ -11,7 +11,7 @@ const node = (tag, text, className) => { const element = document.createElement(
 const id = new URLSearchParams(location.search).get('order');
 const validId = /^[1-9][0-9]{0,18}$/.test(id || '') && BigInt(id) <= 9223372036854775807n;
 const steps = ['Đặt hàng', 'Đang xử lý đơn', 'Đang giao', 'Đã giao'];
-const statusNames = [...steps, 'Đã hủy', 'Đổi trả'];
+const statusNames = [...steps, 'Đã hủy', 'Đã trả'];
 let order = null, user = null, version = 0, disposed = false, timer, opening = false, snapshot = '';
 const cancellation = setupOrderCancellation({ getUser: () => user, onCancelled: async () => {
     await refresh(); $('order-load-state').textContent = 'Đã hủy đơn và hoàn xu, kho, hạn mức khuyến mãi.'; $('main').focus({ preventScroll: true });
@@ -68,7 +68,7 @@ function renderProgress(value) {
     const notes = [value.PhuongThucThanhToan === 1 && value.TrangThaiThanhToan === 0
         ? 'Đơn hàng đã được ghi nhận, đang chờ xác nhận thanh toán.' : 'Đơn hàng đã được ghi nhận.',
     'Nhà thuốc đang xử lý đơn hàng của bạn.', 'Đơn hàng đang được giao tới bạn.', 'Đơn hàng đã được giao.',
-    'Đơn hàng đã hủy.', 'Đơn hàng đang được xử lý đổi trả.'];
+    'Đơn hàng đã hủy.', 'Đơn hàng đã ghi nhận trả hàng.'];
     $('order-progress-note').textContent = notes[current] || 'Chưa xác định trạng thái đơn hàng.';
 }
 

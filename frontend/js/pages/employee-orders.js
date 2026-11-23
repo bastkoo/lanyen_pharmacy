@@ -7,7 +7,7 @@ import { setupEmployeeDialog } from '../components/employee-dialog.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
-const statusNames = ['Chờ thanh toán', 'Đang chờ xử lý', 'Đang giao', 'Đã giao', 'Đã hủy', 'Đổi trả'];
+const statusNames = ['Chờ thanh toán', 'Đang chờ xử lý', 'Đang giao', 'Đã giao', 'Đã hủy', 'Đã trả'];
 const dateText = value => { const date = new Date(value); return Number.isNaN(date.getTime()) ? 'Chưa có thời gian' : new Intl.DateTimeFormat('vi-VN', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Ho_Chi_Minh' }).format(date); };
 const errorText = error => ({ INVALID_REQUEST: 'Nhập mã đơn hoặc số điện thoại hợp lệ.',
     INVALID_TRANSITION: 'Không thể chuyển trạng thái theo thao tác này.', ORDER_STATE_CHANGED: 'Đơn đã được cập nhật. Tải lại để kiểm tra trạng thái mới.',

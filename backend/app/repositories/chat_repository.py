@@ -36,6 +36,11 @@ def queue(actor_id, search, page):
     return rows, total
 
 
+def pending_count():
+    return db.session.execute(select(func.count(func.distinct(TinNhan.NguoiGui))).where(
+        TinNhan.TrangThai == 0, TinNhan.MaNhanVien.is_(None))).scalar_one()
+
+
 def messages(user_id=None, thread_id=None, before=None):
     query = select(Message, NguoiDung.VaiTro).join(NguoiDung, NguoiDung.MaNguoiDung == Message.NguoiGui)
     if user_id is not None:

@@ -9,7 +9,7 @@ import { setupOrderCancellation } from '../components/order-cancel.js';
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const element = document.createElement(tag); if (text !== undefined) element.textContent = text; if (className) element.className = className; return element; };
 const filters = ['all', 'processing', 'shipping', 'delivered', 'cancelled', 'returns'];
-const statusNames = ['Đang xử lý', 'Đang xử lý', 'Đang giao', 'Đã giao', 'Đã hủy', 'Đổi trả'];
+const statusNames = ['Đang xử lý', 'Đang xử lý', 'Đang giao', 'Đã giao', 'Đã hủy', 'Đã trả'];
 let status = 'all', page = 1, total = 0, perPage = 10, validQuery = true;
 let version = 0, user = null, rows = new Map(), disposed = false, opening = false;
 const reorder = setupOrderReorder({ getUser: () => user, onAdded: () => { $('orders-state').textContent = 'Đã thêm các sản phẩm đã chọn vào giỏ hàng.'; } });
@@ -83,7 +83,7 @@ function card(value) {
         const cancel = node('button', 'Hủy đơn', 'button button-outline'); cancel.type = 'button'; cancel.dataset.cancelOrder = value.MaDonHang;
         cancel.setAttribute('aria-label', `Hủy đơn ${value.MaDonHang}`); cancel.setAttribute('aria-haspopup', 'dialog'); cancel.setAttribute('aria-controls', 'order-cancel-dialog'); actions.append(cancel);
     }
-    if ([3, 4].includes(value.TrangThaiDonHang)) {
+    if ([3, 4].includes(value.TrangThaiDonHang) && !value.items.some(item => item.PhanLoai === true)) {
         const buy = node('button', 'Mua lại', 'button button-outline orders-buy-again'); buy.type = 'button';
         buy.dataset.reorder = value.MaDonHang; buy.setAttribute('aria-haspopup', 'dialog'); buy.setAttribute('aria-controls', 'reorder-dialog');
         buy.setAttribute('aria-label', `Mua lại đơn ${value.MaDonHang}`); actions.append(buy);

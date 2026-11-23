@@ -104,3 +104,13 @@ class ReorderCheckoutSchema(OrderCreateSchema, OrderReorderSchema):
     def validate_selection(self, data, **kwargs):
         if data['HinhThucNhanHang'] == 'delivery' and not data['MaDiaChi']:
             raise ValidationError('Delivery address required.')
+
+
+class OfferCheckoutSchema(OrderCreateSchema):
+    class Meta:
+        exclude = ('MaDonGia',)
+
+    @validates_schema
+    def validate_selection(self, data, **kwargs):
+        if data['HinhThucNhanHang'] == 'delivery' and not data['MaDiaChi']:
+            raise ValidationError('Delivery address required.')

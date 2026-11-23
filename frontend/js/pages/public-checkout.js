@@ -3,16 +3,18 @@ import { getSession, getAddresses, getPoints } from '../api/auth.js';
 import { money, cartErrorMessage } from '../components/cart.js';
 import { authMessage } from '../components/auth-dialog.js';
 import { validHttps } from '../utils/product-validation.js';
-import { readCheckoutSelection, readReorderSelection, checkoutRedemption } from '../utils/checkout-selection.js';
+import { readCheckoutSelection, readReorderSelection, readChatOfferSelection, checkoutRedemption } from '../utils/checkout-selection.js';
 import { createOrder, getOrder, initializePayment, quoteReorder, checkoutReorder } from '../api/orders.js';
 import { submitCheckout, paymentMessage } from '../utils/sepay-checkout.js';
+import { quoteChatOffer, checkoutChatOffer } from '../api/chat.js';
 
 const $ = id => document.getElementById(id);
 const node = (tag, text, className) => { const result = document.createElement(tag); if (text !== undefined) result.textContent = text; if (className) result.className = className; return result; };
-let selectedUnits, reorderSelection = null, invalidSelection = false;
+let selectedUnits, reorderSelection = null, offerSelection = null, invalidSelection = false;
 try {
     reorderSelection = readReorderSelection(location.search);
-    selectedUnits = reorderSelection ? [] : readCheckoutSelection(location.search);
+    offerSelection = readChatOfferSelection(location.search);
+    selectedUnits = reorderSelection || offerSelection ? [] : readCheckoutSelection(location.search);
 } catch { selectedUnits = []; invalidSelection = true; }
 let user, known = false, currentKey, addresses = [], addressId = null, addressChoice = null;
 let quoteVersion = 0, addressVersion = 0, sessionVersion = 0, disposed = false;
@@ -75,7 +77,7 @@ function renderOrder(value) {
     const environmentKnown = ['sandbox', 'production'].includes(value.payment_environment);
     $('checkout-result').hidden = false;
     $('checkout-result-title').textContent = `Đơn hàng #${value.MaDonHang}`;
-    const statuses = ['Chờ duyệt', 'Đang xử lý', 'Đang giao', 'Hoàn thành', 'Đã hủy', 'Đổi trả'];
+    const statuses = ['Chờ duyệt', 'Đang xử lý', 'Đang giao', 'Hoàn thành', 'Đã hủy', 'Đã trả'];
     $('checkout-result-status').textContent = pending ? 'Đã tạo đơn. Đang chờ thanh toán QR.'
         : `${statuses[value.TrangThaiDonHang] || 'Đã tạo đơn'}. ${value.TrangThaiThanhToan === 1 ? 'Đã thanh toán.' : 'Chưa thanh toán.'}`;
     $('checkout-open-payment').hidden = !pending || !environmentKnown;
@@ -226,16 +228,16 @@ async function loadQuote() {
     ready = false; quoteTotal = null; updateComplete();
     const attempt = ++quoteVersion;
     $('checkout-layout').hidden = true; $('checkout-retry').hidden = true;
-    if (!selectedUnits.length && !reorderSelection) { $('checkout-state').textContent = invalidSelection ? 'Đường dẫn sản phẩm chưa hợp lệ. Trở về giỏ hàng để chọn lại.' : 'Chưa có sản phẩm được chọn. Trở về giỏ hàng và chọn sản phẩm muốn mua.'; return; }
-    if (reorderSelection && !user) { $('checkout-state').textContent = 'Đăng nhập đúng tài khoản để xác nhận sản phẩm mua lại.'; return; }
+    if (!selectedUnits.length && !reorderSelection && !offerSelection) { $('checkout-state').textContent = invalidSelection ? 'Đường dẫn sản phẩm chưa hợp lệ. Trở về giỏ hàng để chọn lại.' : 'Chưa có sản phẩm được chọn. Trở về giỏ hàng và chọn sản phẩm muốn mua.'; return; }
+    if ((reorderSelection || offerSelection) && !user) { $('checkout-state').textContent = 'Đăng nhập đúng tài khoản để xác nhận sản phẩm được chọn.'; return; }
     $('checkout-state').textContent = 'Đang kiểm tra giá và sản phẩm đã chọn…';
     try {
-        const data = reorderSelection
+        const data = offerSelection ? await quoteChatOffer(offerSelection) : reorderSelection
             ? await quoteReorder(reorderSelection.orderId, reorderSelection.lineIds, user.MaNguoiDung)
             : await quoteCart(selectedUnits);
         if (disposed || attempt !== quoteVersion) return;
         if (data.code !== 'CART_LISTED' || !Array.isArray(data.items) || data.total === undefined) throw { code: 'INVALID_RESPONSE' };
-        if (!reorderSelection && (data.items.length !== selectedUnits.length || data.items.some(item => !selectedUnits.includes(item.MaDonGia)))) {
+        if (!reorderSelection && !offerSelection && (data.items.length !== selectedUnits.length || data.items.some(item => !selectedUnits.includes(item.MaDonGia)))) {
             $('checkout-state').textContent = 'Giỏ hàng đã thay đổi hoặc sản phẩm đã được xóa. Trở về giỏ hàng để chọn lại.'; return;
         }
         renderProducts(data); $('checkout-layout').hidden = false;
@@ -246,7 +248,10 @@ async function loadQuote() {
         const reorderErrors = { ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
             ORDER_NOT_REORDERABLE: 'Chỉ mua lại đơn đã giao hoặc đã hủy.',
             INVALID_REQUEST: 'Lựa chọn mua lại không còn hợp lệ. Hãy trở về Đơn hàng của tôi để chọn lại.' };
-        $('checkout-state').textContent = (reorderSelection && reorderErrors[error.code]) || cartErrorMessage(error); $('checkout-retry').hidden = false;
+        const offerErrors = { OUT_OF_STOCK: 'Sản phẩm trong thẻ tư vấn không còn đủ hàng. Hãy nhờ dược sĩ kiểm tra lại.',
+            CHAT_OFFER_NOT_FOUND: 'Không tìm thấy thẻ tư vấn thuộc tài khoản này.' };
+        $('checkout-state').textContent = (offerSelection && offerErrors[error.code]) || (reorderSelection && reorderErrors[error.code]) || cartErrorMessage(error);
+        $('checkout-retry').hidden = false;
     }
 }
 function receive(next, force = false) {
@@ -311,13 +316,13 @@ $('checkout-complete').addEventListener('click', async () => {
             PhuongThucThanhToan: document.querySelector('input[name="payment"]:checked').value === 'cod' ? 0 : 1,
             HinhThucNhanHang: receipt, MaDiaChi: receipt === 'delivery' ? addressId : null,
             GhiChu: $('checkout-note').value, TongThanhToan: totalToPay };
-        const data = reorderSelection
+        const data = offerSelection ? await checkoutChatOffer(offerSelection, values, user.MaNguoiDung) : reorderSelection
             ? await checkoutReorder(reorderSelection.orderId, { ...values, MaChiTiet: reorderSelection.lineIds }, user.MaNguoiDung)
             : await createOrder({ ...values, MaDonGia: selectedUnits }, user.MaNguoiDung);
         if (disposed || account !== currentKey) return;
         renderOrder(data.order);
         history.replaceState(null, '', `checkout.html?order=${encodeURIComponent(activeOrderId)}`);
-        $('checkout-result-title').focus(); window.dispatchEvent(new Event('cart-changed'));
+        $('checkout-result-title').focus(); if (!offerSelection) window.dispatchEvent(new Event('cart-changed'));
         if (data.order.PhuongThucThanhToan === 1) await openPayment();
         else location.assign(`order-detail.html?order=${encodeURIComponent(activeOrderId)}`);
     } catch (error) {
@@ -329,11 +334,13 @@ $('checkout-complete').addEventListener('click', async () => {
             QUOTE_CHANGED: 'Giá hoặc số dư xu đã thay đổi. Hãy tải lại trang để kiểm tra trước khi đặt hàng.',
             POINTS_UNAVAILABLE: 'Số dư xu không còn đủ để đổi. Hãy tải lại trang để kiểm tra.',
             CART_CHANGED: 'Giỏ hàng đã thay đổi hoặc đơn đã được tạo. Hãy kiểm tra trước khi đặt lại.',
-            OUT_OF_STOCK: reorderSelection ? 'Không đủ tồn kho. Hãy trở về Đơn hàng của tôi để chọn lại.' : 'Không đủ tồn kho. Hãy trở về giỏ hàng để điều chỉnh.',
+            OUT_OF_STOCK: offerSelection ? 'Thẻ tư vấn không còn đủ hàng. Hãy nhờ dược sĩ kiểm tra lại.' : reorderSelection ? 'Không đủ tồn kho. Hãy trở về Đơn hàng của tôi để chọn lại.' : 'Không đủ tồn kho. Hãy trở về giỏ hàng để điều chỉnh.',
+            CHAT_OFFER_NOT_FOUND: 'Không tìm thấy thẻ tư vấn thuộc tài khoản này.',
             ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
             ORDER_NOT_REORDERABLE: 'Chỉ mua lại đơn đã giao hoặc đã hủy.',
             ADDRESS_NOT_FOUND: 'Địa chỉ không còn tồn tại. Hãy tải lại và chọn địa chỉ.',
             QR_AMOUNT_INVALID: 'Đơn có tổng tiền bằng 0. Vui lòng chọn thanh toán khi nhận hàng.',
+            CONSULTATION_REQUIRED: 'Sản phẩm cần dược sĩ tư vấn. Hãy mở Nhắn tin để được hỗ trợ.',
             CONNECTION_FAILED: 'Mất kết nối khi tạo đơn; đơn có thể đã được lưu. Không tự động gửi lại. Hãy kiểm tra trước khi đặt lại.' };
         $('checkout-complete-note').textContent = messages[error.code] || authMessage(error);
         if (['CONNECTION_FAILED', 'CART_CHANGED', 'QUOTE_CHANGED', 'OUT_OF_STOCK', 'POINTS_UNAVAILABLE'].includes(error.code)) ready = false;

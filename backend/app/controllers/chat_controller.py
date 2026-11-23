@@ -5,6 +5,8 @@ from app.schemas.chat_schema import ChatQuerySchema, ChatQueueSchema, ChatSendSc
 from app.services import chat_service as service
 from app.services.auth_service import AuthError
 from app.utils.image_validator import ImageError
+from app.schemas.order_schema import OfferCheckoutSchema
+from app.services import order_service
 
 
 def respond(callback, schema=None, query=False):
@@ -36,6 +38,10 @@ def queue():
     return respond(lambda values: service.queue(g.current_user, **values), ChatQueueSchema, query=True)
 
 
+def pending_count():
+    return respond(lambda _: service.pending_count())
+
+
 def unread():
     return respond(lambda _: service.unread(g.current_user))
 
@@ -58,6 +64,27 @@ def finish(thread_id):
 
 def purchase(message_id):
     return respond(lambda _: service.purchase(g.current_user, message_id))
+
+
+def offer_quote(message_id):
+    if request.args:
+        return jsonify(code='INVALID_REQUEST'), 400
+    try:
+        return jsonify(service.quote_offer(g.current_user, message_id))
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
+def offer_checkout(message_id):
+    try:
+        if request.args or not request.is_json or not isinstance(request.get_json(silent=True), dict):
+            raise ValidationError('Object required.')
+        data = OfferCheckoutSchema().load(request.get_json())
+        return jsonify(code='ORDER_CREATED', order=order_service.create(g.current_user, data, offer_id=message_id)), 201
+    except ValidationError:
+        return jsonify(code='INVALID_REQUEST'), 400
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
 
 
 def upload(thread_id=None):

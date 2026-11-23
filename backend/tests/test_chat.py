@@ -8,6 +8,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app import create_app
 from app.services import chat_service as service, consultation_service as consultation
 from app.services.auth_service import AuthError
+from app.repositories.chat_repository import pending_count as real_pending_count
+from sqlalchemy.dialects import postgresql
 
 
 class ChatTests(unittest.TestCase):
@@ -42,7 +44,7 @@ class ChatTests(unittest.TestCase):
         self.mock('app.services.chat_service.require_unit', return_value=self.unit)
         self.stock = self.mock('app.services.chat_service.usable_stock', return_value={7: 100})
         self.cart_add = self.mock('app.services.chat_service.add_database')
-        self.quote = self.mock('app.services.chat_service.get_cart', return_value={'items': [{'MaDonGia': 3, 'GiaBan': 9000, 'ThanhTien': 9000, 'ConHang': True}], 'total': 9000})
+        self.quote = self.mock('app.services.chat_service.get_cart', return_value={'code': 'CART_LISTED', 'items': [{'MaDonGia': 3, 'GiaBan': 9000, 'ThanhTien': 9000, 'ConHang': True}], 'total': 9000})
         self.image = self.mock('app.services.chat_service.validate_product_image_url')
         self.commit = self.mock('app.extensions.db.session.commit')
         self.rollback = self.mock('app.extensions.db.session.rollback')
@@ -177,6 +179,7 @@ class ChatTests(unittest.TestCase):
     def test_unrelated_cart_item_does_not_block_an_offer_purchase(self):
         self.staff(); self.post('/threads/1/claim'); self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3)])
         self.actor.VaiTro = 0; self.actor.MaNguoiDung = 12
+        self.stock.reset_mock()
         self.mock('app.repositories.gio_thuoc_repository.list_items', return_value=[NS(MaThuoc=99, MaDonGia=999, SoLuong=1)])
         self.assertEqual(self.post('/offers/1/cart').status_code, 200)
         self.stock.assert_called_once_with([7])
@@ -203,6 +206,53 @@ class ChatTests(unittest.TestCase):
             self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=quantity)]).status_code, 400)
         self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, DonGia=1)]).status_code, 400)
         self.add.assert_not_called()
+
+    def test_no_offer_sent_if_out_of_stock_or_combined_units_exceed_stock(self):
+        self.staff(); self.post('/threads/1/claim'); self.stock.return_value = {7: 0}
+        self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3)]).json['code'], 'OUT_OF_STOCK')
+        self.stock.return_value = {7: 29}
+        self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=3)]).json['code'], 'OUT_OF_STOCK')
+        second_unit = NS(DonViTinh='Viên', SoLuongQuyDoi=5, GiaBan=5000)
+        self.mock('app.services.chat_service.require_unit', side_effect=lambda product, unit: self.unit if unit == 3 else second_unit)
+        self.mock('app.repositories.gio_thuoc_repository.catalog_details', return_value={(7, 3): (self.product, self.unit), (7, 4): (self.product, second_unit)})
+        self.stock.return_value = {7: 34}
+        self.assertEqual(self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3, SoLuong=3), dict(MaThuoc=7, MaDonGia=4)]).json['code'], 'OUT_OF_STOCK')
+        self.add.assert_not_called()
+
+    def test_direct_offer_quote_never_reads_or_mutates_cart(self):
+        self.staff(); self.post('/threads/1/claim'); self.send('offer', items=[dict(MaThuoc=7, MaDonGia=3)])
+        self.post('/threads/1/finish'); self.actor.VaiTro = 0; self.actor.MaNguoiDung = 12
+        listing = self.mock('app.repositories.gio_thuoc_repository.list_items')
+        result = self.client.get('/api/chat/offers/1/quote')
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['code'], 'CART_LISTED')
+        self.quote.assert_called_with(entries=[(7, 3, 1)], lock_promotions=False)
+        listing.assert_not_called(); self.cart_add.assert_not_called()
+        with patch('app.repositories.chat_repository.customer_payloads', return_value=[]):
+            self.assertEqual(self.client.get('/api/chat/offers/1/quote').status_code, 404)
+            result = self.post('/offers/1/checkout', dict(PhuongThucThanhToan=0, HinhThucNhanHang='pickup', GhiChu='', TongThanhToan='9000'))
+            self.assertEqual(result.status_code, 404)
+
+    def test_pending_count_is_shared_by_all_employees_and_forbidden_to_other_roles(self):
+        pending = self.mock('app.repositories.chat_repository.pending_count', return_value=7)
+        for employee_id in (8, 9):
+            self.staff(employee_id)
+            self.assertEqual(self.client.get('/api/chat/threads/pending-count').json['count'], 7)
+        self.assertEqual(pending.call_count, 2)
+        self.assertEqual(self.client.get('/api/chat/threads/pending-count?search=x').status_code, 400)
+        for role in (0, 2):
+            self.actor.VaiTro = role
+            self.assertEqual(self.client.get('/api/chat/threads/pending-count').status_code, 403)
+
+    def test_pending_count_query_counts_distinct_waiting_customers_not_messages(self):
+        execute = self.mock('app.extensions.db.session.execute')
+        execute.return_value.scalar_one.return_value = 3
+        with self.app.app_context():
+            self.assertEqual(real_pending_count(), 3)
+        sql = str(execute.call_args.args[0].compile(dialect=postgresql.dialect(), compile_kwargs={'literal_binds': True}))
+        self.assertIn('count(distinct("TinNhan"."NguoiGui"))', sql)
+        self.assertIn('"TrangThai" = 0', sql)
+        self.assertIn('"MaNhanVien" IS NULL', sql)
 
 
 if __name__ == '__main__': unittest.main()
