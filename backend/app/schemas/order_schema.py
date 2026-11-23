@@ -26,6 +26,17 @@ class CompletedOrderQuerySchema(EmployeeOrderQuerySchema):
     status = fields.String(load_default='3', validate=validate.OneOf(['3']))
 
 
+class ReturnOrderQuerySchema(EmployeeOrderQuerySchema):
+    status = fields.String(load_default='returns', validate=validate.OneOf(['returns']))
+
+
+class ReturnOrderSchema(Schema):
+    MaChiTiet = fields.String(required=True, validate=validate.Regexp(r'^[1-9][0-9]{0,18}$'))
+    SoLuong = fields.Integer(strict=True, required=True, validate=validate.Range(min=1, max=2147483647))
+    DaTra = fields.Integer(strict=True, required=True, validate=validate.Range(min=0, max=2147483647))
+    request_id = fields.UUID(required=True)
+
+
 class CounterLineSchema(Schema):
     MaThuoc = fields.Integer(strict=True, required=True, validate=validate.Range(min=1, max=2147483647))
     MaDonGia = fields.Integer(strict=True, required=True, validate=validate.Range(min=1, max=2147483647))

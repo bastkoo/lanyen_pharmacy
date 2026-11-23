@@ -69,7 +69,7 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None):
     # Multiple units of the same product must fit the combined base-unit stock.
     required = {}
     promotion_required = {}
-    details, original = [], 0
+    details, original, return_lines = [], 0, []
     for item in sorted(quote['items'], key=lambda item: item['MaDonGia']):
         unit = require_unit(item['MaThuoc'], item['MaDonGia'], for_update=True)
         if unit.SoLuongQuyDoi <= 0:
@@ -78,6 +78,8 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None):
         original += item['SoLuong'] * unit.GiaBan
         details.append(dict(MaThuoc=item['MaThuoc'], MaDonGia=item['MaDonGia'],
                             SoLuong=item['SoLuong'], DonGia=unit.GiaBan))
+        return_lines.append(dict(MaDonGia=item['MaDonGia'], conversion=unit.SoLuongQuyDoi,
+                                 amount=item['ThanhTien']))
         if item.get('KhuyenMai') and item.get('SoLuongKhuyenMai', 0) > 0:
             key = (item['KhuyenMai']['MaChuongTrinh'], item['MaThuoc'])
             promotion_required[key] = (promotion_required.get(key, 0)
@@ -117,13 +119,21 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None):
     # Both COD and QR debit on completion, exactly once with order/cart writes.
     # Gateway initialization and IPN only update payment status, never stock.
     allocations = deduct_order_stock(required)
+    # Allocate redeemed-point discount cumulatively so line amounts sum exactly
+    # to the paid total, while retaining each line's original promotion price.
+    running = previous = 0
+    for line in return_lines:
+        running += line['amount']
+        cumulative = running * total // quote['total'] if quote['total'] else 0
+        line['amount'] = cumulative - previous
+        previous = cumulative
     for detail, quantity in quotas:
         detail.SoLuong -= quantity
     order = orders.create(dict(
         MaNguoiMua=user.MaNguoiDung, MaNhanVien=counter['actor'] if counter else None, TongTien=original,
         TienGiamGia=original - total, TongThanhToan=total,
         DoiDiem=redeemed > 0,
-        DuLieuHoanTra={'version': 1, 'batches': allocations, 'points': redeemed,
+        DuLieuHoanTra={'version': 1, 'batches': allocations, 'points': redeemed, 'lines': return_lines,
             'promotions': [dict(MaChuongTrinh=promotion_id, MaThuoc=product_id, SoLuong=quantity)
                            for (promotion_id, product_id), quantity in sorted(promotion_required.items())]},
         TrangThaiDonHang=(3 if counter else 1) if data['PhuongThucThanhToan'] == 0 else 0,

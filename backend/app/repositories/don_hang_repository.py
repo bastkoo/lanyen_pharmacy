@@ -34,8 +34,8 @@ def detail_items(order_id):
 
 def employee_list(status, search, page, per_page):
     query = select(DonHang, NguoiDung).join(NguoiDung, NguoiDung.MaNguoiDung == DonHang.MaNguoiMua)
-    query = query.where(DonHang.TrangThaiDonHang.in_((3,) if status == '3' else (0, 1, 2)))
-    if status != 'all':
+    query = query.where(DonHang.TrangThaiDonHang.in_((3, 5) if status == 'returns' else (3,) if status == '3' else (0, 1, 2)))
+    if status not in ('all', 'returns'):
         query = query.where(DonHang.TrangThaiDonHang == int(status))
     if search:
         phone_queries = [NguoiDung.SDT.contains(search, autoescape=True)]
@@ -47,7 +47,7 @@ def employee_list(status, search, page, per_page):
                                *phone_queries))
     total = db.session.execute(select(func.count()).select_from(query.subquery())).scalar_one()
     priority = case((DonHang.TrangThaiDonHang == 1, 0), (DonHang.TrangThaiDonHang == 0, 1), else_=2)
-    ordering = (DonHang.NgayDat.desc(), DonHang.MaDonHang.desc()) if status == '3' else (priority, DonHang.NgayDat, DonHang.MaDonHang)
+    ordering = (DonHang.NgayDat.desc(), DonHang.MaDonHang.desc()) if status in ('3', 'returns') else (priority, DonHang.NgayDat, DonHang.MaDonHang)
     rows = db.session.execute(query.order_by(*ordering)
                               .offset((page - 1) * per_page).limit(per_page)).all()
     return rows, total

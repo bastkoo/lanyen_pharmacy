@@ -7,6 +7,34 @@ from app.services.auth_service import AuthError
 from app.services import counter_order_service as counter
 from app.schemas.order_schema import CounterQuoteSchema, CounterCreateSchema, CompletedOrderQuerySchema
 from app.schemas.public_catalog_schema import PublicProductQuerySchema
+from app.schemas.order_schema import ReturnOrderQuerySchema, ReturnOrderSchema
+from app.services import employee_return_service as returns
+
+
+def return_orders():
+    try:
+        if any(len(values) != 1 for _, values in request.args.lists()):
+            raise ValidationError('Duplicate parameter.')
+        values = ReturnOrderQuerySchema().load(request.args.to_dict())
+        return jsonify(code='EMPLOYEE_ORDERS_LISTED', **service.list_orders(**values))
+    except ValidationError:
+        return jsonify(code='INVALID_REQUEST'), 400
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
+def return_detail(order_id):
+    if request.args:
+        return jsonify(code='INVALID_REQUEST'), 400
+    try:
+        return jsonify(code='EMPLOYEE_RETURN_DETAIL', order=returns.detail(order_id))
+    except AuthError as error:
+        return jsonify(code=error.code), error.status
+
+
+def return_submit(order_id):
+    return counter_payload(ReturnOrderSchema,
+        lambda values: returns.submit(g.current_user, order_id, **values), 'EMPLOYEE_RETURNED')
 
 
 def counter_catalog():

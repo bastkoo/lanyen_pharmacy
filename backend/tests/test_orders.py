@@ -216,6 +216,7 @@ class OrderTests(unittest.TestCase):
         snapshot = self.create.call_args.args[0]['DuLieuHoanTra']
         self.assertEqual(snapshot, dict(version=1, points=25,
             batches=[dict(MaLo='5', MaThuoc=7, SoLuong=30)],
+            lines=[dict(MaDonGia=8, conversion=10, amount=31750)],
             promotions=[dict(MaChuongTrinh=6, MaThuoc=7, SoLuong=20)]))
 
     def test_redeem_points_discounts_and_debits_in_order_transaction(self):
@@ -414,8 +415,10 @@ class OrderTests(unittest.TestCase):
         self.records.return_value = [NS(MaDonGia=8), NS(MaDonGia=9)]
         self.quote.return_value['items'][0].update(KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1)
         self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=1,
-            GiaBan=12000, ConHang=True, KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1))
-        self.assertEqual(self.post(MaDonGia=[8, 9]).status_code, 201)
+            GiaBan=12000, ThanhTien=12000, ConHang=True, KhuyenMai={'MaChuongTrinh': 6}, SoLuongKhuyenMai=1))
+        self.quote.return_value['total'] += 12000
+        self.assertEqual(self.post(MaDonGia=[8, 9], TongThanhToan='44000').status_code, 201)
+        self.assertEqual(sum(line['amount'] for line in self.create.call_args.args[0]['DuLieuHoanTra']['lines']), 44000)
         self.assertEqual(quota.SoLuong, 10)
         self.promotion_detail.assert_called_once_with(6, 7, for_update=True)
 
@@ -506,7 +509,7 @@ class OrderTests(unittest.TestCase):
 
     def test_combined_product_units_cannot_exceed_stock(self):
         self.records.return_value = [NS(MaDonGia=8), NS(MaDonGia=9)]
-        self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=8, GiaBan=12000, ConHang=True))
+        self.quote.return_value['items'].append(dict(MaThuoc=7, MaDonGia=9, SoLuong=8, GiaBan=12000, ThanhTien=96000, ConHang=True))
         self.assertEqual(self.post(MaDonGia=[8, 9]).json['code'], 'OUT_OF_STOCK')
         self.create.assert_not_called()
 
