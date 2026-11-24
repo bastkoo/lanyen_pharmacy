@@ -109,8 +109,15 @@
         </form>
         <form id="otp-form" hidden novalidate>
             <label for="otp">Mã OTP gồm 6 chữ số</label>
-            <input id="otp" name="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required spellcheck="false" aria-describedby="otp-help otp-error">
-            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã vào ô này.</p>
+            <div class="otp-digits" role="group" aria-label="Mã OTP gồm 6 chữ số">
+            <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required spellcheck="false" aria-label="Chữ số 1" aria-describedby="otp-help otp-error">
+            <input id="otp-2" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 2" aria-describedby="otp-help otp-error">
+            <input id="otp-3" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 3" aria-describedby="otp-help otp-error">
+            <input id="otp-4" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 4" aria-describedby="otp-help otp-error">
+            <input id="otp-5" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 5" aria-describedby="otp-help otp-error">
+            <input id="otp-6" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 6" aria-describedby="otp-help otp-error">
+        </div>
+            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã gồm 6 chữ số.</p>
             <p id="otp-error" class="field-error" aria-live="polite"></p>
             <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
             <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>

@@ -16,7 +16,7 @@ test('login dialog keeps OTP cooldown and routes authenticated staff by role onl
         const { setupAuthDialog } = await import('../../frontend/js/components/auth-dialog.js');
         for (const role of [0, 1, 2]) {
             const elements = new Map(), redirects = [], authenticated = [];
-            let tick, now = 100000;
+            let tick, focused, submittedOtp, now = 100000;
             Date.now = () => now;
             globalThis.setInterval = handler => { tick = handler; return 0; };
             const byId = id => {
@@ -25,7 +25,7 @@ test('login dialog keeps OTP cooldown and routes authenticated staff by role onl
                     addEventListener(type, handler) { this.listeners[type] = handler; },
                     setAttribute(key, value) { this.attributes[key] = value; },
                     removeAttribute(key) { delete this.attributes[key]; },
-                    querySelectorAll() { return []; }, reset() {}, focus() {},
+                    querySelectorAll() { return []; }, reset() {}, focus() { focused = id; }, select() {},
                     show() { this.open = true; }, close() { this.open = false; }
                 });
                 return elements.get(id);
@@ -33,10 +33,10 @@ test('login dialog keeps OTP cooldown and routes authenticated staff by role onl
             globalThis.document = { getElementById: byId, querySelectorAll: () => [], addEventListener() {}, body: { classList: { add() {}, remove() {} } } };
             globalThis.window = { addEventListener() {}, location: { assign: url => redirects.push(url) } };
             let requests = 0;
-            globalThis.fetch = async url => {
+            globalThis.fetch = async (url, options) => {
                 if (url.endsWith('/me')) return reply('UNAUTHENTICATED', 401, { csrf_token: 'csrf' });
                 if (url.endsWith('/otp/request')) { requests++; return reply('OTP_SENT', 200, { retry_after: 60 }); }
-                if (url.endsWith('/otp/verify')) return reply('AUTHENTICATED', 200, { user: { VaiTro: role } });
+                if (url.endsWith('/otp/verify')) { submittedOtp = JSON.parse(options.body).otp; return reply('AUTHENTICATED', 200, { user: { VaiTro: role } }); }
                 assert.fail(url);
             };
             const open = setupAuthDialog(user => authenticated.push(user));
@@ -49,6 +49,7 @@ test('login dialog keeps OTP cooldown and routes authenticated staff by role onl
                 assert.equal(byId('auth-dialog').attributes['aria-busy'], 'false');
             };
             await submit('phone-form');
+            assert.equal(byId('auth-progress').hidden, true);
             assert.equal(byId('auth-status').textContent, 'Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.');
             assert.equal(byId('resend-otp').disabled, true);
             assert.equal(byId('resend-otp').textContent, 'Gửi lại sau 60s');
@@ -62,8 +63,17 @@ test('login dialog keeps OTP cooldown and routes authenticated staff by role onl
             assert.equal(byId('phone-form').hidden, false);
             assert.equal(byId('auth-progress').hidden, true);
             await submit('phone-form');
-            byId('otp').value = '123456';
+            byId('otp').value = '1'; byId('otp').listeners.input();
+            assert.equal(focused, 'otp-2');
+            byId('otp-2').value = 'a'; byId('otp-2').listeners.input();
+            assert.equal(byId('otp-2').value, '');
+            byId('otp-2').listeners.keydown({ key: 'Backspace', preventDefault() {} });
+            assert.equal(focused, 'otp');
+            byId('otp').listeners.paste({ preventDefault() {}, clipboardData: { getData: () => '12 34 56' } });
+            assert.deepEqual(['otp', 'otp-2', 'otp-3', 'otp-4', 'otp-5', 'otp-6'].map(id => byId(id).value), ['1', '2', '3', '4', '5', '6']);
+            assert.equal(focused, 'otp-6');
             await submit('otp-form');
+            assert.equal(submittedOtp, '123456');
             assert.equal(byId('auth-dialog').open, false);
             if (role === 0) {
                 assert.deepEqual(redirects, []);

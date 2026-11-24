@@ -19,7 +19,9 @@ body.auth-open { overflow: hidden; }
 .field-error:not(:empty) { border-left: 3px solid var(--danger-color); padding-left: var(--spacing-sm); margin-top: var(--spacing-sm); }
 .auth-status:not(:empty) { background: var(--primary-light); padding: var(--spacing-sm) var(--spacing-md); margin-top: var(--spacing-md); overflow-wrap: anywhere; }
 .auth-status[data-error="true"] { background: var(--background-color); border-left: 3px solid var(--danger-color); }
-.otp-input { font-size: var(--font-size-xl); letter-spacing: .35em; font-variant-numeric: tabular-nums; }
+.otp-digits { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--spacing-sm); }
+#auth-dialog .otp-input { min-width: 0; padding-inline: 0; text-align: center; font-size: var(--font-size-xl); font-variant-numeric: tabular-nums; }
 .auth-secondary { margin-top: var(--spacing-md); flex-wrap: wrap; }
 .text-button { min-height: 44px; color: var(--primary-dark); text-decoration: underline; padding: var(--spacing-sm); }
+#auth-dialog .auth-secondary .text-button { text-decoration: none; }
 @media (max-width: 374px) { #auth-dialog { padding: var(--spacing-md); width: calc(100% - 16px); } }
