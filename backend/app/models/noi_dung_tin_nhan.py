@@ -4,6 +4,7 @@ from app.extensions import db
 
 class NoiDungTinNhan(db.Model):
     __tablename__ = "NoiDungTinNhan"
+    DaDoc = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     # Khóa chính
     MaNoiDung = db.Column(

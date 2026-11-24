@@ -1,3 +1,4 @@
+import { notifyManager } from '../components/manager-state.js';
 import { getCategories, getCategory, createCategory, updateCategory, deleteCategory } from '../api/categories.js';
 import { ApiError } from '../api/auth.js';
 import { setupLiveSearch } from '../utils/live-search.js';
@@ -14,8 +15,9 @@ export function setupCategories({ root, onAccessError }) {
     let listController, detailController, mode = 'create', currentId = null, currentName = '', busy = false, ready = false, opener;
 
     function feedback(message, error = false) {
-        $('categories-feedback').textContent = message;
-        $('categories-feedback').hidden = !message;
+        if (message && !error) notifyManager(message);
+        $('categories-feedback').textContent = error ? message : '';
+        $('categories-feedback').hidden = !message || !error;
         $('categories-feedback').dataset.error = String(error);
     }
 

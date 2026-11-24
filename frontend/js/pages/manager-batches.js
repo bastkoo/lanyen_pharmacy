@@ -1,3 +1,4 @@
+import { notifyManager } from '../components/manager-state.js';
 import { getProducts, getProduct } from '../api/products.js';
 import { getCategories } from '../api/categories.js';
 import { getBatches, getBatch, createBatch, updateBatch, deleteBatch } from '../api/batches.js';
@@ -24,7 +25,7 @@ export function setupBatches({ root, onAccessError }) {
         if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; }
         return false;
     }
-    function feedback(text = '') { $('batch-feedback').textContent = text; $('batch-feedback').hidden = !text; }
+    function feedback(text = '') { if (text) notifyManager(text); $('batch-feedback').textContent = ''; $('batch-feedback').hidden = true; }
     const row = batch => {
         checkBatch(batch, productId);
         const tr = n('tr'), actions = n('td');

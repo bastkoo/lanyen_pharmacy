@@ -1,7 +1,8 @@
 import { getSession, logoutSession } from '../api/auth.js';
 import { setupAuthDialog, authMessage } from '../components/auth-dialog.js';
 import { managerIcon, renderManagerState } from '../components/manager-state.js';
-import { MANAGER_VIEWS, resolveManagerView, managerAccess, accountInitials } from '../utils/manager-view.js';
+import { MANAGER_VIEWS, resolveManagerView, managerAccess } from '../utils/manager-view.js';
+import { renderAvatar } from '../components/customer-account.js';
 import { setupDashboard } from '../pages/manager-dashboard.js';
 import { setupCategories } from '../pages/manager-categories.js';
 import { setupProducts } from '../pages/manager-products.js';
@@ -76,7 +77,7 @@ function showGate(type, title, description, action = 'retry') {
     $('manager-skip').hidden = true;
     gate.hidden = false;
     user = null;
-    for (const id of ['account-name', 'account-full-name', 'account-avatar']) $(id).textContent = '';
+    for (const id of ['account-name', 'account-avatar']) $(id).textContent = '';
     $('account-summary').setAttribute('aria-label', 'Tài khoản quản lý');
     renderManagerState($('access-state'), { type, title, description });
     $('manager-login').hidden = action !== 'login';
@@ -152,8 +153,8 @@ function showManager(nextUser, focus = false) {
     shell.hidden = false;
     $('manager-skip').hidden = false;
     const name = user.HoTen || 'Quản lý';
-    for (const id of ['account-name', 'account-full-name']) $(id).textContent = name;
-    $('account-avatar').textContent = accountInitials(name);
+    $('account-name').textContent = name;
+    renderAvatar($('account-avatar'), user);
     $('account-summary').setAttribute('aria-label', `Tài khoản ${name}, quản lý`);
     $('manager-live-status').textContent = 'Đã xác thực tài khoản quản lý.';
     if (!alreadyVisible || focus) renderView(focus);

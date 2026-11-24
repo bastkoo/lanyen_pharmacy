@@ -52,7 +52,7 @@ class PublicCatalogTests(unittest.TestCase):
             write.assert_not_called()
 
     def test_public_product_projection_and_prescription_boolean(self):
-        expected = {'MaThuoc', 'MaLoaiThuoc', 'TenThuoc', 'HinhAnh', 'MoTa', 'QuyCachDongGoi', 'NhaSanXuat', 'NuocSanXuat', 'KeDon', 'DonViGia'}
+        expected = {'MaThuoc', 'MaLoaiThuoc', 'TenThuoc', 'HinhAnh', 'MoTa', 'QuyCachDongGoi', 'NhaSanXuat', 'NuocSanXuat', 'KeDon', 'PhanLoai', 'DonViGia'}
         for value in (True, False):
             self.product.KeDon = value
             item = self.client.get('/api/products').json['items'][0]

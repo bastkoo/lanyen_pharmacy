@@ -10,6 +10,7 @@ const node = (tag, text, className) => {
 };
 export const money = value => `${new Intl.NumberFormat('vi-VN').format(BigInt(value))} ₫`;
 const errorMessage = error => ({
+    CONSULTATION_REQUIRED: 'Sản phẩm cần dược sĩ tư vấn trước khi mua. Hãy mở Nhắn tin.',
     CART_ITEM_NOT_FOUND: 'Sản phẩm không còn trong giỏ. Vui lòng tải lại giỏ hàng.',
     OUT_OF_STOCK: 'Đơn vị này đã hết hàng hoặc không còn lô đủ tồn và còn hạn. Vui lòng chọn đơn vị khác hoặc tải lại danh sách.',
     UNIT_NOT_FOUND: 'Đơn vị này không còn tồn tại. Hãy tải lại danh sách sản phẩm.',
@@ -43,12 +44,12 @@ export function purchaseControls(product, { scope = '' } = {}) {
     const promotionName = node('p', '', 'detail-promotion-name');
     const updatePrice = () => {
         const discounted = sale && Number.isSafeInteger(selected?.GiaKhuyenMai) && selected.GiaKhuyenMai < selected.GiaBan;
-        price.textContent = selected ? `${money(discounted ? selected.GiaKhuyenMai : selected.GiaBan)} / ${selected.DonViTinh}` : 'Chưa có giá bán';
+        price.textContent = product.PhanLoai === true ? 'Cần dược sĩ tư vấn' : selected ? `${money(discounted ? selected.GiaKhuyenMai : selected.GiaBan)} / ${selected.DonViTinh}` : 'Chưa có giá bán';
         original.replaceChildren();
-        if (discounted) original.append(node('span', 'Giá gốc: ', 'sr-only'), node('s', money(selected.GiaBan)));
-        original.hidden = !sale;
+        if (discounted && product.PhanLoai !== true) original.append(node('span', 'Giá gốc: ', 'sr-only'), node('s', money(selected.GiaBan)));
+        original.hidden = !sale || product.PhanLoai === true;
         quota.textContent = selected && sale ? `${sale.TrangThai === 'UPCOMING' ? 'Dự kiến' : 'Còn'} ${selected.SoLuongKhuyenMai || 0} ${selected.DonViTinh} ưu đãi` : '';
-        quota.hidden = !sale;
+        quota.hidden = !sale || product.PhanLoai === true;
         promotionName.textContent = sale ? `${promotionBadge(sale)} · ${sale.TenChuongTrinh || 'Chương trình khuyến mãi'}` : '';
     };
     updatePrice();
@@ -70,17 +71,23 @@ export function purchaseControls(product, { scope = '' } = {}) {
     }
     let adding = false;
     const buy = node('button', undefined, 'button button-primary catalog-buy'); buy.type = 'button';
+    if (product.PhanLoai === true) buy.classList.add('catalog-consult');
     const updateBuy = () => {
         const upcoming = sale?.TrangThai === 'UPCOMING';
         const hasOffer = !sale || selected?.SoLuongKhuyenMai > 0;
         const available = selected?.ConHang === true && hasOffer && !upcoming;
         buy.disabled = adding || !available;
-        buy.textContent = upcoming ? 'Sắp diễn ra' : selected?.ConHang !== true ? 'Hết hàng' : !hasOffer ? 'Hết ưu đãi' : 'Chọn mua';
+        buy.textContent = upcoming ? 'Sắp diễn ra' : selected?.ConHang !== true ? 'Hết hàng' : !hasOffer ? 'Hết ưu đãi' : product.PhanLoai === true ? 'Nhắn tin' : 'Chọn mua';
         buy.setAttribute('aria-label', `${buy.textContent} ${product.TenThuoc}${selected ? `, ${selected.DonViTinh}` : ''}`);
     };
     block.addEventListener('change', updateBuy);
     updateBuy();
     buy.addEventListener('click', async () => {
+        if (product.PhanLoai === true) {
+            const dialog = buy.closest('dialog'); if (dialog?.open) dialog.close();
+            window.dispatchEvent(new CustomEvent('chat-product', { detail: { MaThuoc: product.MaThuoc, MaDonGia: selected.MaDonGia } }));
+            return;
+        }
         adding = true; updateBuy(); const chosen = selected;
         status.textContent = 'Đang thêm vào giỏ…';
         try {

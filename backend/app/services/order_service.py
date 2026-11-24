@@ -51,21 +51,28 @@ def serialize(order, legacy_payment=True):
 
 
 @operation
-def create(user, data, reorder_id=None, *, counter=None, entries=None):
+def create(user, data, reorder_id=None, *, counter=None, entries=None, offer_id=None):
     # Serialize checkout with cart mutations and other orders for this account.
     if carts.lock_user(user.MaNguoiDung) is None:
         raise AuthError('UNAUTHENTICATED', 401)
     environment = gateway_config()['SEPAY_ENV'] if data['PhuongThucThanhToan'] == 1 else None
-    records = ([] if reorder_id is not None or counter is not None else
+    records = ([] if reorder_id is not None or counter is not None or offer_id is not None else
                [item for item in carts.list_items(user.MaNguoiDung) if item.MaDonGia in data['MaDonGia']])
-    if reorder_id is None and counter is None and {item.MaDonGia for item in records} != set(data['MaDonGia']):
+    if reorder_id is None and counter is None and offer_id is None and {item.MaDonGia for item in records} != set(data['MaDonGia']):
         raise AuthError('CART_CHANGED', 409)
     # Lock quotas before pricing: a concurrent checkout must reprice after the
     # previous order commits, rather than both using the same remaining quota.
-    quote = (reorder_quote(user.MaNguoiDung, reorder_id, data['MaChiTiet'], lock=True)
-             if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True, **({'entries': entries} if counter is not None else {})))
+    if offer_id is not None:
+        from app.services.chat_service import quote_offer
+        quote = quote_offer(user, offer_id, lock_promotions=True)
+    else:
+        quote = (reorder_quote(user.MaNguoiDung, reorder_id, data['MaChiTiet'], lock=True)
+                 if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True, **({'entries': entries} if counter is not None else {})))
     if not quote['items'] or any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
+    if counter is None:
+        from app.services.consultation_service import require_authorization
+        require_authorization(user.MaNguoiDung, [(item['MaThuoc'], item['MaDonGia']) for item in quote['items']])
     # Multiple units of the same product must fit the combined base-unit stock.
     required = {}
     promotion_required = {}
@@ -262,7 +269,8 @@ def serialize_item(detail, product, unit, *, include_barcode=False):
         MaChiTiet=str(detail.MaChiTiet), MaThuoc=detail.MaThuoc, MaDonGia=detail.MaDonGia,
         SoLuong=detail.SoLuong, DonGia=str(detail.DonGia), ThanhTien=str(detail.SoLuong * detail.DonGia),
         TenThuoc=product.TenThuoc if product else 'Sản phẩm không còn trong danh mục',
-        HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '')
+        HinhAnh=product.HinhAnh if product else None, DonViTinh=unit.DonViTinh if unit else '',
+        PhanLoai=getattr(product, 'PhanLoai', False) is True)
     if include_barcode:
         result['MaVach'] = product.MaVach if product else None
     return result
@@ -298,7 +306,10 @@ def reorder_lines(user_id, order_id, lock=False):
         raise AuthError('ORDER_NOT_FOUND', 404)
     if order.TrangThaiDonHang not in (3, 4):
         raise AuthError('ORDER_NOT_REORDERABLE', 409)
-    return orders.detail_items(order_id)
+    lines = orders.detail_items(order_id)
+    if any(getattr(product, 'PhanLoai', False) is True for _, product, _ in lines):
+        raise AuthError('CONSULTATION_REQUIRED', 409)
+    return lines
 
 
 @operation

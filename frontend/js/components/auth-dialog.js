@@ -30,6 +30,36 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
     let opener;
     const forms = { phone: $("phone-form"), otp: $("otp-form"), profile: $("profile-form") };
     const inputs = { phone: $("phone"), otp: $("otp"), profile: $("full-name") };
+    const otpDigits = [inputs.otp, ...Array.from({ length: 5 }, (_, index) => $(`otp-${index + 2}`))];
+    const otpValue = () => otpDigits.map(input => input.value).join('');
+    function resetOtp() { for (const input of otpDigits) input.value = ''; }
+    function fillOtp(index, value) {
+        const digits = value.replace(/\D/g, '').slice(0, 6 - index);
+        if (!digits) { otpDigits[index].value = ''; return; }
+        for (let offset = 0; offset < digits.length; offset++) otpDigits[index + offset].value = digits[offset];
+        otpDigits[Math.min(index + digits.length, 5)].focus();
+    }
+    for (const [index, input] of otpDigits.entries()) {
+        input.addEventListener('focus', () => input.select());
+        input.addEventListener('input', () => {
+            inputs.otp.removeAttribute('aria-invalid'); $('otp-error').textContent = '';
+            fillOtp(index, input.value);
+        });
+        input.addEventListener('paste', event => {
+            event.preventDefault();
+            inputs.otp.removeAttribute('aria-invalid'); $('otp-error').textContent = '';
+            fillOtp(index, event.clipboardData.getData('text'));
+        });
+        input.addEventListener('keydown', event => {
+            if (event.key === 'Backspace' && !input.value && index > 0) {
+                event.preventDefault(); otpDigits[index - 1].focus();
+            } else if (event.key === 'ArrowLeft' && index > 0) {
+                event.preventDefault(); otpDigits[index - 1].focus();
+            } else if (event.key === 'ArrowRight' && index < 5) {
+                event.preventDefault(); otpDigits[index + 1].focus();
+            }
+        });
+    }
 
     function status(message = "", error = false) {
         $("auth-status").textContent = message;
@@ -45,10 +75,11 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
     function showStep(next) {
         step = next;
         for (const [name, form] of Object.entries(forms)) form.hidden = name !== next;
-        const labels = { phone: ["Bước 1 · Số điện thoại", "Nhập số điện thoại để nhận mã xác thực."],
-            otp: ["Bước 2 · Xác thực OTP", `Nhập mã xác thực cho ${phone}.`],
+        const labels = { phone: ["", "Nhập số điện thoại để nhận mã xác thực."],
+            otp: ["", `Nhập mã xác thực cho ${phone}.`],
             profile: ["Bước 3 · Hoàn tất hồ sơ", "Lần đầu gặp bạn. Hãy cho Lan Yến biết tên của bạn."] };
         $("auth-progress").textContent = labels[next][0];
+        $("auth-progress").hidden = next !== 'profile';
         $("auth-description").textContent = labels[next][1];
         inputs[next].focus();
     }
@@ -100,6 +131,13 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
             status('Số điện thoại đã xác thực. Vui lòng bổ sung họ tên trong 5 phút.');
             notice('Xác thực số điện thoại thành công. Vui lòng bổ sung họ tên.');
         } else if (result.code === 'AUTHENTICATED') {
+            const destination = result.user?.VaiTro === 1 ? '../../pages/employee/index.html#orders' :
+                result.user?.VaiTro === 2 ? '../../pages/manager/index.html#overview' : null;
+            if (destination) {
+                dialog.close();
+                window.location.assign(new URL(destination, import.meta.url).href);
+                return;
+            }
             onAuthenticated(result.user);
             dialog.close();
         } else throw new Error('Unexpected authentication response');
@@ -113,18 +151,18 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
             if (!alive()) return;
             resendAt = Date.now() + result.retry_after * 1000;
             showStep("otp");
-            status("Mã đã được tạo. Khi chạy thử local, lấy OTP trong terminal Flask. Mã có hiệu lực 5 phút.");
-            notice('Đã tạo mã OTP. Mã có hiệu lực 5 phút.');
+            status("Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.");
+            notice('Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.');
         }, "Đang xác minh và gửi mã OTP…");
     });
     forms.otp.addEventListener("submit", event => {
         event.preventDefault();
-        if (!validOtp(inputs.otp.value)) {
+        if (!validOtp(otpValue())) {
             fieldError(inputs.otp, "otp-error", "Vui lòng nhập đủ 6 chữ số OTP."); return;
         }
         run(async alive => {
             closeButton.disabled = true;
-            const result = await verifyOtp(phone, inputs.otp.value.trim());
+            const result = await verifyOtp(phone, otpValue());
             if (alive()) acceptResult(result);
         }, "Đang kiểm tra mã OTP…");
     });
@@ -144,16 +182,17 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
         run(async alive => {
             const result = await requestOtp(phone);
             if (!alive()) return;
-            inputs.otp.value = "";
+            resetOtp();
             resendAt = Date.now() + result.retry_after * 1000;
-            status("Đã tạo mã mới. Lấy mã trong terminal Flask khi chạy thử local.");
-            notice('Đã tạo lại mã OTP.');
+            status("Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.");
+            notice('Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.');
         }, "Đang gửi lại mã OTP…");
     });
     $("change-phone").addEventListener("click", async () => {
-        inputs.otp.value = ""; status(); showStep("phone");
+        resetOtp(); status(); showStep("phone");
     });
     for (const [name, input] of Object.entries(inputs)) {
+        if (name === 'otp') continue;
         input.addEventListener("input", () => {
             input.removeAttribute("aria-invalid");
             $({ phone: "phone-error", otp: "otp-error", profile: "name-error" }[name]).textContent = "";
@@ -182,6 +221,7 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
     return function openAuth(source) {
         opener = source; generation += 1; status();
         Object.values(forms).forEach(form => form.reset());
+        resetOtp();
         dialog.querySelectorAll("[aria-invalid]").forEach(input => input.removeAttribute("aria-invalid"));
         ["phone-error", "otp-error", "name-error"].forEach(id => { $(id).textContent = ""; });
         background.forEach(element => { element.inert = true; });

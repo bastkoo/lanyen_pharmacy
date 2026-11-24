@@ -1,3 +1,4 @@
+import { notifyManager } from '../components/manager-state.js';
 import * as api from '../api/promotions.js';
 import { setupLiveSearch } from '../utils/live-search.js';
 import { getProducts, getProduct } from '../api/products.js';
@@ -28,7 +29,7 @@ export function setupPromotions({ root, onAccessError }) {
         if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; }
         return false;
     }
-    function feedback(text = '') { $('promotions-feedback').textContent = text; $('promotions-feedback').hidden = !text; }
+    function feedback(text = '') { if (text) notifyManager(text); $('promotions-feedback').textContent = ''; $('promotions-feedback').hidden = true; }
     function checkProgram(value) { if (!value || !Number.isInteger(value.MaChuongTrinh) || value.MaChuongTrinh < 1 || Object.keys(validatePromotion(value).errors).length) throw new ApiError('INVALID_RESPONSE'); }
     function checkItem(value, id) {
         if (!value || value.MaChuongTrinh !== id || !Number.isInteger(value.MaThuoc) || value.MaThuoc < 1 || !Number.isInteger(value.SoLuong) || value.SoLuong < 0 || value.SoLuong > 2147483647) throw new ApiError('INVALID_RESPONSE');

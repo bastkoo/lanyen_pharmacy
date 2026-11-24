@@ -80,6 +80,14 @@ class CartTests(unittest.TestCase):
         self.assertEqual(quota.SoLuong, 20)
         self.commit.assert_not_called()
 
+    def test_consultation_product_blocks_direct_cart_add_guest_and_customer(self):
+        self.details.return_value[(7, 8)][0].PhanLoai = True
+        self.assertEqual(self.add().json['code'], 'CONSULTATION_REQUIRED')
+        self.login_session()
+        offers = self.mock('app.repositories.chat_repository.customer_payloads', return_value=[])
+        self.assertEqual(self.add().json['code'], 'CONSULTATION_REQUIRED')
+        self.create.assert_not_called()
+
     def test_guest_add_repeat_read_reload_and_delete_without_database_writes(self):
         self.assertEqual(self.add().status_code, 200)
         self.assertEqual(self.add().status_code, 200)

@@ -34,6 +34,7 @@ class PublicProductSchema(Schema):
     NhaSanXuat = fields.String(dump_only=True)
     NuocSanXuat = fields.String(dump_only=True)
     KeDon = fields.Boolean(dump_only=True)
+    PhanLoai = fields.Boolean(dump_only=True)
 
 
 class PublicPromotionQuerySchema(Schema):

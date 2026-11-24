@@ -47,6 +47,8 @@ class OrderTests(unittest.TestCase):
         self.user = NS(MaNguoiDung=12, VaiTro=0, TrangThai=False, HoTen='An', SDT='0900000000')
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
         self.mock('app.services.order_service.carts.lock_user', return_value=self.user)
+        self.consultation_product = NS(PhanLoai=False)
+        self.mock('app.services.order_service.carts.catalog_details', return_value={(7, 8): (self.consultation_product, None)})
         self.records = self.mock('app.services.order_service.carts.list_items', return_value=[NS(MaDonGia=8)])
         self.quote = self.mock('app.services.order_service.get_cart', return_value={
             'total': 32000, 'items': [dict(MaThuoc=7, MaDonGia=8, SoLuong=3, GiaBan=10000,
@@ -76,6 +78,13 @@ class OrderTests(unittest.TestCase):
     def post(self, **changes):
         return self.client.post('/api/orders', json={**self.values, **changes},
                                 headers={'X-CSRF-Token': 'test-csrf'})
+
+    def test_checkout_cannot_bypass_required_consultation(self):
+        self.consultation_product.PhanLoai = True
+        self.mock('app.repositories.chat_repository.customer_payloads', return_value=[])
+        response = self.post()
+        self.assertEqual(response.json['code'], 'CONSULTATION_REQUIRED')
+        self.create.assert_not_called(); self.deduct.assert_not_called()
 
     def test_counter_cash_reuses_checkout_stock_redemption_and_promotion_transaction(self):
         quota = NS(SoLuong=50); self.promotion_detail.return_value = quota
@@ -286,6 +295,22 @@ class OrderTests(unittest.TestCase):
         self.points_debit.assert_called_once()
         self.records.assert_not_called()
         self.remove.assert_not_called()
+
+    def test_direct_chat_checkout_preserves_cart_for_cod_and_qr(self):
+        quote_offer = self.mock('app.services.chat_service.quote_offer', return_value=self.quote.return_value)
+        values = {key: value for key, value in self.values.items() if key != 'MaDonGia'}
+        for cart_quantity in (None, 99):
+            existing = NS(MaThuoc=7, MaDonGia=8, SoLuong=cart_quantity)
+            self.records.return_value = [] if cart_quantity is None else [existing]
+            for method in (0, 1):
+                response = self.client.post('/api/chat/offers/21/checkout', json={**values, 'PhuongThucThanhToan': method}, headers={'X-CSRF-Token': 'test-csrf'})
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual(self.create.call_args.args[1][0]['SoLuong'], 3)
+                self.assertEqual(existing.SoLuong, cart_quantity)
+        quote_offer.assert_called_with(self.user, 21, lock_promotions=True)
+        self.records.assert_not_called(); self.remove.assert_not_called(); self.quote.assert_not_called()
+        result = self.client.post('/api/chat/offers/21/checkout', json={**values, 'MaDonGia': [8]}, headers={'X-CSRF-Token': 'test-csrf'})
+        self.assertEqual(result.status_code, 400)
 
     def order(self, **changes):
         return NS(**{**dict(MaDonHang=45, MaNguoiMua=12, TongTien=36000, TienGiamGia=4000,
@@ -621,6 +646,16 @@ class OrderTests(unittest.TestCase):
         self.assertFalse(self.client.get('/api/orders/45/reorder').json['items'][0]['ConHang'])
         self.commit.assert_not_called()
         self.deduct.assert_not_called()
+
+    def test_reorder_rejects_entire_order_with_consultation_product(self):
+        detail, unit = self.reorder_fixture()
+        self.mock('app.services.order_service.orders.detail_items', return_value=[
+            (detail, NS(TenThuoc='Thuốc', HinhAnh=None, PhanLoai=True), unit)])
+        for status in (3, 4):
+            self.find.return_value.TrangThaiDonHang = status
+            self.assertEqual(self.client.get('/api/orders/45/reorder').json['code'], 'CONSULTATION_REQUIRED')
+            self.assertEqual(self.client.post('/api/orders/45/reorder', json={'MaChiTiet': [str(detail.MaChiTiet)]}, headers={'X-CSRF-Token': 'test-csrf'}).status_code, 409)
+        self.create.assert_not_called(); self.commit.assert_not_called()
 
     def test_direct_reorder_quote_and_checkout_leave_existing_cart_untouched(self):
         detail, _ = self.reorder_fixture()

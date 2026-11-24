@@ -1,3 +1,4 @@
+import { notifyManager } from '../components/manager-state.js';
 import { getAccounts } from '../api/accounts.js';
 import { setupLiveSearch } from '../utils/live-search.js';
 import { accountId } from '../utils/json-integers.js';
@@ -9,7 +10,7 @@ export function setupAccounts({ root, getActorId, onAccessError, onSelfUpdated }
     const $ = id => document.getElementById(id);
     let active = false, page = 1, filters = { search: '', role: '', status: '' }, listVersion = 0, statsVersion = 0, listController, statsController;
     const cancelSearch = setupLiveSearch({ input: $('accounts-search'), form: $('accounts-filters'), isActive: () => active, filters: [$('accounts-role'), $('accounts-status')] });
-    const dialog = setupAccountDialog({ isActive: () => active, getActorId, onAccessError, onSelfUpdated, onSaved: text => { $('accounts-feedback').textContent = text; $('accounts-feedback').hidden = false; loadList(); loadStats(); } });
+    const dialog = setupAccountDialog({ isActive: () => active, getActorId, onAccessError, onSelfUpdated, onSaved: text => { notifyManager(text); loadList(); loadStats(); } });
     function access(error) { if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; } return false; }
     function state(text, type = 'empty') {
         $('accounts-state-text').textContent = text; $('accounts-state').hidden = type === 'ready'; $('accounts-scroll').hidden = type !== 'ready'; $('accounts-retry').hidden = type !== 'error'; $('accounts-skeleton').hidden = type !== 'loading'; $('accounts-list').setAttribute('aria-busy', String(type === 'loading'));

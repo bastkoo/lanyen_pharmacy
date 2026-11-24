@@ -2,6 +2,9 @@ import { getSession, logoutSession } from "../api/auth.js";
 import { setupAuthDialog, authMessage } from "../components/auth-dialog.js";
 import { notify } from '../components/customer-notice.js';
 import { setupCustomerAccount } from '../components/customer-account.js';
+import { setupCustomerChat } from '../components/customer-chat.js';
+
+setupCustomerChat();
 
 const $ = id => document.getElementById(id);
 const feedback = message => { if ($('page-status')) $('page-status').textContent = message; return message; };

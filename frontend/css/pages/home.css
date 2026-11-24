@@ -256,6 +256,8 @@
 .catalog-unit-option input:checked + span { border-color: var(--primary-dark); color: var(--primary-dark); background: var(--primary-light); font-weight: 700; }
 .catalog-unit-option input:focus-visible + span { outline: 2px solid var(--primary-dark); outline-offset: 3px; }
 .catalog-buy { width: 100%; }
+.catalog-buy.catalog-consult:not(:disabled) { background: color-mix(in srgb, var(--info-color) 14%, var(--surface-color)); color: var(--text-color); border-color: var(--info-color); }
+.catalog-buy.catalog-consult:hover:not(:disabled) { background: color-mix(in srgb, var(--info-color) 24%, var(--surface-color)); }
 .catalog-buy:disabled { background: var(--background-color); color: var(--home-muted); border-color: var(--home-line); cursor: not-allowed; }
 .catalog-purchase > .catalog-price { display: flex; align-items: flex-end; min-height: 3.2em; line-height: 1.6; margin: 12px 0; }
 .catalog-purchase-status { font-size: .875rem; margin: 0 0 12px; overflow-wrap: anywhere; }

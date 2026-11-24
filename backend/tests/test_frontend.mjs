@@ -10,6 +10,88 @@ const api = await import('../../frontend/js/api/auth.js');
 const reply = (code, status = 200, extra = {}) => ({ ok: status < 400, status,
     text: async () => JSON.stringify({ code, ...extra }) });
 
+test('login dialog keeps OTP cooldown and routes authenticated staff by role only after verification', async () => {
+    const previous = { document: globalThis.document, window: globalThis.window, fetch: globalThis.fetch, setInterval: globalThis.setInterval, now: Date.now };
+    try {
+        const { setupAuthDialog } = await import('../../frontend/js/components/auth-dialog.js');
+        for (const role of [0, 1, 2]) {
+            const elements = new Map(), redirects = [], authenticated = [];
+            let tick, focused, submittedOtp, now = 100000;
+            Date.now = () => now;
+            globalThis.setInterval = handler => { tick = handler; return 0; };
+            const byId = id => {
+                if (!elements.has(id)) elements.set(id, {
+                    value: '', dataset: {}, attributes: {}, listeners: {}, open: false,
+                    addEventListener(type, handler) { this.listeners[type] = handler; },
+                    setAttribute(key, value) { this.attributes[key] = value; },
+                    removeAttribute(key) { delete this.attributes[key]; },
+                    querySelectorAll() { return []; }, reset() {}, focus() { focused = id; }, select() {},
+                    show() { this.open = true; }, close() { this.open = false; }
+                });
+                return elements.get(id);
+            };
+            globalThis.document = { getElementById: byId, querySelectorAll: () => [], addEventListener() {}, body: { classList: { add() {}, remove() {} } } };
+            globalThis.window = { addEventListener() {}, location: { assign: url => redirects.push(url) } };
+            let requests = 0;
+            globalThis.fetch = async (url, options) => {
+                if (url.endsWith('/me')) return reply('UNAUTHENTICATED', 401, { csrf_token: 'csrf' });
+                if (url.endsWith('/otp/request')) { requests++; return reply('OTP_SENT', 200, { retry_after: 60 }); }
+                if (url.endsWith('/otp/verify')) { submittedOtp = JSON.parse(options.body).otp; return reply('AUTHENTICATED', 200, { user: { VaiTro: role } }); }
+                assert.fail(url);
+            };
+            const open = setupAuthDialog(user => authenticated.push(user));
+            open();
+            assert.equal(byId('auth-progress').hidden, true);
+            byId('phone').value = '0901234567';
+            const submit = async id => {
+                byId(id).listeners.submit({ preventDefault() {} });
+                for (let attempt = 0; attempt < 30 && byId('auth-dialog').attributes['aria-busy'] === 'true'; attempt++) await new Promise(resolve => setImmediate(resolve));
+                assert.equal(byId('auth-dialog').attributes['aria-busy'], 'false');
+            };
+            await submit('phone-form');
+            assert.equal(byId('auth-progress').hidden, true);
+            assert.equal(byId('auth-status').textContent, 'Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.');
+            assert.equal(byId('resend-otp').disabled, true);
+            assert.equal(byId('resend-otp').textContent, 'Gửi lại sau 60s');
+            byId('resend-otp').listeners.click();
+            assert.equal(requests, 1);
+            assert.deepEqual(redirects, []);
+            now += 60000; tick();
+            assert.equal(byId('resend-otp').disabled, false);
+            assert.equal(byId('resend-otp').textContent, 'Gửi lại mã');
+            byId('change-phone').listeners.click();
+            assert.equal(byId('phone-form').hidden, false);
+            assert.equal(byId('auth-progress').hidden, true);
+            await submit('phone-form');
+            byId('otp').value = '1'; byId('otp').listeners.input();
+            assert.equal(focused, 'otp-2');
+            byId('otp-2').value = 'a'; byId('otp-2').listeners.input();
+            assert.equal(byId('otp-2').value, '');
+            byId('otp-2').listeners.keydown({ key: 'Backspace', preventDefault() {} });
+            assert.equal(focused, 'otp');
+            byId('otp').listeners.paste({ preventDefault() {}, clipboardData: { getData: () => '12 34 56' } });
+            assert.deepEqual(['otp', 'otp-2', 'otp-3', 'otp-4', 'otp-5', 'otp-6'].map(id => byId(id).value), ['1', '2', '3', '4', '5', '6']);
+            assert.equal(focused, 'otp-6');
+            await submit('otp-form');
+            assert.equal(submittedOtp, '123456');
+            assert.equal(byId('auth-dialog').open, false);
+            if (role === 0) {
+                assert.deepEqual(redirects, []);
+                assert.deepEqual(authenticated, [{ VaiTro: 0 }]);
+            } else {
+                assert.equal(redirects.length, 1);
+                assert.ok(redirects[0].endsWith(role === 1 ? '/pages/employee/index.html#orders' : '/pages/manager/index.html#overview'));
+                assert.deepEqual(authenticated, []);
+            }
+        }
+    } finally {
+        Date.now = previous.now;
+        globalThis.fetch = async () => reply('LOGGED_OUT');
+        await api.logoutSession();
+        Object.assign(globalThis, { document: previous.document, window: previous.window, fetch: previous.fetch, setInterval: previous.setInterval });
+    }
+});
+
 test('phone validation accepts local/international and rejects malformed input', () => {
     assert.equal(validation.normalizePhone(' 090 123 4567 '), '+84901234567');
     assert.equal(validation.normalizePhone('+84 901-234-567'), '+84901234567');

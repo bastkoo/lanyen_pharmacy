@@ -152,7 +152,7 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
                 $(target).replaceChildren();
                 for (const order of items) {
                     const row = node('button', undefined, 'counter-history-row'); row.type = 'button'; row.dataset.counterOrder = order.MaDonHang;
-                    row.append(node('strong', `#${order.MaDonHang}`), node('span', `${order.KhachHang?.HoTen || ''} · ${order.KhachHang?.SDT || ''}`), node('time', dateText(order.NgayDat)), node('strong', money(order.TongThanhToan)), node('span', order.TrangThaiThanhToan === 1 ? 'Đã thanh toán' : 'Chờ thanh toán QR'));
+                    row.append(node('span', `#${order.MaDonHang}`, 'quiet-link'), node('span', `${order.KhachHang?.HoTen || ''} · ${order.KhachHang?.SDT || ''}`, 'counter-history-customer'), node('time', dateText(order.NgayDat)), node('strong', money(order.TongThanhToan)), node('span', order.TrangThaiThanhToan === 1 ? 'Đã thanh toán' : 'Chờ thanh toán QR'));
                     row.addEventListener('click', () => openBill(order.MaDonHang)); $(target).append(row);
                 }
                 if (!items.length && target === 'counter-history') $(target).append(node('p', 'Không có đơn hoàn tất phù hợp.', 'field-help'));

@@ -61,6 +61,8 @@ def create_app(test_config=None):
 
     from app.routes.employee_order_routes import employee_order_bp
     app.register_blueprint(employee_order_bp)
+    from app.routes.chat_routes import chat_bp
+    app.register_blueprint(chat_bp)
     from app.services.order_expiry_service import register_cli, start_worker
     register_cli(app)
 

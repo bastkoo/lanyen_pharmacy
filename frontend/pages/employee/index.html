@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="../../css/pages/home.css">
     <link rel="stylesheet" href="../../css/components/auth.css">
     <link rel="stylesheet" href="../../css/pages/employee-home.css">
+    <link rel="stylesheet" href="../../css/components/chat.css">
     <script type="module" src="../../js/pages/employee-home.js"></script>
 </head>
 <body class="employee-app">
@@ -39,14 +40,14 @@
         </section>
         <div id="employee-workspace" hidden>
             <nav id="employee-navigation" class="employee-navigation" aria-label="Công việc nhân viên">
-                <a href="#messages" data-employee-view="messages" aria-current="page"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 3V11.5A8.5 8.5 0 0 1 9.5 3h3a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h8m-8 4h5"/></svg>Nhắn tin</a>
+                <a href="#messages" data-employee-view="messages" aria-current="page"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-3 3V11.5A8.5 8.5 0 0 1 9.5 3h3a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M7 10h8m-8 4h5"/></svg>Nhắn tin <span class="employee-pending-count" data-employee-chat-count aria-live="polite" aria-atomic="true" hidden></span></a>
                 <a href="#orders" data-employee-view="orders"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg>Xử lý đơn hàng <span class="employee-pending-count" data-employee-pending-count hidden></span></a>
                 <a href="#counter" data-employee-view="counter"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg>Tạo đơn hàng</a>
                 <a href="#returns" data-employee-view="returns"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5H5v4m0-4 5 5M5 5a9 9 0 1 1-2 10"/><path d="M10 14h5m-5 4h3"/></svg>Đổi trả</a>
             </nav>
             <p class="employee-preview-note"><span>Giao diện đang chuẩn bị</span> Các khu vực bên dưới chưa kết nối dữ liệu và thao tác nghiệp vụ.</p>
             <section id="employee-messages" class="employee-view" aria-labelledby="employee-messages-title">
-                <div class="employee-section-heading"><div><h1 id="employee-messages-title" tabindex="-1">Nhắn tin</h1><p>Không gian trao đổi với khách hàng.</p></div></div>
+                <h1 id="employee-messages-title" class="sr-only" tabindex="-1">Nhắn tin</h1>
                 <div class="employee-message-layout employee-surface">
                     <aside class="employee-conversations" aria-label="Danh sách hội thoại"><h3>Hội thoại</h3><label class="sr-only" for="employee-message-search">Tìm hội thoại</label><input id="employee-message-search" type="search" placeholder="Tìm tên hoặc số điện thoại" disabled aria-describedby="employee-data-note"><div class="employee-list-empty"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#circle-dashed"></use></svg><p>Danh sách hội thoại sẽ hiển thị tại đây khi được kết nối.</p></div></aside>
                     <div class="employee-conversation"><div class="employee-conversation-heading"><h3>Nội dung trao đổi</h3><span>Chưa chọn hội thoại</span></div><div class="employee-empty"><span class="employee-empty-mark"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4Z"/><path d="M7 8h10M7 12h6"/></svg></span><h3>Mỗi cuộc trò chuyện, một sự hỗ trợ</h3><p>Chọn hội thoại để xem nội dung và trả lời khách hàng sau khi chức năng nhắn tin được hoàn thiện.</p></div><div class="employee-composer"><label class="sr-only" for="employee-message-input">Nội dung tin nhắn</label><textarea id="employee-message-input" rows="2" placeholder="Nội dung trả lời khách hàng…" disabled aria-describedby="employee-data-note"></textarea><button class="button button-primary" type="button" disabled>Gửi tin nhắn</button></div></div>
@@ -94,8 +95,11 @@
                 <div id="counter-history" class="counter-history-list"></div><nav class="employee-order-pagination" aria-label="Phân trang đơn hoàn tất"><button id="counter-history-prev" type="button" class="quiet-link">Trang trước</button><span id="counter-history-page"></span><button id="counter-history-next" type="button" class="quiet-link">Trang sau</button></nav>
             </section>
             <section id="employee-returns" class="employee-view" aria-labelledby="employee-returns-title" hidden>
-                <div class="employee-section-heading"><div><h1 id="employee-returns-title" tabindex="-1">Đổi trả</h1><p>Khu vực tiếp nhận và xem thông tin yêu cầu đổi trả.</p></div></div>
-                <div class="employee-returns-layout employee-surface"><aside class="employee-return-list"><h3>Yêu cầu đổi trả</h3><label class="sr-only" for="employee-return-search">Tìm yêu cầu đổi trả</label><input id="employee-return-search" type="search" placeholder="Tìm yêu cầu hoặc mã đơn" disabled aria-describedby="employee-data-note"><div class="employee-list-empty"><svg class="icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#circle-dashed"></use></svg><p>Danh sách yêu cầu sẽ xuất hiện khi chức năng được kết nối.</p></div></aside><div class="employee-return-detail"><div class="employee-empty"><span class="employee-empty-mark"><svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 5H5v4m0-4 5 5M5 5a9 9 0 1 1-2 10"/><path d="M10 14h5m-5 4h3"/></svg></span><h3>Xem rõ từng yêu cầu đổi trả</h3><p>Chọn một yêu cầu để xem đơn hàng liên quan, sản phẩm và nội dung từ khách hàng. Phần xử lý sẽ được bổ sung sau.</p></div><div class="employee-return-preview"><span>Đơn hàng liên quan</span><span>Sản phẩm đổi trả</span><span>Nội dung yêu cầu</span></div></div></div>
+                <div class="employee-section-heading"><div><h1 id="employee-returns-title" tabindex="-1">Đổi trả</h1><p>Chọn đơn đã hoàn thành để trả sản phẩm. Đơn đã trả có thể tiếp tục trả số lượng còn lại.</p></div></div>
+                <form id="return-search-form" class="employee-order-tools" role="search"><label class="sr-only" for="employee-return-search">Tìm theo mã đơn hoặc số điện thoại khách hàng</label><input id="employee-return-search" type="search" maxlength="40" placeholder="Mã đơn hàng hoặc SĐT khách hàng" autocomplete="off"><button id="return-refresh" type="button" class="quiet-link">Làm mới</button></form>
+                <p id="return-state" role="status"></p>
+                <div id="return-orders" class="employee-surface employee-order-list" aria-busy="false"><div class="employee-table-scroll"><table><caption class="sr-only">Đơn hoàn thành và đơn đã trả</caption><thead><tr><th scope="col">Đơn hàng</th><th scope="col">Khách hàng / SĐT</th><th scope="col">Đã thanh toán</th><th scope="col">Trạng thái</th></tr></thead><tbody id="return-rows"></tbody></table></div><nav class="employee-order-pagination" aria-label="Phân trang đơn đổi trả"><button id="return-prev" type="button" class="quiet-link">Trang trước</button><span id="return-page"></span><button id="return-next" type="button" class="quiet-link">Trang sau</button></nav></div>
+                <dialog id="return-detail" class="employee-modal" aria-labelledby="return-title" hidden><header class="employee-modal-heading"><h2 id="return-title" tabindex="-1">Trả hàng</h2><button id="return-close" type="button" class="employee-modal-close" aria-label="Đóng trả hàng">×</button></header><p id="return-detail-state" role="status"></p><div id="return-content"></div><section id="return-confirm" class="employee-return-confirm" aria-labelledby="return-confirm-title" hidden><h3 id="return-confirm-title">Xác nhận trả hàng</h3><p id="return-confirm-description"></p><div class="order-cancel-actions"><button id="return-confirm-back" type="button" class="button button-outline">Quay lại</button><button id="return-confirm-submit" type="button" class="button button-primary">Xác nhận trả</button></div></section></dialog>
             </section>
             <p id="employee-data-note" class="sr-only">Giao diện xem trước. Chức năng này chưa kết nối dữ liệu và hiện chưa thể sử dụng.</p>
         </div>
@@ -108,22 +112,27 @@
     <div id="auth-backdrop" hidden aria-hidden="true"></div>
     <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
         <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
-        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <p id="auth-progress" class="auth-progress" hidden></p>
         <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
         <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
         <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
         <form id="phone-form" novalidate>
             <label for="phone">Số điện thoại</label>
-            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
-            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-error">
             <p id="phone-error" class="field-error" aria-live="polite"></p>
             <button type="submit" class="button button-primary">Gửi mã OTP</button>
-            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
         </form>
         <form id="otp-form" hidden novalidate>
             <label for="otp">Mã OTP gồm 6 chữ số</label>
-            <input id="otp" name="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required spellcheck="false" aria-describedby="otp-help otp-error">
-            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã vào ô này.</p>
+            <div class="otp-digits" role="group" aria-label="Mã OTP gồm 6 chữ số">
+            <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required spellcheck="false" aria-label="Chữ số 1" aria-describedby="otp-help otp-error">
+            <input id="otp-2" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 2" aria-describedby="otp-help otp-error">
+            <input id="otp-3" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 3" aria-describedby="otp-help otp-error">
+            <input id="otp-4" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 4" aria-describedby="otp-help otp-error">
+            <input id="otp-5" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 5" aria-describedby="otp-help otp-error">
+            <input id="otp-6" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 6" aria-describedby="otp-help otp-error">
+        </div>
+            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã gồm 6 chữ số.</p>
             <p id="otp-error" class="field-error" aria-live="polite"></p>
             <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
             <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>
