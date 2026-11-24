@@ -18,7 +18,7 @@ def access(actor, thread_id, lock=False, writing=False):
     if not 0 < thread_id <= 9223372036854775807:
         raise AuthError('CHAT_NOT_FOUND', 404)
     thread = chats.thread(thread_id, lock=lock)
-    if thread is None:
+    if thread is None or getattr(thread, 'LoaiHoiThoai', 'DUOC_SI') != 'DUOC_SI':
         raise AuthError('CHAT_NOT_FOUND', 404)
     visible = (actor.VaiTro == 0 and thread.NguoiGui == actor.MaNguoiDung) or (
         actor.VaiTro == 1 and ((thread.TrangThai == 0 and thread.MaNhanVien is None)
@@ -172,7 +172,8 @@ def send(actor, values, thread_id=None):
     if thread is None:
         thread = chats.active_customer(actor.MaNguoiDung) or chats.create_thread(actor.MaNguoiDung)
     message = chats.add(thread.MaTinNhan, actor.MaNguoiDung,
-        PREFIX + json.dumps(payload, ensure_ascii=False, separators=(',', ':')), vietnam_now())
+        PREFIX + json.dumps(payload, ensure_ascii=False, separators=(',', ':')), vietnam_now(),
+        sender_type='DUOC_SI' if actor.VaiTro == 1 else 'KHACH_HANG')
     result = serialize(message, actor.VaiTro)
     db.session.commit()
     return result

@@ -34,7 +34,11 @@ def respond(callback, schema=None, query=False):
 
 
 def ai_answer():
-    return respond(lambda values: ai_chat_service.answer(g.current_user, values['text']), AiChatSchema)
+    return respond(lambda values: ai_chat_service.answer(g.current_user, **values), AiChatSchema)
+
+
+def ai_history():
+    return respond(lambda values: ai_chat_service.history(g.current_user, **values), ChatQuerySchema, query=True)
 
 
 def history(thread_id=None):

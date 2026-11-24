@@ -95,7 +95,7 @@ export function setupCustomerChat() {
     aiButton.setAttribute('aria-pressed', String(value));
     pharmacistButton.setAttribute('aria-pressed', String(!value));
     title.textContent = value ? 'Trợ lý AI Lan Yến' : 'Tư vấn cùng dược sĩ';
-    if (!value) load();
+    if (value) ai.load(); else load();
   }
   ai.element.hidden = true;
   aiButton.setAttribute('aria-pressed', 'false'); pharmacistButton.setAttribute('aria-pressed', 'true');
@@ -250,6 +250,7 @@ export function setupCustomerChat() {
       if (!user) document.getElementById("login-button")?.click();
     } else {
       load();
+      if (aiMode) ai.load();
       sendProduct();
     }
     close.focus();
@@ -291,7 +292,6 @@ export function setupCustomerChat() {
     panel.hidden ? open() : close.click(),
   );
   close.addEventListener("click", () => {
-    ai.clear();
     panel.hidden = true;
     trigger.setAttribute("aria-expanded", "false");
     trigger.focus();

@@ -40,6 +40,7 @@ class ChatReadSchema(Schema):
 
 
 class AiChatSchema(Schema):
+    request_id = fields.UUID(load_default=None, allow_none=True)
     text = fields.String(required=True, validate=validate.Length(min=1, max=2000))
 
     @validates_schema

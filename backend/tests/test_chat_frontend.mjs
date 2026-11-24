@@ -7,7 +7,8 @@ class Element {
     replaceChildren(...children) { this.children = []; this.append(...children); }
     setAttribute(key, value) { this.attributes[key] = value; }
     addEventListener(type, handler) { (this.listeners[type] ||= []).push(handler); }
-    async fire(type) { for (const handler of this.listeners[type] || []) await handler({ preventDefault() {}, target: this }); }
+    async fire(type, details = {}) { for (const handler of this.listeners[type] || []) await handler({ preventDefault() {}, target: this, ...details }); }
+    requestSubmit() { return this.fire('submit'); }
     click() { return this.fire('click'); }
     focus() { document.activeElement = this; }
     showModal() { this.open = true; }
@@ -28,23 +29,29 @@ function environment() {
 }
 const reply = (value, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(value) });
 const settle = () => new Promise(resolve => setImmediate(resolve));
+const aiReply = (text, products = [], question = 'Hỏi về thuốc') => ({ text, products, messages: [
+    { id: '1', role: 'KHACH_HANG', text: question, products: [], at: '2026-11-24T10:00:00+07:00' },
+    { id: '2', role: 'AI', text, products, at: '2026-11-24T10:00:01+07:00' },
+] });
 
-test('AI renders catalog cards safely, hands restricted products to pharmacist and never posts history', async () => {
+test('AI renders styled catalog cards safely, hands restricted products to pharmacist and posts a stable request ID', async () => {
     const env = environment();
     try {
         const calls = [], consultations = [];
         globalThis.fetch = async (url, options) => {
             if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' });
             calls.push([url, JSON.parse(options.body)]);
-            return reply({ text: '<script>plain text</script>', products: [{ MaThuoc: 7, TenThuoc: '<b>Thuốc</b>', PhanLoai: true,
-                HinhAnh: 'javascript:alert(1)', DonViGia: [{ MaDonGia: 3, GiaBan: 10000, DonViTinh: 'Hộp', ConHang: true }] }] });
+            return reply(aiReply('<script>plain text</script>', [{ MaThuoc: 7, TenThuoc: '<b>Thuốc</b>', PhanLoai: true,
+                HinhAnh: 'javascript:alert(1)', DonViGia: [{ MaDonGia: 3, GiaBan: 10000, DonViTinh: 'Hộp', ConHang: true }] }]));
         };
         const { createAiChat } = await import('../../frontend/js/components/ai-chat.js');
         const ai = createAiChat({ getOwner: () => '12', onConsult: product => consultations.push(product), onError: assert.fail });
         ai.setEnabled(true);
         const form = ai.element.querySelectorAll('form')[0], input = ai.element.querySelectorAll('textarea')[0];
         input.value = 'Hỏi về thuốc'; await form.fire('submit');
-        assert.deepEqual(calls.map(([, body]) => body), [{ text: 'Hỏi về thuốc' }]);
+        assert.equal(calls[0][1].text, 'Hỏi về thuốc');
+        assert.match(calls[0][1].request_id, /^[a-f0-9-]{36}$/);
+        assert.deepEqual(Object.keys(calls[0][1]).sort(), ['request_id', 'text']);
         assert.ok(calls[0][0].endsWith('/chat/ai'));
         assert.equal(ai.element.querySelectorAll('img').length, 0);
         assert.ok(ai.element.querySelectorAll('p').some(p => p.textContent === '<script>plain text</script>'));
@@ -68,13 +75,13 @@ test('clearing AI during an in-flight request prevents a late response from rest
     } finally { env.restore(); }
 });
 
-test('widget switches modes and closing clears only the temporary AI messages', async () => {
+test('widget keeps saved AI messages when closed and clears private memory on logout', async () => {
     const env = environment();
     try {
         globalThis.fetch = async url => {
             if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' });
             if (url.endsWith('/unread')) return reply({ count: 0 });
-            if (url.endsWith('/ai')) return reply({ text: 'Xin chào', products: [] });
+            if (url.endsWith('/ai')) return reply(aiReply('Xin chào'));
             return reply({ items: [], has_more: false });
         };
         const { setupCustomerChat } = await import('../../frontend/js/components/customer-chat.js'); setupCustomerChat();
@@ -87,8 +94,37 @@ test('widget switches modes and closing clears only the temporary AI messages', 
         ai.querySelectorAll('textarea')[0].value = 'Xin chào'; await ai.querySelectorAll('form')[0].fire('submit');
         assert.equal(ai.querySelectorAll('article').length, 2);
         await buttons.find(b => b.attributes['aria-label'] === 'Đóng trò chuyện').click();
-        assert.equal(ai.querySelectorAll('article').length, 0);
+        assert.equal(ai.querySelectorAll('article').length, 2);
         assert.equal(panel.hidden, true);
+        env.emit('auth-changed', { user: null });
+        assert.equal(ai.querySelectorAll('article').length, 0);
+    } finally { env.restore(); }
+});
+
+test('AI reloads stored history, sends with Enter and keeps the same request after a failed send', async () => {
+    const env = environment();
+    try {
+        const stored = aiReply('Câu trả lời đã lưu'), calls = []; let fail = true;
+        globalThis.fetch = async (url, options) => {
+            if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' });
+            if (url.endsWith('/ai/messages')) return reply({ items: stored.messages, has_more: false });
+            calls.push(JSON.parse(options.body));
+            if (fail) { fail = false; throw Error('Lost response'); }
+            return reply(stored);
+        };
+        const { createAiChat } = await import('../../frontend/js/components/ai-chat.js');
+        const ai = createAiChat({ getOwner: () => '12', onConsult() {}, onError: assert.fail });
+        ai.setEnabled(true); await ai.load();
+        assert.equal(ai.element.querySelectorAll('article').length, 2);
+        assert.ok(ai.element.querySelectorAll('p').some(p => p.textContent === 'Câu trả lời đã lưu'));
+        assert.equal(ai.element.querySelectorAll('button').some(b => b.textContent === 'Chat với dược sĩ'), false);
+        const input = ai.element.querySelectorAll('textarea')[0]; input.value = 'Hỏi tiếp';
+        await input.fire('keydown', { key: 'Enter', shiftKey: true }); assert.equal(calls.length, 0);
+        await input.fire('keydown', { key: 'Enter', isComposing: true }); assert.equal(calls.length, 0);
+        await input.fire('keydown', { key: 'Enter' }); await settle();
+        await ai.element.querySelectorAll('form')[0].fire('submit');
+        assert.deepEqual(calls[0], calls[1]);
+        assert.equal(ai.element.querySelectorAll('article').length, 2);
     } finally { env.restore(); }
 });
 

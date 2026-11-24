@@ -13,10 +13,18 @@ const fixture = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><met
 <body><main><h1>Kiểm thử chatbot</h1></main><script type="module">
 import {setupCustomerChat} from '/js/components/customer-chat.js';
 const nativeFetch=window.fetch;
+let saved=[];
 window.fetch=async (url,options)=>{
  if(!String(url).includes('/api/')) return nativeFetch(url,options);
- const data=String(url).endsWith('/auth/me')?{user:{MaNguoiDung:'12',VaiTro:0},csrf_token:'csrf'}:
- String(url).endsWith('/unread')?{count:0}:String(url).endsWith('/ai')?{text:'Liên hệ với dược sĩ để được tư vấn.',products:[{MaThuoc:7,TenThuoc:'Sản phẩm kiểm thử',PhanLoai:true,HinhAnh:'',DonViGia:[{MaDonGia:3,GiaBan:10000,DonViTinh:'Hộp',ConHang:true}]}]}:{items:[],has_more:false};
+ let data;
+ if(String(url).endsWith('/auth/me')) data={user:{MaNguoiDung:'12',VaiTro:0},csrf_token:'csrf'};
+ else if(String(url).endsWith('/unread')) data={count:0};
+ else if(String(url).endsWith('/ai/messages')) data={items:saved,has_more:false};
+ else if(String(url).endsWith('/ai')) {
+  const products=[{MaThuoc:7,TenThuoc:'Sản phẩm kiểm thử',PhanLoai:true,HinhAnh:'',DonViGia:[{MaDonGia:3,GiaBan:10000,DonViTinh:'Hộp',ConHang:true}]}];
+  saved=[{id:'1',role:'KHACH_HANG',text:JSON.parse(options.body).text,products:[],at:'2026-11-24T10:00:00+07:00'},{id:'2',role:'AI',text:'Liên hệ với dược sĩ để được tư vấn.',products,at:'2026-11-24T10:00:01+07:00'}];
+  data={text:saved[1].text,products,messages:saved};
+ } else data={items:[],has_more:false};
  return new Response(JSON.stringify(data),{status:200});
 };
 setupCustomerChat();window.dispatchEvent(new CustomEvent('auth-changed',{detail:{user:{MaNguoiDung:'12',VaiTro:0}}}));
@@ -73,7 +81,7 @@ try {
     await wait(`document.getElementById('customer-chat-button')`);
     await evaluate(`document.getElementById('customer-chat-button').click();document.querySelector('.chat-modes button').click()`);
     await evaluate(`document.getElementById('chat-ai-input').value='Hỏi thuốc';document.querySelector('.chat-ai form').requestSubmit()`);
-    await wait(`document.querySelector('.chat-ai .chat-product')`);
+    await wait(`document.querySelector('.chat-ai .ai-product-card')`);
     for (const [width, height] of [[1440, 900], [375, 667], [320, 568], [844, 390]]) {
         await command('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
         await evaluate('new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))');
@@ -84,10 +92,14 @@ try {
         const screenshot = await command('Page.captureScreenshot', { format: 'png' });
         await writeFile(path.join(artifacts, width + 'x' + height + '.png'), Buffer.from(screenshot.data, 'base64'));
     }
-    await evaluate(`document.querySelector('.chat-ai .chat-product button').click()`);
+    assert.equal(await evaluate(`getComputedStyle(document.querySelector('.ai-product-action[href]')).textDecorationLine`), 'none');
+    assert.equal(await evaluate(`document.querySelector('.ai-send svg')!==null`), true);
+    await evaluate(`document.querySelector('.chat-ai .ai-product-card button').click()`);
     assert.equal(await evaluate(`document.querySelectorAll('.chat-modes button')[1].getAttribute('aria-pressed')`), 'true');
     await evaluate(`document.querySelector('.chat-close').click()`);
-    assert.equal(await evaluate(`document.querySelectorAll('.chat-ai article').length`), 0);
+    assert.equal(await evaluate(`document.querySelectorAll('.chat-ai article').length`), 2);
+    await evaluate(`document.getElementById('customer-chat-button').click();document.querySelector('.chat-modes button').click()`);
+    await wait(`document.querySelectorAll('.chat-ai article').length===2`);
     assert.deepEqual(errors, []);
     console.log('AI browser QA passed: modes, product card, pharmacist handoff, clearing, 4 viewports. Screenshots: ' + artifacts);
 } finally {

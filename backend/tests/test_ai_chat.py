@@ -28,12 +28,19 @@ class AiChatTests(unittest.TestCase):
         self.limit = self.mock('app.services.ai_chat_service.rate_limit')
         self.search = self.mock('app.services.ai_chat_service.products.search_ai_context', return_value=[NS(MaThuoc=7)])
         self.card = dict(MaThuoc=7, TenThuoc='Vitamin', PhanLoai=False, KeDon=False,
-            MoTa='Mô tả thực tế', CachDung='Thông tin sử dụng', DonViGia=[], HinhAnh='')
-        self.mock('app.services.ai_chat_service.get_public_product', side_effect=lambda _: dict(self.card))
+            MoTa='Mô tả thực tế', CachDung='Thông tin sử dụng', DonViGia=[dict(MaDonGia=3, GiaBan=10000, DonViTinh='Hộp', ConHang=True)], HinhAnh='')
+        self.detail = self.mock('app.services.ai_chat_service.get_public_product', side_effect=lambda _: dict(self.card))
         self.mock('app.services.ai_chat_service.list_programs', return_value={'items': [], 'as_of': '2026-11-24'})
         self.rollback = self.mock('app.extensions.db.session.rollback')
         self.commit = self.mock('app.extensions.db.session.commit')
-        self.persist = self.mock('app.repositories.chat_repository.add')
+        self.rows = []
+        self.history = self.mock('app.repositories.ai_chat_repository.messages', side_effect=lambda uid, before=None, limit=50:
+            [m for m in self.rows if before is None or m.MaNoiDung < before][-limit:])
+        self.exchange = self.mock('app.repositories.ai_chat_repository.exchange', side_effect=lambda uid, rid:
+            [m for m in self.rows if service.payload(m)['request_id'] == rid])
+        self.lock = self.mock('app.repositories.ai_chat_repository.lock_customer', side_effect=lambda _: self.actor)
+        self.thread = self.mock('app.repositories.ai_chat_repository.conversation', return_value=NS(MaTinNhan=9))
+        self.persist = self.mock('app.repositories.ai_chat_repository.add', side_effect=self.add)
         self.completion = self.mock('app.services.ai_chat_service.completion', side_effect=[
             {'terms': ['Vitamin']}, {'text': 'Thông tin từ danh mục.', 'product_ids': [7, 999]}])
         self.client = self.app.test_client()
@@ -44,15 +51,74 @@ class AiChatTests(unittest.TestCase):
         return self.client.post('/api/chat/ai', json=body if body is not None else {'text': 'Vitamin'},
             headers={'X-CSRF-Token': csrf})
 
-    def test_catalog_cards_are_server_owned_and_history_is_never_written(self):
+    def add(self, thread_id, user_id, role, body, at):
+        message = NS(MaNoiDung=len(self.rows)+1, MaTinNhan=thread_id, NguoiGui=user_id,
+            LoaiNguoiGui=role, NoiDung=service.chats.PREFIX + body, ThoiGianGui=at)
+        self.rows.append(message)
+        return message
+
+    def test_catalog_cards_and_both_messages_are_saved_in_existing_tables(self):
         result = self.post()
         self.assertEqual(result.status_code, 200)
         self.assertEqual([p['MaThuoc'] for p in result.json['products']], [7])
         self.assertEqual(result.headers['Cache-Control'], 'no-store')
-        self.persist.assert_not_called()
-        self.commit.assert_not_called()
+        self.assertEqual(self.persist.call_count, 2)
+        self.assertEqual([m.LoaiNguoiGui for m in self.rows], ['KHACH_HANG', 'AI'])
+        self.assertEqual([m.NguoiGui for m in self.rows], [12, None])
+        self.assertEqual([m['role'] for m in result.json['messages']], ['KHACH_HANG', 'AI'])
+        self.commit.assert_called_once()
         self.rollback.assert_called()
         self.limit.assert_called_once_with('ai-chat', '12', 10, seconds=60)
+
+    def test_retry_after_lost_response_does_not_duplicate_messages_or_call_groq(self):
+        body = {'text': 'Vitamin', 'request_id': '00000000-0000-4000-8000-000000000001'}
+        first = self.post(body)
+        self.assertEqual(self.post(body).json, first.json)
+        self.assertEqual(len(self.rows), 2)
+        self.assertEqual(self.completion.call_count, 2)
+        body['text'] = 'Changed'
+        self.assertEqual(self.post(body).json['code'], 'AI_REQUEST_CHANGED')
+
+    def test_history_is_paginated_and_uses_authenticated_customer_only(self):
+        self.post()
+        result = self.client.get('/api/chat/ai/messages')
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(len(result.json['items']), 2)
+        self.history.assert_called_with(12, before=None)
+        self.assertEqual(len(self.client.get('/api/chat/ai/messages?before=2').json['items']), 1)
+        self.assertEqual(self.client.get('/api/chat/ai/messages?user_id=99').status_code, 400)
+        self.assertEqual(self.client.get('/api/chat/ai/messages?before=0').status_code, 400)
+
+    def test_recent_context_comes_from_owned_database_history(self):
+        self.post()
+        self.completion.reset_mock(side_effect=True)
+        self.completion.side_effect = [{'terms': ['Vitamin']}, {'text': 'Thông tin bổ sung.', 'product_ids': [7]}]
+        self.post({'text': 'Sản phẩm này còn hàng không?'})
+        sent = self.completion.call_args_list[0].args[0]
+        context = json.loads(sent[1]['content'])['recent_conversation']
+        self.assertEqual(len(context), 2)
+        self.assertEqual(context[0]['text'], 'Vitamin')
+
+    def test_out_of_stock_products_are_never_recommended(self):
+        self.card['DonViGia'][0]['ConHang'] = False
+        result = self.post()
+        self.assertEqual(result.json['products'], [])
+        self.assertIn('Chưa tìm thấy sản phẩm còn hàng', result.json['text'])
+        context = json.loads(self.completion.call_args.args[0][1]['content'])
+        self.assertEqual(context['products'], [])
+
+    def test_stock_is_rechecked_after_provider_returns(self):
+        empty = dict(self.card, DonViGia=[])
+        self.detail.side_effect = [self.card, empty]
+        result = self.post()
+        self.assertEqual(result.json['products'], [])
+        self.assertIn('không còn đủ hàng', result.json['text'])
+
+    def test_locked_customer_is_rechecked_before_persisting(self):
+        self.lock.return_value = NS(VaiTro=0, TrangThai=True)
+        self.lock.side_effect = None
+        self.assertEqual(self.post().status_code, 403)
+        self.persist.assert_not_called()
 
     def test_restricted_product_cannot_receive_generated_usage_advice(self):
         self.card.update(PhanLoai=True, MoTa='SECRET DESCRIPTION', CachDung='SECRET DOSAGE')
@@ -91,6 +157,7 @@ class AiChatTests(unittest.TestCase):
             self.assertEqual(result.json, {'code': code})
         self.limit.side_effect = AuthError('RATE_LIMITED', 429)
         self.assertEqual(self.post().status_code, 429)
+        self.persist.assert_not_called()
 
     def test_malformed_provider_response_is_rejected(self):
         self.completion.side_effect = [{'terms': 'bad'}]
