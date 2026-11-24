@@ -26,7 +26,8 @@ class AiChatTests(unittest.TestCase):
         self.actor = NS(MaNguoiDung=12, VaiTro=0, TrangThai=False)
         self.mock('app.services.auth_service.users.find_by_id', side_effect=lambda _: self.actor)
         self.limit = self.mock('app.services.ai_chat_service.rate_limit')
-        self.search = self.mock('app.services.ai_chat_service.products.search_ai_context', return_value=[NS(MaThuoc=7)])
+        self.search = self.mock('app.services.ai_chat_service.products.search_ai_context',
+            side_effect=lambda terms, today: [NS(MaThuoc=7)] if terms else [])
         self.card = dict(MaThuoc=7, TenThuoc='Vitamin', PhanLoai=False, KeDon=False,
             MoTa='Mô tả thực tế', CachDung='Thông tin sử dụng', DonViGia=[dict(MaDonGia=3, GiaBan=10000, DonViTinh='Hộp', ConHang=True)], HinhAnh='')
         self.detail = self.mock('app.services.ai_chat_service.get_public_product', side_effect=lambda _: dict(self.card))
@@ -134,6 +135,21 @@ class AiChatTests(unittest.TestCase):
     def test_prescription_requires_pharmacist(self):
         self.card['KeDon'] = True
         self.assertIn('đơn thuốc hợp lệ', self.post().json['text'])
+
+    def test_text_only_greeting_without_product_ids_is_saved_successfully(self):
+        self.completion.side_effect = [{'terms': []}, {'text': 'Xin chào! Tôi có thể giúp gì cho bạn?'}]
+        result = self.post({'text': 'Xin chào'})
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['products'], [])
+        self.assertIn('Xin chào', result.json['text'])
+        self.assertEqual(len(result.json['messages']), 2)
+        self.commit.assert_called_once()
+
+    def test_malformed_product_ids_still_rejected(self):
+        for ids in ('7', {}, None):
+            self.completion.side_effect = [{'terms': []}, {'text': 'Xin chào', 'product_ids': ids}]
+            self.assertEqual(self.post().json['code'], 'AI_UNAVAILABLE')
+        self.persist.assert_not_called()
 
     def test_validation_rejects_history_blank_and_oversized_input(self):
         for body in ({'text': ' '}, {'text': 'x' * 2001}, {'text': 'x', 'history': []}, {'text': 42}, {'text': '\0'}):
