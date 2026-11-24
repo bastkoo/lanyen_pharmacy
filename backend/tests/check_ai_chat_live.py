@@ -1,6 +1,7 @@
 """Read-only connectivity check. Prints no credentials or conversation content."""
 from urllib.error import HTTPError
 from unittest.mock import patch
+import sys
 
 from app import create_app
 from app.extensions import db
@@ -13,6 +14,13 @@ from app.services.inventory_service import current_date
 def main():
     app = create_app({'TESTING': True})
     original_open = ai.urlopen
+    original_completion = ai.completion
+
+    def inspect_shape(*args, **kwargs):
+        result = original_completion(*args, **kwargs)
+        if '--diagnose' in sys.argv:
+            print('GROQ_JSON_SHAPE', {key: type(value).__name__ for key, value in result.items()})
+        return result
 
     def inspect_status(*args, **kwargs):
         try:
@@ -25,6 +33,12 @@ def main():
         sample_name = None
         print('GROQ_CONFIGURED', bool(app.config.get('GROQ_API_KEY')))
         print('GROQ_MODEL', app.config.get('GROQ_MODEL'))
+        try:
+            with patch.object(ai, 'completion', side_effect=inspect_shape):
+                result = ai.generate('Xin chào', [])
+                print('AI_GREETING_FLOW_OK', bool(result['text']))
+        except Exception as error:
+            print('AI_GREETING_FLOW_FAILED', getattr(error, 'code', type(error).__name__))
         try:
             with patch.object(ai, 'urlopen', side_effect=inspect_status):
                 result = ai.completion([{'role': 'system', 'content': 'Return JSON with key ok and boolean value true.'},
