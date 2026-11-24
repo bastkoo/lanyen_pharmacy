@@ -37,10 +37,10 @@ test('public data states are honest and no manager client, invented contacts or 
     const catalog = read('frontend/js/components/public-catalog.js');
     assert.doesNotMatch(ui + catalog, /\/manager\/|localStorage|sessionStorage|innerHTML|insertAdjacentHTML|eval\(/);
     assert.doesNotMatch(html, /href="(?:tel:|mailto:|javascript:|#")|data-product-id|data-cart-count/);
-    assert.equal([...html.matchAll(/data-public-state="unavailable"/g)].length, 1);
+    assert.equal([...html.matchAll(/data-public-state="unavailable"/g)].length, 0);
     assert.match(html, /id="public-categories-grid"/);
     assert.doesNotMatch(html, /id="catalog-products-grid"/);
-    assert.match(html, /Chưa có bài viết công khai/);
+    assert.match(html, /Trao sự tận tâm, gửi trọn an tâm/);
     assert.match(html, /Thông tin liên hệ đang được cập nhật/);
     assert.match(html, /alt="Minh họa/);
     assert.ok(html.includes('id="auth-dialog"'));
