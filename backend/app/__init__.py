@@ -17,6 +17,10 @@ def create_app(test_config=None):
 
     if '*' in app.config['AUTH_ALLOWED_ORIGINS']:
         raise RuntimeError('Explicit frontend origins are required.')
+    if app.config['SESSION_COOKIE_SAMESITE'] not in ('Lax', 'Strict', 'None'):
+        raise RuntimeError('SESSION_COOKIE_SAMESITE must be Lax, Strict, or None.')
+    if app.config['SESSION_COOKIE_SAMESITE'] == 'None' and not app.config['SESSION_COOKIE_SECURE']:
+        raise RuntimeError('SameSite=None requires SESSION_COOKIE_SECURE=true.')
     if app.config['APP_ENV'] != 'development' and app.config['OTP_DEV_ENABLED']:
         raise RuntimeError('Development OTP cannot be enabled outside development.')
     from app.services.otp_service import init_app as init_otp
