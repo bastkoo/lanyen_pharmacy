@@ -10,3 +10,4 @@ redis
 cloudinary
 Pillow
 gunicorn
+groq==1.7.0
