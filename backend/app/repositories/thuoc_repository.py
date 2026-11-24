@@ -1,4 +1,4 @@
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import case, delete, func, or_, select
 
 from app.extensions import db
 from app.models.thuoc import Thuoc
@@ -19,6 +19,18 @@ def find_by_id(product_id, for_update=False):
     if for_update:
         query = query.with_for_update()
     return db.session.execute(query).scalar_one_or_none()
+
+
+def search_ai_context(terms):
+    """Bounded, parameterized search of public medicine names and descriptions."""
+    if not terms:
+        return []
+    names = [Thuoc.TenThuoc.icontains(term, autoescape=True) for term in terms]
+    descriptions = [Thuoc.MoTa.icontains(term, autoescape=True) for term in terms]
+    score = sum(case((match, 4), else_=0) for match in names)
+    score += sum(case((match, 1), else_=0) for match in descriptions)
+    query = select(Thuoc).where(or_(*names, *descriptions)).order_by(score.desc(), Thuoc.MaThuoc).limit(8)
+    return db.session.execute(query).scalars().all()
 
 
 def list_products(search='', category_id=None, phan_loai=None, page=1, per_page=20,

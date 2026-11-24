@@ -29,6 +29,69 @@ function environment() {
 const reply = (value, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(value) });
 const settle = () => new Promise(resolve => setImmediate(resolve));
 
+test('AI renders catalog cards safely, hands restricted products to pharmacist and never posts history', async () => {
+    const env = environment();
+    try {
+        const calls = [], consultations = [];
+        globalThis.fetch = async (url, options) => {
+            if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' });
+            calls.push([url, JSON.parse(options.body)]);
+            return reply({ text: '<script>plain text</script>', products: [{ MaThuoc: 7, TenThuoc: '<b>Thuốc</b>', PhanLoai: true,
+                HinhAnh: 'javascript:alert(1)', DonViGia: [{ MaDonGia: 3, GiaBan: 10000, DonViTinh: 'Hộp', ConHang: true }] }] });
+        };
+        const { createAiChat } = await import('../../frontend/js/components/ai-chat.js');
+        const ai = createAiChat({ getOwner: () => '12', onConsult: product => consultations.push(product), onError: assert.fail });
+        ai.setEnabled(true);
+        const form = ai.element.querySelectorAll('form')[0], input = ai.element.querySelectorAll('textarea')[0];
+        input.value = 'Hỏi về thuốc'; await form.fire('submit');
+        assert.deepEqual(calls.map(([, body]) => body), [{ text: 'Hỏi về thuốc' }]);
+        assert.ok(calls[0][0].endsWith('/chat/ai'));
+        assert.equal(ai.element.querySelectorAll('img').length, 0);
+        assert.ok(ai.element.querySelectorAll('p').some(p => p.textContent === '<script>plain text</script>'));
+        const contact = ai.element.querySelectorAll('button').find(b => b.textContent === 'Liên hệ dược sĩ');
+        await contact.click(); assert.deepEqual(consultations[0], { MaThuoc: 7, MaDonGia: 3 });
+        ai.clear(); assert.equal(ai.element.querySelectorAll('article').length, 0); assert.equal(input.value, '');
+    } finally { env.restore(); }
+});
+
+test('clearing AI during an in-flight request prevents a late response from restoring private content', async () => {
+    const env = environment();
+    try {
+        let finish;
+        globalThis.fetch = async url => url.endsWith('/auth/me') ? reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' }) : new Promise(resolve => { finish = resolve; });
+        const { createAiChat } = await import('../../frontend/js/components/ai-chat.js');
+        const ai = createAiChat({ getOwner: () => '12', onConsult() {}, onError: assert.fail });
+        ai.setEnabled(true); ai.element.querySelectorAll('textarea')[0].value = 'Private question';
+        const pending = ai.element.querySelectorAll('form')[0].fire('submit'); await settle();
+        ai.clear(); finish(reply({ text: 'Private answer', products: [] })); await pending;
+        assert.equal(ai.element.querySelectorAll('article').length, 0);
+    } finally { env.restore(); }
+});
+
+test('widget switches modes and closing clears only the temporary AI messages', async () => {
+    const env = environment();
+    try {
+        globalThis.fetch = async url => {
+            if (url.endsWith('/auth/me')) return reply({ user: { MaNguoiDung: '12' }, csrf_token: 'csrf' });
+            if (url.endsWith('/unread')) return reply({ count: 0 });
+            if (url.endsWith('/ai')) return reply({ text: 'Xin chào', products: [] });
+            return reply({ items: [], has_more: false });
+        };
+        const { setupCustomerChat } = await import('../../frontend/js/components/customer-chat.js'); setupCustomerChat();
+        env.emit('auth-changed', { user: { MaNguoiDung: '12', VaiTro: 0 } });
+        await env.byId('customer-chat-button').click(); await settle();
+        const panel = env.byId('customer-chat'), buttons = panel.querySelectorAll('button');
+        const aiButton = buttons.find(b => b.textContent === 'Chat với AI'); await aiButton.click();
+        assert.equal(aiButton.attributes['aria-pressed'], 'true');
+        const ai = panel.children.at(-1); assert.equal(ai.hidden, false);
+        ai.querySelectorAll('textarea')[0].value = 'Xin chào'; await ai.querySelectorAll('form')[0].fire('submit');
+        assert.equal(ai.querySelectorAll('article').length, 2);
+        await buttons.find(b => b.attributes['aria-label'] === 'Đóng trò chuyện').click();
+        assert.equal(ai.querySelectorAll('article').length, 0);
+        assert.equal(panel.hidden, true);
+    } finally { env.restore(); }
+});
+
 test('consultation button sends the chosen product to chat instead of mutating the cart', async () => {
     const env = environment();
     try {
@@ -60,7 +123,7 @@ test('composer retains the same request after a lost response and uploads images
         const composer = createChatComposer({ getOwner: () => '12', getContext: () => ({ messages: '/messages', images: '/images' }), onSent: value => sent.push(value) });
         composer.setEnabled(true);
         const text = composer.element.querySelectorAll('textarea')[0]; text.value = 'Xin tư vấn';
-        assert.ok(composer.element.querySelectorAll('span').some(item => item.textContent === 'Gửi tệp'));
+        assert.ok(composer.element.querySelectorAll('span').some(item => item.textContent === 'Gửi ảnh'));
         await composer.element.fire('submit'); assert.equal(text.disabled, true);
         await composer.element.fire('submit'); assert.deepEqual(posts[0], posts[1]); assert.equal(sent.length, 1); assert.equal(text.value, '');
         const file = composer.element.querySelectorAll('input')[0]; file.files = [new File(['image'], 'chat.png', { type: 'image/png' })];

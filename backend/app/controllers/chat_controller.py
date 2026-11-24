@@ -7,6 +7,9 @@ from app.services.auth_service import AuthError
 from app.utils.image_validator import ImageError
 from app.schemas.order_schema import OfferCheckoutSchema
 from app.services import order_service
+from app.schemas.chat_schema import AiChatSchema
+from app.services import ai_chat_service
+from app.services.product_service import ProductError
 
 
 def respond(callback, schema=None, query=False):
@@ -26,8 +29,12 @@ def respond(callback, schema=None, query=False):
         return jsonify(code='CHAT_OK', **(callback(values) or {}))
     except ValidationError:
         return jsonify(code='INVALID_REQUEST'), 400
-    except (AuthError, ImageError) as error:
+    except (AuthError, ImageError, ProductError) as error:
         return jsonify(code=error.code), error.status
+
+
+def ai_answer():
+    return respond(lambda values: ai_chat_service.answer(g.current_user, values['text']), AiChatSchema)
 
 
 def history(thread_id=None):
