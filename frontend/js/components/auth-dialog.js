@@ -45,10 +45,11 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
     function showStep(next) {
         step = next;
         for (const [name, form] of Object.entries(forms)) form.hidden = name !== next;
-        const labels = { phone: ["Bước 1 · Số điện thoại", "Nhập số điện thoại để nhận mã xác thực."],
+        const labels = { phone: ["", "Nhập số điện thoại để nhận mã xác thực."],
             otp: ["Bước 2 · Xác thực OTP", `Nhập mã xác thực cho ${phone}.`],
             profile: ["Bước 3 · Hoàn tất hồ sơ", "Lần đầu gặp bạn. Hãy cho Lan Yến biết tên của bạn."] };
         $("auth-progress").textContent = labels[next][0];
+        $("auth-progress").hidden = next === 'phone';
         $("auth-description").textContent = labels[next][1];
         inputs[next].focus();
     }
@@ -100,6 +101,13 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
             status('Số điện thoại đã xác thực. Vui lòng bổ sung họ tên trong 5 phút.');
             notice('Xác thực số điện thoại thành công. Vui lòng bổ sung họ tên.');
         } else if (result.code === 'AUTHENTICATED') {
+            const destination = result.user?.VaiTro === 1 ? '../../pages/employee/index.html#orders' :
+                result.user?.VaiTro === 2 ? '../../pages/manager/index.html#overview' : null;
+            if (destination) {
+                dialog.close();
+                window.location.assign(new URL(destination, import.meta.url).href);
+                return;
+            }
             onAuthenticated(result.user);
             dialog.close();
         } else throw new Error('Unexpected authentication response');
@@ -113,8 +121,8 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
             if (!alive()) return;
             resendAt = Date.now() + result.retry_after * 1000;
             showStep("otp");
-            status("Mã đã được tạo. Khi chạy thử local, lấy OTP trong terminal Flask. Mã có hiệu lực 5 phút.");
-            notice('Đã tạo mã OTP. Mã có hiệu lực 5 phút.');
+            status("Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.");
+            notice('Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.');
         }, "Đang xác minh và gửi mã OTP…");
     });
     forms.otp.addEventListener("submit", event => {
@@ -146,8 +154,8 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
             if (!alive()) return;
             inputs.otp.value = "";
             resendAt = Date.now() + result.retry_after * 1000;
-            status("Đã tạo mã mới. Lấy mã trong terminal Flask khi chạy thử local.");
-            notice('Đã tạo lại mã OTP.');
+            status("Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.");
+            notice('Mã OTP đã được tạo. Mã có hiệu lực trong 5 phút.');
         }, "Đang gửi lại mã OTP…");
     });
     $("change-phone").addEventListener("click", async () => {

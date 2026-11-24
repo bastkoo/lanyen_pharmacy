@@ -83,17 +83,15 @@
     <div id="auth-backdrop" hidden aria-hidden="true"></div>
     <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
         <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
-        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <p id="auth-progress" class="auth-progress" hidden></p>
         <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
         <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
         <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
         <form id="phone-form" novalidate>
             <label for="phone">Số điện thoại</label>
-            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
-            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-error">
             <p id="phone-error" class="field-error" aria-live="polite"></p>
             <button type="submit" class="button button-primary">Gửi mã OTP</button>
-            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
         </form>
         <form id="otp-form" hidden novalidate>
             <label for="otp">Mã OTP gồm 6 chữ số</label>

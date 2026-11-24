@@ -498,7 +498,7 @@
           ×
         </button>
       </div>
-      <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+      <p id="auth-progress" class="auth-progress" hidden></p>
       <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
       <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
       <p
@@ -517,17 +517,10 @@
           autocomplete="tel"
           maxlength="24"
           required
-          aria-describedby="phone-help phone-error"
+          aria-describedby="phone-error"
         />
-        <p id="phone-help" class="field-help">
-          Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.
-        </p>
         <p id="phone-error" class="field-error" aria-live="polite"></p>
         <button type="submit" class="button button-primary">Gửi mã OTP</button>
-        <p class="field-help consent">
-          Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không
-          gửi SMS.
-        </p>
       </form>
       <form id="otp-form" hidden novalidate>
         <label for="otp">Mã OTP gồm 6 chữ số</label>

@@ -1,3 +1,4 @@
+import { notifyManager } from '../components/manager-state.js';
 import { getProducts, getProduct, createProduct, updateProduct, deleteProduct, uploadProductImage } from '../api/products.js';
 import { getCategories } from '../api/categories.js';
 import { ApiError } from '../api/auth.js';
@@ -66,7 +67,7 @@ export function setupProducts({ root, onAccessError }) {
         if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; }
         return false;
     }
-    function feedback(text) { $('products-feedback').textContent = text; $('products-feedback').hidden = !text; }
+    function feedback(text) { if (text) notifyManager(text); $('products-feedback').textContent = ''; $('products-feedback').hidden = true; }
     function showFieldError(name, text) {
         $(`product-${name}-error`).textContent = text;
         field(name).setAttribute('aria-invalid', 'true');
@@ -322,7 +323,8 @@ export function setupProducts({ root, onAccessError }) {
             if (result.code !== 'UPLOAD_SUCCESS' || !validHttps(result.data?.url) || typeof result.data.public_id !== 'string') throw new ApiError('INVALID_RESPONSE');
             field('HinhAnh').value = result.data.url; resetSelection();
             $('product-HinhAnh-error').textContent = ''; field('HinhAnh').removeAttribute('aria-invalid');
-            $('product-upload-status').textContent = 'Upload thành công. Ảnh đã sẵn sàng; nhấn lưu thuốc để ghi vào hồ sơ.';
+            $('product-upload-status').textContent = '';
+            notifyManager('Upload thành công. Ảnh đã sẵn sàng; nhấn lưu thuốc để ghi vào hồ sơ.');
         } catch (error) {
             if (!active || attempt !== detailVersion) return;
             if (!access(error)) { $('product-image-error').textContent = productErrorMessage(error); $('product-upload-status').textContent = 'Chưa xác nhận upload thành công. Thông tin thuốc và URL ảnh trước đó vẫn được giữ lại.'; }

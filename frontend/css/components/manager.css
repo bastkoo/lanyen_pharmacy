@@ -30,3 +30,5 @@
 .manager-brand__name { display: block; font-size: 1.125rem; font-weight: 600; letter-spacing: -.035em; line-height: 1.35; }
 .manager-brand__sub { display: block; color: var(--manager-muted); font-size: .6875rem; letter-spacing: .18em; text-transform: uppercase; line-height: 1.8; }
 @media (max-width: 599px) { .manager-state { flex-direction: column; padding: var(--manager-space-6); } }
+.manager-notice { position: fixed; inset: auto max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) auto; z-index: 200; width: min(380px, calc(100vw - 32px)); max-height: 45dvh; overflow-y: auto; margin: 0; padding: var(--manager-space-4); border: 1px solid var(--manager-border); border-left: 4px solid var(--manager-success); border-radius: var(--manager-radius); background: var(--manager-surface); color: var(--manager-text); box-shadow: var(--manager-shadow); font: inherit; overflow-wrap: anywhere; }
+.manager-notice[hidden] { display: none; }

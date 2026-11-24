@@ -82,12 +82,10 @@
                     <summary id="account-summary" aria-label="Tài khoản quản lý">
                         <span id="account-avatar" class="manager-avatar" aria-hidden="true"></span>
                         <span class="manager-account__label"><span id="account-name" class="manager-account__name"></span><span class="manager-account__role">Quản lý nhà thuốc</span></span>
-                        <svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#chevron-down"></use></svg>
                     </summary>
                     <div class="manager-account__panel">
-                        <div class="manager-account__identity"><strong id="account-full-name"></strong><span>Tài khoản quản lý</span></div>
-                        <a href="../customer/home.html"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-up-right"></use></svg>Trang nhà thuốc</a>
-                        <button id="manager-logout" type="button"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#log-out"></use></svg>Đăng xuất</button>
+                        <a href="../customer/profile.html">Thông tin cá nhân</a>
+                        <button id="manager-logout" type="button">Đăng xuất</button>
                     </div>
                 </details>
             </header>
@@ -338,17 +336,15 @@
     <div id="auth-backdrop" hidden aria-hidden="true"></div>
     <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
         <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
-        <p id="auth-progress" class="auth-progress">Bước 1 · Số điện thoại</p>
+        <p id="auth-progress" class="auth-progress" hidden></p>
         <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
         <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
         <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
         <form id="phone-form" novalidate>
             <label for="phone">Số điện thoại</label>
-            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-help phone-error">
-            <p id="phone-help" class="field-help">Nhập số di động Việt Nam bắt đầu bằng 0 hoặc +84.</p>
+            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-error">
             <p id="phone-error" class="field-error" aria-live="polite"></p>
             <button type="submit" class="button button-primary">Gửi mã OTP</button>
-            <p class="field-help consent">Khi chạy thử local, mã OTP được hiển thị trong terminal Flask; không gửi SMS.</p>
         </form>
         <form id="otp-form" hidden novalidate>
             <label for="otp">Mã OTP gồm 6 chữ số</label>
@@ -366,6 +362,7 @@
             <button type="submit" class="button button-primary">Hoàn tất và đăng nhập</button>
         </form>
     </dialog>
+    <div id="manager-notice" class="manager-notice" role="status" aria-live="polite" aria-atomic="true" popover="manual" hidden></div>
 </body>
 </html>
 

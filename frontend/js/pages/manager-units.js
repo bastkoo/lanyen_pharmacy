@@ -1,3 +1,4 @@
+import { notifyManager } from '../components/manager-state.js';
 import { getProducts, getProduct } from '../api/products.js';
 import { getCategories } from '../api/categories.js';
 import { getUnits, getUnit, createUnit, updateUnit, deleteUnit } from '../api/units.js';
@@ -30,7 +31,7 @@ export function setupUnits({ root, onAccessError }) {
         if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) { onAccessError(error); return true; }
         return false;
     }
-    function feedback(text = '') { $('units-feedback').textContent = text; $('units-feedback').hidden = !text; }
+    function feedback(text = '') { if (text) notifyManager(text); $('units-feedback').textContent = ''; $('units-feedback').hidden = true; }
     function state(type, title = '', description = '') {
         $('units-workspace').setAttribute('aria-busy', String(type === 'loading'));
         $('units-state').hidden = type === 'ready'; $('units-table-wrap').hidden = type !== 'ready';
