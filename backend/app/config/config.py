@@ -6,6 +6,8 @@ load_dotenv()
 
 
 class Config:
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
+    GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
     SEPAY_ENV = os.getenv('SEPAY_ENV', 'sandbox')
     SEPAY_FRONTEND_ORIGIN = os.getenv('SEPAY_FRONTEND_ORIGIN', '')
     SEPAY_PRODUCTION_ENABLED = os.getenv('SEPAY_PRODUCTION_ENABLED', 'false').lower() == 'true'

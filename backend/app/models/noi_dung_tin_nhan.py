@@ -4,6 +4,7 @@ from app.extensions import db
 
 class NoiDungTinNhan(db.Model):
     __tablename__ = "NoiDungTinNhan"
+    LoaiNguoiGui = db.Column(db.String(16), nullable=False)
     DaDoc = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
 
     # Khóa chính
@@ -24,7 +25,7 @@ class NoiDungTinNhan(db.Model):
     NguoiGui = db.Column(
         db.BigInteger,
         db.ForeignKey("NguoiDung.MaNguoiDung"),
-        nullable=False
+        nullable=True
     )
 
     # Nội dung tin nhắn

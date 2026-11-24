@@ -37,3 +37,13 @@ class ChatSendSchema(Schema):
 
 class ChatReadSchema(Schema):
     last_id = fields.String(required=True, validate=validate.Regexp(r'^[1-9][0-9]{0,18}$'))
+
+
+class AiChatSchema(Schema):
+    request_id = fields.UUID(load_default=None, allow_none=True)
+    text = fields.String(required=True, validate=validate.Length(min=1, max=2000))
+
+    @validates_schema
+    def content(self, data, **kwargs):
+        if not data['text'].strip() or '\0' in data['text']:
+            raise ValidationError('Invalid text.')

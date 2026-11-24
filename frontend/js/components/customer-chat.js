@@ -1,4 +1,5 @@
 import { readChat, writeChat } from "../api/chat.js";
+import { createAiChat } from "./ai-chat.js";
 import {
   node,
   chatError,
@@ -66,7 +67,8 @@ export function setupCustomerChat() {
     disposed = false,
     loading = false,
     productRequest,
-    productBusy = false;
+    productBusy = false,
+    aiMode = false;
   const items = new Map(),
     owner = () => String(user?.MaNguoiDung || ""),
     allowed = () => user?.VaiTro === 0 && !disposed;
@@ -77,7 +79,27 @@ export function setupCustomerChat() {
     onSent: () => load(),
     onError: failure,
   });
-  panel.append(header, state, retry, older, messages, composer.element);
+  const modes = node('div', undefined, 'chat-modes');
+  modes.setAttribute('role', 'group'); modes.setAttribute('aria-label', 'Chọn người trò chuyện');
+  const aiButton = node('button', 'Chat với AI'), pharmacistButton = node('button', 'Chat với dược sĩ');
+  for (const button of [aiButton, pharmacistButton]) button.type = 'button';
+  modes.append(aiButton, pharmacistButton);
+  const ai = createAiChat({ getOwner: owner, onConsult: product => { selectMode(false); open(product); }, onError: failure });
+  aiButton.addEventListener('click', () => selectMode(true));
+  pharmacistButton.addEventListener('click', () => selectMode(false));
+  function selectMode(value) {
+    aiMode = value;
+    ai.element.hidden = !value;
+    for (const element of [state, retry, older, messages, composer.element]) element.hidden = value;
+    if (!value) { older.hidden = true; retry.hidden = true; }
+    aiButton.setAttribute('aria-pressed', String(value));
+    pharmacistButton.setAttribute('aria-pressed', String(!value));
+    title.textContent = value ? 'Trợ lý AI Lan Yến' : 'Tư vấn cùng dược sĩ';
+    if (value) ai.load(); else load();
+  }
+  ai.element.hidden = true;
+  aiButton.setAttribute('aria-pressed', 'false'); pharmacistButton.setAttribute('aria-pressed', 'true');
+  panel.append(header, modes, state, retry, older, messages, composer.element, ai.element);
   document.body.append(trigger, panel);
   function failure(error) {
     state.textContent = chatError(error);
@@ -104,7 +126,7 @@ export function setupCustomerChat() {
           ? `Nhắn tin với dược sĩ, ${result.count} tin chưa đọc`
           : "Nhắn tin với dược sĩ",
       );
-      if (!panel.hidden) await load();
+      if (!panel.hidden && !aiMode) await load();
     } catch (error) {
       if (attempt === generation) {
         failure(error);
@@ -119,14 +141,14 @@ export function setupCustomerChat() {
     }
   }
   async function load(before) {
-    if (!allowed() || panel.hidden || loading) return;
+    if (!allowed() || panel.hidden || aiMode || loading) return;
     loading = true;
     const attempt = generation;
     try {
       const data = await readChat(
         `/messages${before ? `?before=${encodeURIComponent(before)}` : ""}`,
       );
-      if (attempt !== generation || !allowed()) return;
+      if (attempt !== generation || !allowed() || aiMode) return;
       const nearBottom =
           messages.scrollHeight - messages.scrollTop - messages.clientHeight <
           80,
@@ -212,6 +234,7 @@ export function setupCustomerChat() {
     }
   }
   function open(product) {
+    if (product) selectMode(false);
     panel.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
     if (product)
@@ -227,6 +250,7 @@ export function setupCustomerChat() {
       if (!user) document.getElementById("login-button")?.click();
     } else {
       load();
+      if (aiMode) ai.load();
       sendProduct();
     }
     close.focus();
@@ -242,6 +266,7 @@ export function setupCustomerChat() {
       items.clear();
       messages.replaceChildren();
       composer.clear();
+      ai.clear();
       badge.hidden = true;
       older.hidden = true;
       clearTimeout(timer);
@@ -249,6 +274,7 @@ export function setupCustomerChat() {
     }
     user = next;
     composer.setEnabled(allowed());
+    ai.setEnabled(allowed());
     trigger.hidden = !!user && user.VaiTro !== 0;
     if (allowed()) {
       if (productRequest) {

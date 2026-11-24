@@ -16,6 +16,8 @@ def route(path, name, role, method='GET'):
 
 
 route('/messages', 'history', 0)
+route('/ai', 'ai_answer', 0, 'POST')
+route('/ai/messages', 'ai_history', 0)
 route('/messages', 'send', 0, 'POST')
 route('/unread', 'unread', 0)
 route('/read', 'read', 0, 'POST')

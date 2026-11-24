@@ -15,18 +15,20 @@ def thread(thread_id, lock=False):
 
 def active_customer(user_id):
     return db.session.execute(select(TinNhan).where(TinNhan.NguoiGui == user_id,
+        TinNhan.LoaiHoiThoai == 'DUOC_SI',
         TinNhan.TrangThai.in_((0, 1))).order_by(TinNhan.MaTinNhan.desc()).limit(1)
         .with_for_update().execution_options(populate_existing=True)).scalar_one_or_none()
 
 
 def create_thread(user_id):
-    value = TinNhan(NguoiGui=user_id, MaNhanVien=None, TrangThai=0)
+    value = TinNhan(NguoiGui=user_id, MaNhanVien=None, TrangThai=0, LoaiHoiThoai='DUOC_SI')
     db.session.add(value); db.session.flush()
     return value
 
 
 def queue(actor_id, search, page):
     query = select(TinNhan, NguoiDung).join(NguoiDung, NguoiDung.MaNguoiDung == TinNhan.NguoiGui).where(
+        TinNhan.LoaiHoiThoai == 'DUOC_SI',
         or_((TinNhan.TrangThai == 0) & TinNhan.MaNhanVien.is_(None),
             (TinNhan.TrangThai == 1) & (TinNhan.MaNhanVien == actor_id)))
     if search:
@@ -38,13 +40,15 @@ def queue(actor_id, search, page):
 
 def pending_count():
     return db.session.execute(select(func.count(func.distinct(TinNhan.NguoiGui))).where(
+        TinNhan.LoaiHoiThoai == 'DUOC_SI',
         TinNhan.TrangThai == 0, TinNhan.MaNhanVien.is_(None))).scalar_one()
 
 
 def messages(user_id=None, thread_id=None, before=None):
-    query = select(Message, NguoiDung.VaiTro).join(NguoiDung, NguoiDung.MaNguoiDung == Message.NguoiGui)
+    query = select(Message, NguoiDung.VaiTro).join(NguoiDung, NguoiDung.MaNguoiDung == Message.NguoiGui) \
+        .join(TinNhan, TinNhan.MaTinNhan == Message.MaTinNhan).where(TinNhan.LoaiHoiThoai == 'DUOC_SI')
     if user_id is not None:
-        query = query.join(TinNhan, TinNhan.MaTinNhan == Message.MaTinNhan).where(TinNhan.NguoiGui == user_id)
+        query = query.where(TinNhan.NguoiGui == user_id)
     else:
         query = query.where(Message.MaTinNhan == thread_id)
     if before:
@@ -52,8 +56,9 @@ def messages(user_id=None, thread_id=None, before=None):
     return list(reversed(db.session.execute(query.order_by(Message.MaNoiDung.desc()).limit(50)).all()))
 
 
-def add(thread_id, actor_id, body, timestamp):
-    value = Message(MaTinNhan=thread_id, NguoiGui=actor_id, NoiDung=body, ThoiGianGui=timestamp, DaDoc=False)
+def add(thread_id, actor_id, body, timestamp, sender_type):
+    value = Message(MaTinNhan=thread_id, NguoiGui=actor_id, LoaiNguoiGui=sender_type,
+                    NoiDung=body, ThoiGianGui=timestamp, DaDoc=False)
     db.session.add(value); db.session.flush()
     return value
 
@@ -61,7 +66,8 @@ def add(thread_id, actor_id, body, timestamp):
 def customer_payloads(user_id):
     # Server-written typed messages only. TEXT remains compatible with old text.
     return db.session.execute(select(Message).join(TinNhan, TinNhan.MaTinNhan == Message.MaTinNhan)
-        .where(TinNhan.NguoiGui == user_id, Message.NoiDung.startswith('LYCHAT1:', autoescape=True))).scalars().all()
+        .where(TinNhan.NguoiGui == user_id, TinNhan.LoaiHoiThoai == 'DUOC_SI',
+               Message.NoiDung.startswith('LYCHAT1:', autoescape=True))).scalars().all()
 
 
 def thread_payloads(thread_id):
@@ -72,17 +78,23 @@ def thread_payloads(thread_id):
 def is_staff_message(message):
     # Assignment at send time is enforced by the service; completed assignments
     # remain on TinNhan so offers keep working after a consultation is finished.
+    if message.NguoiGui is None or getattr(message, 'LoaiNguoiGui', None) != 'DUOC_SI':
+        return False
     return db.session.execute(select(TinNhan.MaTinNhan).where(TinNhan.MaTinNhan == message.MaTinNhan,
+        TinNhan.LoaiHoiThoai == 'DUOC_SI',
         TinNhan.MaNhanVien == message.NguoiGui)).scalar_one_or_none() is not None
 
 
 def unread(user_id):
     return db.session.execute(select(func.count()).select_from(Message).join(TinNhan,
         TinNhan.MaTinNhan == Message.MaTinNhan).where(TinNhan.NguoiGui == user_id,
+        TinNhan.LoaiHoiThoai == 'DUOC_SI',
         Message.NguoiGui != user_id, Message.DaDoc.is_(False))).scalar_one()
 
 
 def mark_read(actor_id, last_id, user_id=None, thread_id=None):
     query = update(Message).where(Message.MaNoiDung <= last_id, Message.NguoiGui != actor_id, Message.DaDoc.is_(False))
-    query = query.where(Message.MaTinNhan.in_(select(TinNhan.MaTinNhan).where(TinNhan.NguoiGui == user_id))) if user_id is not None else query.where(Message.MaTinNhan == thread_id)
+    threads = select(TinNhan.MaTinNhan).where(TinNhan.LoaiHoiThoai == 'DUOC_SI')
+    threads = threads.where(TinNhan.NguoiGui == user_id) if user_id is not None else threads.where(TinNhan.MaTinNhan == thread_id)
+    query = query.where(Message.MaTinNhan.in_(threads))
     db.session.execute(query.values(DaDoc=True))

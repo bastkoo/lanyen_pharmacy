@@ -55,8 +55,8 @@ class ChatTests(unittest.TestCase):
         self.thread = NS(MaTinNhan=2, NguoiGui=user, MaNhanVien=None, TrangThai=0)
         return self.thread
 
-    def add_message(self, thread, sender, content, at):
-        value = NS(MaNoiDung=len(self.messages)+1, MaTinNhan=thread, NguoiGui=sender, NoiDung=content, ThoiGianGui=at, DaDoc=False)
+    def add_message(self, thread, sender, content, at, sender_type):
+        value = NS(MaNoiDung=len(self.messages)+1, MaTinNhan=thread, NguoiGui=sender, LoaiNguoiGui=sender_type, NoiDung=content, ThoiGianGui=at, DaDoc=False)
         self.messages.append(value); return value
 
     def post(self, path='/messages', body=None):

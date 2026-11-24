@@ -4,6 +4,7 @@ from app.extensions import db
 
 class TinNhan(db.Model):
     __tablename__ = "TinNhan"
+    LoaiHoiThoai = db.Column(db.String(16), nullable=False, default='DUOC_SI', server_default='DUOC_SI')
 
     # Khóa chính
     MaTinNhan = db.Column(
