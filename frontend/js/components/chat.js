@@ -58,7 +58,6 @@ export function renderChatMessage(value, { customer = false, getOwner, onError =
             card.append(image(item.HinhAnh, '', 'chat-product-image'), description); content.append(card);
         }
         if (customer && value.kind === 'offer' && value.role === 1) {
-            content.append(node('p', 'Giá, khuyến mãi và tồn kho được kiểm tra khi mua.', 'chat-help'));
             const actions = node('div', undefined, 'chat-card-actions chat-purchase-actions'), state = node('p'); state.setAttribute('role', 'status');
             let busy = false;
             const buy = node('button', 'Mua ngay', 'button button-primary'); buy.type = 'button';
@@ -87,7 +86,7 @@ export function createChatComposer({ getContext, getOwner, onSent, onError = () 
     file.type = 'file'; file.accept = 'image/jpeg,image/png,image/webp'; file.id = `chat-image-${crypto.randomUUID()}`; fileLabel.htmlFor = file.id;
     file.tabIndex = -1;
     const attachment = node('button', undefined, 'chat-tool-button'); attachment.type = 'button'; attachment.setAttribute('aria-label', 'Gửi tệp ảnh'); attachment.title = 'Gửi ảnh JPEG, PNG, WebP; tối đa 5 MiB';
-    attachment.append(chatIcon('attachment')); if (!employee) attachment.append(node('span', 'Gửi tệp'));
+    attachment.append(chatIcon('attachment')); if (!employee) attachment.append(node('span', 'Gửi ảnh'));
     attachment.addEventListener('click', () => file.click());
     const fileName = node('span', '', 'chat-file-name'); file.addEventListener('change', () => { fileName.textContent = file.files[0]?.name || ''; });
     const submit = node('button', 'Gửi', 'button button-primary'); submit.type = 'submit';
