@@ -253,6 +253,29 @@ class AuthTests(unittest.TestCase):
         self.app.config['SESSION_COOKIE_SECURE'] = True
         self.assertIn('Secure', self.login().headers['Set-Cookie'])
 
+    def test_cross_site_cookie_preserves_csrf_and_origin_checks(self):
+        self.app.config.update(SESSION_COOKIE_SECURE=True, SESSION_COOKIE_SAMESITE='None')
+        response = self.client.get('/api/auth/me', base_url='https://api.example',
+                                   headers={'Origin': 'https://shop.example'})
+        for flag in ('Secure', 'HttpOnly', 'SameSite=None'):
+            self.assertIn(flag, response.headers['Set-Cookie'])
+        self.assertEqual(response.headers['Access-Control-Allow-Origin'], 'https://shop.example')
+        self.assertEqual(response.headers['Access-Control-Allow-Credentials'], 'true')
+        token = response.json['csrf_token']
+        for origin, csrf, status in (('https://evil.example', token, 403),
+                                     ('https://shop.example', 'invalid', 403),
+                                     ('https://shop.example', token, 200)):
+            result = self.client.post('/api/auth/otp/request', base_url='https://api.example',
+                                      json={'phone': PHONE},
+                                      headers={'Origin': origin, 'X-CSRF-Token': csrf})
+            self.assertEqual(result.status_code, status)
+
+    def test_rejects_invalid_cookie_configuration(self):
+        for same_site, secure in (('None', False), ('invalid', True)):
+            with self.subTest(same_site=same_site, secure=secure), self.assertRaises(RuntimeError):
+                create_app({'SECRET_KEY': 'x' * 32, 'SESSION_COOKIE_SAMESITE': same_site,
+                            'SESSION_COOKIE_SECURE': secure})
+
     def test_dev_gates_no_output(self):
         for env, enabled in (('production', False), ('development', False)):
             self.app.config.update(APP_ENV=env, OTP_DEV_ENABLED=enabled)
