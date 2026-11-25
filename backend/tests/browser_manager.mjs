@@ -19,7 +19,7 @@ import { checkCartPage } from './browser_cart.mjs';
 import { checkProfile, profileFixture } from './browser_profile.mjs';
 import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
 import { checkPoints, pointsFixture } from './browser_points.mjs';
-import { checkCheckout, checkPaymentSession, orderFixture } from './browser_checkout.mjs';
+import { checkCheckout, checkPaymentSession, checkCheckoutResult, orderFixture } from './browser_checkout.mjs';
 import { checkEmployee } from './browser_employee.mjs';
 import { employeeOrdersFixture, checkEmployeeOrders } from './browser_employee_orders.mjs';
 import { counterFixture, counterCatalogFixture, checkEmployeeCounter } from './browser_employee_counter.mjs';
@@ -39,7 +39,8 @@ const profileTest = process.argv.includes('--profile');
 const addressTest = process.argv.includes('--addresses');
 const pointsTest = process.argv.includes('--points');
 const checkoutTest = process.argv.includes('--checkout');
-const paymentSessionTest = process.argv.includes('--payment-session');
+const checkoutResultTest = process.argv.includes('--checkout-result');
+const paymentSessionTest = process.argv.includes('--payment-session') || checkoutResultTest;
 const employeeTest = process.argv.includes('--employee');
 let checkingHomepage = false;
 const homepageRequests = [];
@@ -151,7 +152,7 @@ const server = createServer(async (req, res) => {
         const filename = path.resolve(frontend, '.' + decodeURIComponent(pathname === '/' ? '/index.html' : pathname));
         if (!filename.startsWith(frontend + path.sep)) return json(403, {});
         let bytes = await readFile(filename);
-        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html') || (checkingHomepage && /[\\/]customer[\\/](?:home|products|order-detail)\.html$/.test(filename))) {
+        if (filename.endsWith('/manager/index.html') || filename.endsWith('\\manager\\index.html') || (checkingHomepage && /[\\/]customer[\\/](?:home|products|order-detail|checkout)\.html$/.test(filename))) {
             const mark = '<div aria-label="Môi trường kiểm thử" style="position:fixed;bottom:6px;right:8px;z-index:90;padding:3px 8px;background:#fff7e5;color:#785313;font:10px Arial;pointer-events:none">KIỂM THỬ GIAO DIỆN · AUTH/API MOCK</div>';
             bytes = Buffer.from(bytes.toString('utf8').replace('</body>', mark + '</body>'));
         }
@@ -237,6 +238,7 @@ try {
     if (paymentSessionTest) {
         checkingHomepage = true;
         await checkPaymentSession({ evaluate, waitFor, command, port: server.address().port });
+        if (checkoutResultTest) await checkCheckoutResult({ evaluate, waitFor, command, root: regressionArtifacts, port: server.address().port });
     } else {
     await navigate('manager');
     await evaluate('document.fonts.ready');

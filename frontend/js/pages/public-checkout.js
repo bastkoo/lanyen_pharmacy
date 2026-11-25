@@ -19,7 +19,7 @@ try {
 let user, known = false, currentKey, addresses = [], addressId = null, addressChoice = null;
 let quoteVersion = 0, addressVersion = 0, sessionVersion = 0, disposed = false;
 let ready = false, submitting = false, totalToPay = null, order = null, paymentTimer;
-let openingPayment = false;
+let openingPayment = false, paymentRedirecting = false;
 let pointsVersion = 0, pointsBalance = null, quoteTotal = null;
 const resumeId = new URLSearchParams(location.search).get('order');
 let activeOrderId = /^[1-9][0-9]{0,18}$/.test(resumeId || '') ? resumeId : null;
@@ -64,31 +64,42 @@ async function loadPoints() {
 }
 function resetOrder() {
     clearTimeout(paymentTimer); order = null;
+    paymentRedirecting = false;
     document.getElementById('sepay-checkout-form')?.remove();
     $('checkout-result').hidden = true;
     $('checkout-open-payment').hidden = true;
     $('checkout-gateway-state').textContent = '';
     $('checkout-transfer-details').textContent = '';
+    $('checkout-result-amount').textContent = ''; $('checkout-result-method').textContent = '';
+    $('checkout-view-order').hidden = true;
 }
 function renderOrder(value) {
     order = value; activeOrderId = String(value.MaDonHang);
+    $('main').classList.add('has-order');
+    $('checkout-page-title').textContent = 'Theo dõi đơn hàng'; $('checkout-intro').hidden = true;
+    $('checkout-back').href = 'orders.html'; $('checkout-back').textContent = '← Đơn hàng của tôi';
+    $('checkout-layout').hidden = true; $('checkout-state').textContent = ''; $('checkout-retry').hidden = true;
     pointsVersion++; $('checkout-points').hidden = true;
     const pending = value.PhuongThucThanhToan === 1 && value.TrangThaiThanhToan === 0 && value.TrangThaiDonHang === 0;
     const environmentKnown = ['sandbox', 'production'].includes(value.payment_environment);
     $('checkout-result').hidden = false;
     $('checkout-result-title').textContent = `Đơn hàng #${value.MaDonHang}`;
     const statuses = ['Chờ duyệt', 'Đang xử lý', 'Đang giao', 'Hoàn thành', 'Đã hủy', 'Đã trả'];
-    $('checkout-result-status').textContent = pending ? 'Đã tạo đơn. Đang chờ thanh toán QR.'
+    $('checkout-result').dataset.state = value.TrangThaiThanhToan === 1 ? 'paid' : 'pending';
+    $('checkout-result-status').textContent = pending ? 'Đang chờ xác nhận thanh toán'
         : `${statuses[value.TrangThaiDonHang] || 'Đã tạo đơn'}. ${value.TrangThaiThanhToan === 1 ? 'Đã thanh toán.' : 'Chưa thanh toán.'}`;
-    $('checkout-open-payment').hidden = !pending || !environmentKnown;
+    $('checkout-result-meta').hidden = false;
+    $('checkout-result-amount').textContent = money(value.TongThanhToan);
+    $('checkout-result-method').textContent = value.PhuongThucThanhToan === 1 ? 'Thanh toán QR' : 'Thanh toán khi nhận hàng';
+    $('checkout-view-order').href = `order-detail.html?order=${encodeURIComponent(activeOrderId)}`;
+    $('checkout-view-order').hidden = false;
+    $('checkout-open-payment').hidden = !pending || !environmentKnown || openingPayment || paymentRedirecting;
     $('checkout-open-payment').textContent = 'Thanh toán QR';
     $('checkout-open-payment').disabled = openingPayment;
-    $('checkout-payment-check').hidden = !pending;
-    $('checkout-transfer-details').textContent = '';
+    $('checkout-payment-check').hidden = !pending || paymentRedirecting;
+    $('checkout-transfer-details').textContent = value.TrangThaiThanhToan === 1 ? 'Thanh toán đã được xác nhận. Bạn có thể theo dõi tiến trình xử lý trong chi tiết đơn hàng.' : '';
     if (pending && environmentKnown) {
-        const instruction = value.payment_environment === 'production'
-            ? 'Chọn Thanh toán QR để xem mã và thanh toán.' : 'Chọn Thanh toán QR để xem mã và thanh toán thử nghiệm.';
-        $('checkout-transfer-details').textContent = `Số tiền: ${money(value.TongThanhToan)}. ${instruction} Trạng thái được cập nhật sau khi nhà thuốc xác nhận thanh toán.`;
+        $('checkout-transfer-details').textContent = 'Đơn hàng đã được lưu. Trạng thái thanh toán sẽ được cập nhật tự động.';
         clearTimeout(paymentTimer); paymentTimer = setTimeout(checkPayment, 5000);
     } else {
         clearTimeout(paymentTimer); $('checkout-gateway-state').textContent = '';
@@ -114,6 +125,7 @@ async function checkPayment() {
         $('checkout-result-title').textContent = `Đơn hàng #${id}`;
         if (['UNAUTHENTICATED', 'ACCOUNT_LOCKED', 'ORDER_NOT_FOUND'].includes(error.code)) {
             order = null; $('checkout-open-payment').hidden = true; $('checkout-transfer-details').textContent = '';
+            $('checkout-result-meta').hidden = true; $('checkout-view-order').hidden = true;
         }
         $('checkout-result-status').textContent = ['UNAUTHENTICATED', 'ACCOUNT_LOCKED', 'ORDER_NOT_FOUND'].includes(error.code)
             ? 'Đăng nhập đúng tài khoản đặt hàng để xem thanh toán.' : 'Chưa kiểm tra được thanh toán. Hãy thử kiểm tra lại; không chuyển khoản lần nữa.';
@@ -129,20 +141,26 @@ function paymentDiagnostic(operation, error) {
 async function openPayment() {
     if (openingPayment || !order || !user) return;
     openingPayment = true; $('checkout-open-payment').disabled = true;
+    $('checkout-open-payment').hidden = true; $('checkout-payment-check').hidden = true;
     $('checkout-gateway-state').textContent = 'Đang chuẩn bị thanh toán QR…';
     const account = currentKey, id = activeOrderId;
     try {
         const data = await initializePayment(id, user.MaNguoiDung);
         if (disposed || account !== currentKey || id !== activeOrderId) return;
         if (data.code !== 'PAYMENT_INITIALIZED') throw { code: 'INVALID_RESPONSE' };
-        $('checkout-gateway-state').textContent = 'Đang chuyển sang trang thanh toán QR…';
+        paymentRedirecting = true;
+        $('checkout-gateway-state').textContent = '';
         submitCheckout(data.payment, order);
     } catch (error) {
         if (disposed || account !== currentKey || id !== activeOrderId) return;
         paymentDiagnostic('initialize', error);
+        paymentRedirecting = false;
         $('checkout-gateway-state').textContent = paymentMessage(error);
         if (error.code === 'ORDER_ALREADY_PAID') await checkPayment();
-    } finally { openingPayment = false; $('checkout-open-payment').disabled = false; }
+    } finally {
+        openingPayment = false; $('checkout-open-payment').disabled = false;
+        if (!disposed && account === currentKey && order) renderOrder(order);
+    }
 }
 
 function showReceipt() {
@@ -351,5 +369,5 @@ for (const input of document.querySelectorAll('input[name="payment"]')) input.ad
 window.addEventListener('auth-changed', event => { if (!disposed) receive(event.detail?.user); });
 window.addEventListener('cart-changed', loadQuote);
 window.addEventListener('pagehide', () => { disposed = true; clearTimeout(paymentTimer); quoteVersion++; addressVersion++; sessionVersion++; });
-window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; initialize(); } });
+window.addEventListener('pageshow', event => { if (event.persisted) { disposed = false; paymentRedirecting = false; initialize(); } });
 showReceipt(); showPayment(); initialize();

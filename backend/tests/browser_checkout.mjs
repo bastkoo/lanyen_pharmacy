@@ -52,6 +52,59 @@ export async function checkPaymentSession({ evaluate: run, waitFor, command, por
     console.log('PASS: OTP login, payment return preserves browser session on localhost and 127.0.0.1, QR labels and single-line payment button at 1440–320px. AUTH/API MOCK; real browser cookies.');
 }
 
+export async function checkCheckoutResult({ evaluate: run, waitFor, command, root, port }) {
+    resetCartFixture([], cart); resetAddressFixture(addresses);
+    await command('Page.navigate', { url: `http://127.0.0.1:${port}/pages/customer/checkout.html?unit=11` });
+    await waitFor(`document.querySelector('#checkout-layout')?.hidden===false && !document.querySelector('#checkout-complete').disabled`);
+    await run(`HTMLFormElement.prototype.submit=function(){window.__qaCreatedPayment=true};
+        document.querySelector('input[name="receipt"][value="pickup"]').click();
+        document.querySelector('input[name="payment"][value="qr"]').click();document.querySelector('#checkout-complete').click()`);
+    await waitFor(`window.__qaCreatedPayment===true`);
+    assert.equal(await run(`document.querySelector('#checkout-layout').hidden`), true, 'Creating the order replaces the purchase form');
+    assert.equal(await run(`document.querySelector('#checkout-open-payment').hidden`), true);
+    fixtureOrder.TrangThaiDonHang = 0; fixtureOrder.PhuongThucThanhToan = 1;
+    fixtureOrder.payment_environment = 'sandbox';
+    paymentConfirmed = false; fixtureEnvironment = 'sandbox';
+    const navigate = async () => {
+        await command('Page.navigate', { url: `http://127.0.0.1:${port}/pages/customer/checkout.html?order=${fixtureOrder.MaDonHang}` });
+        await waitFor(`document.querySelector('#checkout-result')?.hidden===false`);
+    };
+    await navigate();
+    assert.equal(await run(`document.querySelector('#checkout-layout').hidden`), true);
+    assert.equal(await run(`document.querySelector('#checkout-page-title').textContent`), 'Theo dõi đơn hàng');
+    assert.equal(await run(`document.querySelector('#checkout-result-amount').textContent`), '50.000 ₫');
+    assert.match(await run(`document.querySelector('#checkout-result-status').textContent`), /chờ xác nhận thanh toán/);
+    assert.doesNotMatch(await run(`document.querySelector('#checkout-result').innerText`), /nhà thuốc xác nhận|thử nghiệm|SePay/);
+    await run(`HTMLFormElement.prototype.submit=function(){window.__qaResultSubmitted=true};document.querySelector('#checkout-open-payment').click()`);
+    await waitFor(`window.__qaResultSubmitted===true`);
+    assert.equal(await run(`document.querySelector('#checkout-open-payment').hidden && document.querySelector('#checkout-payment-check').hidden`), true);
+    assert.equal(await run(`document.querySelector('#checkout-gateway-state').textContent`), '');
+    for (const width of [1440, 768, 375, 320]) {
+        await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+        assert.equal(await run(`document.documentElement.scrollWidth<=innerWidth`), true, `Order status fits ${width}px`);
+        if ([1440, 375].includes(width)) {
+            const screenshot = await command('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+            await writeFile(path.join(root, 'docs', `CHECKOUT_PENDING_${width}.png`), Buffer.from(screenshot.data, 'base64'));
+        }
+    }
+    paymentConfirmed = true;
+    await run(`new Promise((resolve,reject)=>{let n=0;const timer=setInterval(()=>{
+        if(document.querySelector('#checkout-result').dataset.state==='paid'){clearInterval(timer);resolve(true)}
+        else if(++n>120){clearInterval(timer);reject(new Error('Payment polling did not update result'))}
+    },100)})`);
+    assert.match(await run(`document.querySelector('#checkout-result-status').textContent`), /Đã thanh toán/);
+    paymentConfirmed = false; await navigate();
+    orderMode = 'initialize-error';
+    await run(`document.querySelector('#checkout-open-payment').click()`);
+    await waitFor(`document.querySelector('#checkout-gateway-state').textContent.includes('chưa được cấu hình')`);
+    assert.equal(await run(`document.querySelector('#checkout-open-payment').hidden`), false);
+    orderMode = 'normal'; fixtureEnvironment = 'production'; fixtureOrder.payment_environment = 'production'; await navigate();
+    assert.equal(await run(`document.querySelector('#checkout-result-method').textContent`), 'Thanh toán QR');
+    assert.equal(await run(`document.querySelector('#checkout-open-payment').hidden`), false);
+    fixtureEnvironment = 'sandbox'; fixtureOrder.payment_environment = 'sandbox';
+    console.log(`PASS: compact order result, hidden checkout form, redirect state, automatic paid update, gateway retry and Production display at 1440–320px. AUTH/API MOCK. Screenshots: ${root}/docs/CHECKOUT_PENDING_{1440,375}.png`);
+}
+
 export async function orderFixture(req, json) {
     if (req.url.endsWith('/cancel') && req.method === 'POST') {
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
@@ -315,11 +368,11 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         // Automatic navigation after creation must be captured BEFORE clicking.
         await run(`HTMLFormElement.prototype.submit=function(){window.__sepaySubmitted={action:this.action,method:this.method,fields:Array.from(this.elements).map(x=>[x.name,x.value])}}`);
         orderMode = 'normal'; await click($('checkout-complete'));
-        await waitFor(`${$('checkout-result')}.hidden===false && !${$('checkout-open-payment')}.hidden`);
+        await waitFor(`${$('checkout-result')}.hidden===false && !${$('checkout-view-order')}.hidden`);
         await waitFor(`Boolean(window.__sepaySubmitted)`);
         assert.equal(gatewayInitializations, 1, 'Completing a QR order opens Checkout automatically');
         assert.equal(orderCreates, 2);
-        assert.match(await run(`${$('checkout-transfer-details')}.textContent`), /50.000 ₫/);
+        assert.match(await run(`${$('checkout-result-amount')}.textContent`), /50.000 ₫/);
         assert.equal(await run(`${$('checkout-transfer-details')}.querySelector('b')`), null);
         assert.equal(await run(`document.querySelector('#checkout-payment-qr')`), null);
         // Capture form submission in this test only; never leave for real SePay.
@@ -337,14 +390,14 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         assert.equal(submitted.method, 'post');
         assert.deepEqual(submitted.fields.map(pair => pair[0]), ['order_amount','merchant','currency','operation','order_description','order_invoice_number','customer_id','payment_method','signature']);
         assert.equal(submitted.fields[0][1], '50000');
-        assert.match(await run(`${$('checkout-result-status')}.textContent`), /chờ thanh toán/);
+        assert.match(await run(`${$('checkout-result-status')}.textContent`), /chờ xác nhận thanh toán/);
         await run(`history.replaceState(null,'',location.pathname+location.search+'&status=success')`);
         await click($('checkout-payment-check'));
         assert.equal(await run(`${$('checkout-result-status')}.textContent.includes('Đã thanh toán')`), false);
         orderMode = 'read-error'; await click($('checkout-payment-check'));
         await waitFor(`${$('checkout-result-status')}.textContent.includes('Chưa kiểm tra được')`);
         orderMode = 'normal'; await click($('checkout-payment-check'));
-        await waitFor(`${$('checkout-result-status')}.textContent.includes('chờ thanh toán')`);
+        await waitFor(`${$('checkout-result-status')}.textContent.includes('chờ xác nhận thanh toán')`);
         for (const width of [1440, 768, 375, 320]) {
             await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
             assert.equal(await run('document.documentElement.scrollWidth<=innerWidth'), true, `Payment result fits ${width}px`);
@@ -363,7 +416,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await click(`document.querySelector('input[name="payment"][value="qr"]')`);
         await run(`HTMLFormElement.prototype.submit=function(){window.__sepayProductionAction=this.action}`);
         await click($('checkout-complete'));
-        await waitFor(`${$('checkout-open-payment')}.hidden===false`);
+        await waitFor(`Boolean(window.__sepayProductionAction)`);
         assert.equal(await run(`${$('checkout-open-payment')}.textContent`), 'Thanh toán QR');
         assert.equal(await run(`${$('checkout-transfer-details')}.textContent.includes('mô phỏng')`), false);
         await waitFor(`Boolean(window.__sepayProductionAction)`);
