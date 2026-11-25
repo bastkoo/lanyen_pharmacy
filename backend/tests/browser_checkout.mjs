@@ -15,6 +15,43 @@ let listMode = 'normal';
 let reorderCalls = [], reorderMode = 'normal';
 let cancelMode = 'normal', cancelCalls = 0;
 const cancelledIds = new Set();
+
+// Browser cookies are real; user/order/OTP responses come only from the local
+// fixture server. No provider request or database write is performed.
+export async function checkPaymentSession({ evaluate: run, waitFor, command, port }) {
+    for (const hostname of ['localhost', '127.0.0.1']) {
+        const origin = `http://${hostname}:${port}`;
+        await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+        await command('Page.navigate', { url: `${origin}/pages/customer/orders.html` });
+        await waitFor(`document.querySelector('#orders-login')?.hidden===false`);
+        await run(`document.querySelector('#orders-login').click();document.querySelector('#phone').value='0901234567';document.querySelector('#phone-form').requestSubmit()`);
+        await waitFor(`document.querySelector('#otp-form').hidden===false && !document.querySelector('#otp-form button[type="submit"]').disabled`);
+        await run(`document.querySelector('#otp').value='123456';document.querySelector('#otp-form').requestSubmit()`);
+        await waitFor(`document.querySelector('#auth-dialog').open===false && document.querySelector('[data-pay-order]')`);
+        for (const width of [1440, 768, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run(`(()=>{
+                const pay=document.querySelector('[data-pay-order]'), cancel=pay.parentElement.querySelector('[data-cancel-order]');
+                const a=cancel.getBoundingClientRect(), b=pay.getBoundingClientRect(), range=document.createRange();
+                range.selectNodeContents(pay);
+                return Math.abs(a.top-b.top)<1 && Math.abs(b.left-a.right-12)<1
+                    && getComputedStyle(pay).whiteSpace==='nowrap' && range.getBoundingClientRect().width<=pay.clientWidth-40
+                    && document.documentElement.scrollWidth<=innerWidth;
+            })()`), true, `${hostname}: payment label fits and buttons stay adjacent at ${width}px`);
+        }
+        await run(`HTMLFormElement.prototype.submit=function(){window.__qaPaymentForm=true};document.querySelector('[data-pay-order]').click()`);
+        await waitFor(`window.__qaPaymentForm===true`);
+        await command('Page.navigate', { url: `${origin}/api/payments/sepay/return?order=9007199254741000` });
+        await waitFor(`document.querySelector('#order-detail-layout')?.hidden===false`);
+        assert.equal(await run('location.origin'), origin);
+        assert.equal(await run(`document.querySelector('#order-login').hidden`), true);
+        assert.equal(await run(`document.querySelector('#order-open-payment').textContent`), 'Thanh toán QR');
+        assert.doesNotMatch(await run('document.body.innerText'), /SePay/i);
+        assert.equal(await run(`(async()=>{const {getSession}=await import('/js/api/auth.js');return (await getSession()).user.MaNguoiDung})()`), 12);
+    }
+    console.log('PASS: OTP login, payment return preserves browser session on localhost and 127.0.0.1, QR labels and single-line payment button at 1440–320px. AUTH/API MOCK; real browser cookies.');
+}
+
 export async function orderFixture(req, json) {
     if (req.url.endsWith('/cancel') && req.method === 'POST') {
         assert.equal(req.headers['x-csrf-token'], 'fixture-csrf');
@@ -327,7 +364,7 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await run(`HTMLFormElement.prototype.submit=function(){window.__sepayProductionAction=this.action}`);
         await click($('checkout-complete'));
         await waitFor(`${$('checkout-open-payment')}.hidden===false`);
-        assert.equal(await run(`${$('checkout-open-payment')}.textContent`), 'Thanh toán qua SePay');
+        assert.equal(await run(`${$('checkout-open-payment')}.textContent`), 'Thanh toán QR');
         assert.equal(await run(`${$('checkout-transfer-details')}.textContent.includes('mô phỏng')`), false);
         await waitFor(`Boolean(window.__sepayProductionAction)`);
         assert.equal(await run('window.__sepayProductionAction'), 'https://pay.sepay.vn/v1/checkout/init');
@@ -342,6 +379,16 @@ export async function checkCheckout({ evaluate: run, waitFor: waitInPage, comman
         await navigate('orders.html');
         await waitFor(`document.querySelectorAll('.orders-card').length===6`);
         assert.equal(await run(`document.querySelectorAll('[data-pay-order]').length`), 1);
+        for (const width of [1440, 768, 375, 320]) {
+            await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+            assert.equal(await run(`(()=>{
+                const pay = document.querySelector('[data-pay-order]');
+                const cancel = pay.parentElement.querySelector('[data-cancel-order]');
+                const a = cancel.getBoundingClientRect(), b = pay.getBoundingClientRect();
+                return Math.abs(a.top - b.top) < 1 && Math.abs(b.left - a.right - 12) < 1
+                    && document.documentElement.scrollWidth <= innerWidth;
+            })()`), true, `Cancel and payment buttons stay adjacent at ${width}px`);
+        }
         assert.equal(await run(`document.querySelector('.orders-preview h3 b')`), null);
         assert.equal(await run(`document.querySelectorAll('.orders-preview').length`), 6);
         assert.equal(await run(`document.querySelector('.orders-preview p').textContent`), '+ 1 sản phẩm khác');

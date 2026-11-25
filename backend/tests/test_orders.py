@@ -1,6 +1,7 @@
 """Order and SePay tests with mocked repositories; never access real databases."""
 import unittest
 import runpy
+from urllib.parse import urlsplit, parse_qs
 from datetime import datetime
 from types import SimpleNamespace as NS
 from unittest.mock import patch
@@ -1224,6 +1225,82 @@ class OrderTests(unittest.TestCase):
             self.assertEqual(self.client.get('/api/payments/sepay/return' + query).status_code, 400)
         with patch.dict(self.app.config, {'SEPAY_FRONTEND_ORIGIN': 'https://evil.example'}):
             self.assertEqual(self.client.get('/api/payments/sepay/return?order=45').status_code, 503)
+
+    def test_payment_callbacks_preserve_allowed_storefront_origin_and_session(self):
+        self.find.return_value = self.order()
+        origins = ['http://localhost:5500', 'http://127.0.0.1:5500']
+        callbacks = {f'SEPAY_{name}_URL': 'https://api.example/api/payments/sepay/return'
+                     for name in ('SUCCESS', 'ERROR', 'CANCEL')}
+        with patch.dict(self.app.config, {**callbacks, 'AUTH_ALLOWED_ORIGINS': origins,
+                                         'SEPAY_FRONTEND_ORIGIN': origins[0]}):
+            for origin in origins:
+                response = self.client.post('/api/orders/45/payment',
+                    headers={'Origin': origin, 'X-CSRF-Token': 'test-csrf'})
+                self.assertEqual(response.status_code, 200)
+                fields = response.json['payment']['fields']
+                self.assertEqual(fields['signature'], gateway.sign_fields(fields, 'gateway-test-secret'))
+                for name in ('success_url', 'error_url', 'cancel_url'):
+                    url = urlsplit(fields[name])
+                    query = parse_qs(url.query)
+                    self.assertNotIn('frontend_origin', query)
+                    if origin == origins[0]:
+                        self.assertNotIn('storefront', query)
+                    else:
+                        self.assertEqual(query['storefront'], [gateway.storefront_key(origin)])
+                    self.assertNotIn('localhost', fields[name])
+                    self.assertNotIn('127.0.0.1', fields[name])
+                    result = self.client.get(url.path + '?' + url.query)
+                    self.assertEqual(result.status_code, 303)
+                    self.assertEqual(result.location, origin + '/pages/customer/order-detail.html?order=45')
+                    with self.client.session_transaction() as state:
+                        self.assertEqual(state['user_id'], 12)
+            for value in ['https://evil.example', 'http://localhost:5500.evil.example',
+                          'http://localhost:5500/path', '']:
+                result = self.client.get('/api/payments/sepay/return',
+                    query_string={'order': '45', 'frontend_origin': value})
+                self.assertEqual(result.status_code, 400)
+            self.assertEqual(self.client.get('/api/payments/sepay/return?order=45'
+                '&frontend_origin=http://localhost:5500&frontend_origin=http://127.0.0.1:5500').status_code, 400)
+        self.deduct.assert_not_called()
+        self.create.assert_not_called()
+
+    def test_storefront_selector_rejects_unknown_duplicate_and_conflicting_origins(self):
+        selector = gateway.storefront_key('https://shop.example')
+        for query in [
+            {'order': '45', 'storefront': 'not-configured'},
+            {'order': '45', 'storefront': ['invalid', selector]},
+            {'order': '45', 'storefront': selector, 'frontend_origin': 'https://shop.example'},
+        ]:
+            self.assertEqual(self.client.get('/api/payments/sepay/return', query_string=query).status_code, 400)
+        self.commit.assert_not_called()
+        self.find.assert_not_called()
+
+    def test_render_callbacks_keep_configured_public_urls_in_both_gateway_environments(self):
+        frontend = 'https://lanyenpharmacy.onrender.com'
+        callback = 'https://lanyenpharmacy-api.onrender.com/api/payments/sepay/return'
+        for environment in ('sandbox', 'production'):
+            config = self.production_config() if environment == 'production' else {'SEPAY_ENV': 'sandbox'}
+            prefix = 'SEPAY_PRODUCTION_' if environment == 'production' else 'SEPAY_'
+            config.update({prefix + name + '_URL': callback for name in ('SUCCESS', 'ERROR', 'CANCEL')})
+            config.update(APP_ENV='production', SEPAY_FRONTEND_ORIGIN=frontend,
+                          AUTH_ALLOWED_ORIGINS=[frontend, 'http://localhost:5500'])
+            self.find.return_value = self.order(MoiTruongThanhToan=environment)
+            with patch.dict(self.app.config, config):
+                for origin in (frontend, 'http://localhost:5500'):
+                    result = self.client.post('/api/orders/45/payment',
+                        headers={'Origin': origin, 'X-CSRF-Token': 'test-csrf'})
+                    self.assertEqual(result.status_code, 200)
+                    payment = result.json['payment']
+                    self.assertEqual(payment['action'], gateway.ENVIRONMENTS[environment][0])
+                    fields = payment['fields']
+                    for name in ('success_url', 'error_url', 'cancel_url'):
+                        self.assertEqual(fields[name], callback + '?order=45')
+                    secret = config.get('SEPAY_PRODUCTION_SECRET_KEY', 'gateway-test-secret')
+                    self.assertEqual(fields['signature'], gateway.sign_fields(fields, secret))
+                redirect = self.client.get('/api/payments/sepay/return?order=45')
+                self.assertEqual(redirect.location, frontend + '/pages/customer/order-detail.html?order=45')
+        self.deduct.assert_not_called()
+        self.create.assert_not_called()
 
 
 if __name__ == '__main__':

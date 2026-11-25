@@ -113,7 +113,7 @@ test('API bootstraps CSRF, preserves credentials and sends profile to actual con
         return reply('PROFILE_REQUIRED', 200, { csrf_token: 'guest-csrf' });
     };
     assert.equal((await api.requestOtp('+84901234567')).code, 'PROFILE_REQUIRED');
-    assert.equal(calls[0].url, 'http://127.0.0.1:5000/api/auth/me');
+    assert.equal(calls[0].url, 'http://localhost:5000/api/auth/me');
     assert.ok(calls[1].url.endsWith('/otp/request'));
     assert.equal(calls[1].options.credentials, 'include');
     assert.equal(calls[1].options.headers['X-CSRF-Token'], 'guest-csrf');

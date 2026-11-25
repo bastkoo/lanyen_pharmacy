@@ -19,7 +19,7 @@ import { checkCartPage } from './browser_cart.mjs';
 import { checkProfile, profileFixture } from './browser_profile.mjs';
 import { checkAddresses, addressFixture, provinceFixture } from './browser_addresses.mjs';
 import { checkPoints, pointsFixture } from './browser_points.mjs';
-import { checkCheckout, orderFixture } from './browser_checkout.mjs';
+import { checkCheckout, checkPaymentSession, orderFixture } from './browser_checkout.mjs';
 import { checkEmployee } from './browser_employee.mjs';
 import { employeeOrdersFixture, checkEmployeeOrders } from './browser_employee_orders.mjs';
 import { counterFixture, counterCatalogFixture, checkEmployeeCounter } from './browser_employee_counter.mjs';
@@ -39,6 +39,7 @@ const profileTest = process.argv.includes('--profile');
 const addressTest = process.argv.includes('--addresses');
 const pointsTest = process.argv.includes('--points');
 const checkoutTest = process.argv.includes('--checkout');
+const paymentSessionTest = process.argv.includes('--payment-session');
 const employeeTest = process.argv.includes('--employee');
 let checkingHomepage = false;
 const homepageRequests = [];
@@ -77,6 +78,21 @@ const server = createServer(async (req, res) => {
     const pathname = new URL(req.url, 'http://fixture.local').pathname;
     if (checkingHomepage) homepageRequests.push(req.url);
     const json = (status, data) => { res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); let body = JSON.stringify(data); if (checkingAccounts) body = body.replace(/"MaNguoiDung":"([1-9][0-9]*)"/g, '"MaNguoiDung":$1'); res.end(body); };
+    // Exercise browser SameSite cookie handling with the real API-host adapter.
+    if (paymentSessionTest && pathname.startsWith('/api/auth/')) {
+        const authenticated = /(?:^|; )qa_session=customer(?:;|$)/.test(req.headers.cookie || '');
+        if (pathname === '/api/auth/me') {
+            if (!authenticated) res.setHeader('Set-Cookie', 'qa_session=guest; Path=/; HttpOnly; SameSite=Lax');
+            return json(authenticated ? 200 : 401, { code: authenticated ? 'AUTHENTICATED' : 'UNAUTHENTICATED',
+                csrf_token: 'fixture-csrf', ...(authenticated ? { user: { ...fixtureUser, VaiTro: 0 } } : {}) });
+        }
+        if (req.headers['x-csrf-token'] !== 'fixture-csrf' || !/qa_session=/.test(req.headers.cookie || '')) return json(403, { code: 'CSRF_FAILED' });
+        if (pathname === '/api/auth/otp/request') return json(200, { code: 'OTP_SENT', retry_after: 60 });
+        if (pathname === '/api/auth/otp/verify') {
+            res.setHeader('Set-Cookie', 'qa_session=customer; Path=/; HttpOnly; SameSite=Lax');
+            return json(200, { code: 'AUTHENTICATED', csrf_token: 'fixture-csrf', user: { ...fixtureUser, VaiTro: 0 } });
+        }
+    }
     if (pathname.startsWith('/api/employee/orders')) {
         if (!['employee','forbidden'].includes(scenario)) return json(403,{code:'FORBIDDEN'});
         if (pathname.includes('/counter') || pathname.endsWith('/completed')) return counterFixture(req,json);
@@ -128,6 +144,7 @@ const server = createServer(async (req, res) => {
     }
     if (pathname === '/js/config/app.js') {
         res.writeHead(200, { 'Content-Type': 'text/javascript' });
+        if (paymentSessionTest) return res.end((await readFile(path.join(frontend, 'js/config/app.js'), 'utf8')).replace(':5000', `:${server.address().port}`));
         return res.end(`export const APP_CONFIG = {API_BASE_URL: 'http://127.0.0.1:${server.address().port}/api'};`);
     }
     try {
@@ -217,6 +234,10 @@ try {
     await command('Runtime.enable');
     if (productTest || homepageTest || addressTest || profileTest || employeeTest) await command('Fetch.enable', { patterns: [...(productTest || homepageTest || employeeTest ? [{ urlPattern: 'https://example.invalid/*' }] : []), { urlPattern: 'https://provinces.open-api.vn/*' }] });
     await command('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+    if (paymentSessionTest) {
+        checkingHomepage = true;
+        await checkPaymentSession({ evaluate, waitFor, command, port: server.address().port });
+    } else {
     await navigate('manager');
     await evaluate('document.fonts.ready');
     assert.equal(await evaluate(`getComputedStyle(document.body).fontFamily.includes('Be Vietnam Pro')`), true);
@@ -424,10 +445,13 @@ try {
         await checkEmployeeOrders({ evaluate, waitFor, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
         await checkEmployeeCounter({ evaluate, waitFor, key, command, root: regressionArtifacts, baseUrl: `http://127.0.0.1:${server.address().port}`, setScenario: value => { scenario = value; } });
     }
+    }
     assert.deepEqual(errors, []);
+    if (!paymentSessionTest) {
     console.log('PASS: manager navigation, real CSS/fonts, 1440/1280/1024/768/375/320 widths, no overflow, drawer/keyboard/focus, account Escape, long name, anonymous/forbidden/locked/network/retry/expired, OTP UI flow, CSRF logout, customer auth dialog regression.');
     console.log(`Auth responses mocked by isolated test server (${sessionCount} checks). No production API or database used.`);
     if (dashboardTest) console.log('PASS: Dashboard amounts/counts, 7-day filter, isolated API failure/retry, empty data, API session expiry.' + (categoryTest ? ' Previous dashboard screenshots preserved.' : ' Screenshots: docs/MODULE_02_6_2_DASHBOARD_{DESKTOP,MOBILE,DRAWER}.png'));
+    }
     await call('Browser.close');
 } finally {
     socket?.close();

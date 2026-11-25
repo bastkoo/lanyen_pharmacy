@@ -17,7 +17,8 @@ API được cấu hình duy nhất tại `frontend/js/config/app.js`:
 
 | Hostname Frontend | API Base URL (đã gồm `/api`) |
 | --- | --- |
-| `localhost`, `127.0.0.1` | `http://127.0.0.1:5000/api` |
+| `localhost` | `http://localhost:5000/api` |
+| `127.0.0.1` | `http://127.0.0.1:5000/api` |
 | Các hostname deploy | `https://lanyenpharmacy-api.onrender.com/api` |
 
 Các module request nối đường dẫn tài nguyên như `/auth/me`, `/cart`, `/manager/products`;
@@ -63,10 +64,17 @@ Không bỏ CSRF hoặc phân quyền để khắc phục lỗi cookie.
 
 Sau khi sửa biến môi trường, redeploy Backend để áp dụng cấu hình mới.
 
+Giữ `APP_ENV=production` trên Render, kể cả khi `SEPAY_ENV=sandbox` để thử cổng
+thanh toán. Callback dùng `SEPAY_FRONTEND_ORIGIN` và các URL callback HTTPS đã
+cấu hình; xử lý chọn hostname local không được thêm vào form trên Render.
+Khi dùng cổng Production, giữ bộ `SEPAY_PRODUCTION_*` riêng và
+`SEPAY_PRODUCTION_ENABLED=true`; không thay bằng khóa hoặc endpoint Sandbox.
+
 ## Chạy local
 
-Serve thư mục `frontend/` qua HTTP, ví dụ Live Server ở cổng 5500. Để session hoạt động
-với API cố định `127.0.0.1`, mở **http://127.0.0.1:5500**:
+Serve thư mục `frontend/` qua HTTP, ví dụ Live Server ở cổng 5500. Có thể mở
+**http://localhost:5500** hoặc **http://127.0.0.1:5500**; API local dùng cùng hostname
+với Frontend để cookie phiên đăng nhập được gửi đúng:
 
 ```dotenv
 AUTH_ALLOWED_ORIGINS=http://127.0.0.1:5500,http://localhost:5500
@@ -74,9 +82,8 @@ SESSION_COOKIE_SECURE=false
 SESSION_COOKIE_SAMESITE=Lax
 ```
 
-Đổi cổng trong allowlist nếu dùng cổng khác. `http://localhost:5500` vẫn chọn đúng API
-`http://127.0.0.1:5000`, nhưng hai hostname khác site nên cookie `Lax` có thể không
-được gửi; mở URL `127.0.0.1` để kiểm thử đăng nhập/giỏ hàng. Không dùng `file://`.
+Đổi cổng trong allowlist nếu dùng cổng khác. `localhost` và `127.0.0.1` có cookie
+riêng; đăng nhập tại hostname đang sử dụng. Không dùng `file://`.
 
 ## Kiểm thử sau deploy
 

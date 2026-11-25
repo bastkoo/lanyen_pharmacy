@@ -28,6 +28,10 @@
 
 Các biến `SEPAY_SUCCESS_URL`, `SEPAY_ERROR_URL`, `SEPAY_CANCEL_URL` và bộ Production tương ứng có thể trỏ tới `https://<backend-public>/api/payments/sepay/return`. Backend tự gắn mã đơn, callback redirect 303 về trang chi tiết tại Frontend đã cấu hình bằng `SEPAY_FRONTEND_ORIGIN` (phải nằm trong AUTH_ALLOWED_ORIGINS). Xem [trang chi tiết đơn](MODULE_03_10_ORDER_DETAIL.md).
 
+Callback mặc định dùng `SEPAY_FRONTEND_ORIGIN`; form mới không gửi URL frontend lồng vào URL callback. Chỉ khi `APP_ENV=development` và trang local dùng hostname khác địa chỉ mặc định, Backend gắn mã `storefront` vào callback để giữ phiên giữa `localhost` và `127.0.0.1`. Mã này chỉ tra được trong `AUTH_ALLOWED_ORIGINS`, được ký cùng form và không chứa URL. Mã lạ, mã bị lặp hoặc dùng đồng thời với `frontend_origin` bị từ chối. Tham số `frontend_origin` cũ vẫn được kiểm tra allowlist để các form đã phát hành còn quay về được.
+
+Trên Render (`APP_ENV=production`), form giữ callback HTTPS đã cấu hình, chỉ gắn mã đơn và workspace nhân viên nếu cần; không thêm `storefront` dù cổng thanh toán đang là Sandbox. `APP_ENV` là môi trường ứng dụng, độc lập với `SEPAY_ENV` chọn Sandbox/Production. API local vẫn dùng cùng hostname với Frontend; API deploy vẫn dùng địa chỉ HTTPS Render.
+
 Ngrok đang forward cổng **5000**, vì vậy URL ngrok không tự phục vụ HTML của cổng **5500**. Route return trên Backend giải quyết việc này bằng redirect tới Frontend, không cần giả định tunnel phục vụ HTML. Không đổi sang gọi API qua ngrok từ Frontend localhost mà chưa xử lý cookie/CORS. Với host local, redirect localhost chỉ phù hợp khi trình duyệt chạy trên máy có Frontend.
 
 Tham số `status=success`, `paid=1` trên URL không được phép cập nhật đơn. Callback chỉ là điều hướng; IPN hợp lệ mới xác nhận thanh toán.

@@ -75,9 +75,9 @@ export function setupAuthDialog(onAuthenticated, { notice = () => {} } = {}) {
     function showStep(next) {
         step = next;
         for (const [name, form] of Object.entries(forms)) form.hidden = name !== next;
-        const labels = { phone: ["", "Nhập số điện thoại để nhận mã xác thực."],
+        const labels = { phone: ["", "Vui lòng nhập số điện thoại để đăng nhập."],
             otp: ["", `Nhập mã xác thực cho ${phone}.`],
-            profile: ["Bước 3 · Hoàn tất hồ sơ", "Lần đầu gặp bạn. Hãy cho Lan Yến biết tên của bạn."] };
+            profile: ["Hoàn tất hồ sơ", "Lần đầu gặp bạn. Hãy cho Lan Yến biết tên của bạn."] };
         $("auth-progress").textContent = labels[next][0];
         $("auth-progress").hidden = next !== 'profile';
         $("auth-description").textContent = labels[next][1];

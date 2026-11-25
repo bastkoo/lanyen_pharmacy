@@ -81,14 +81,14 @@ function renderOrder(value) {
     $('checkout-result-status').textContent = pending ? 'Đã tạo đơn. Đang chờ thanh toán QR.'
         : `${statuses[value.TrangThaiDonHang] || 'Đã tạo đơn'}. ${value.TrangThaiThanhToan === 1 ? 'Đã thanh toán.' : 'Chưa thanh toán.'}`;
     $('checkout-open-payment').hidden = !pending || !environmentKnown;
-    $('checkout-open-payment').textContent = value.payment_environment === 'production' ? 'Thanh toán qua SePay' : 'Mở Checkout SePay Sandbox';
+    $('checkout-open-payment').textContent = 'Thanh toán QR';
     $('checkout-open-payment').disabled = openingPayment;
     $('checkout-payment-check').hidden = !pending;
     $('checkout-transfer-details').textContent = '';
     if (pending && environmentKnown) {
         const instruction = value.payment_environment === 'production'
-            ? 'Mở Checkout SePay để xem QR và thanh toán.' : 'Mở Checkout SePay Sandbox để xem QR và thanh toán mô phỏng.';
-        $('checkout-transfer-details').textContent = `Số tiền: ${money(value.TongThanhToan)}. ${instruction} Trạng thái được xác nhận sau khi nhà thuốc nhận IPN hợp lệ.`;
+            ? 'Chọn Thanh toán QR để xem mã và thanh toán.' : 'Chọn Thanh toán QR để xem mã và thanh toán thử nghiệm.';
+        $('checkout-transfer-details').textContent = `Số tiền: ${money(value.TongThanhToan)}. ${instruction} Trạng thái được cập nhật sau khi nhà thuốc xác nhận thanh toán.`;
         clearTimeout(paymentTimer); paymentTimer = setTimeout(checkPayment, 5000);
     } else {
         clearTimeout(paymentTimer); $('checkout-gateway-state').textContent = '';
@@ -123,19 +123,19 @@ async function checkPayment() {
 
 function paymentDiagnostic(operation, error) {
     const code = /^[A-Z_]{1,64}$/.test(error.code || '') ? error.code : 'CLIENT_ERROR';
-    console.warn('SePay request failed', { operation, status: Number.isInteger(error.status) ? error.status : 0, code });
+    console.warn('QR payment request failed', { operation, status: Number.isInteger(error.status) ? error.status : 0, code });
 }
 
 async function openPayment() {
     if (openingPayment || !order || !user) return;
     openingPayment = true; $('checkout-open-payment').disabled = true;
-    $('checkout-gateway-state').textContent = 'Đang chuẩn bị Checkout SePay…';
+    $('checkout-gateway-state').textContent = 'Đang chuẩn bị thanh toán QR…';
     const account = currentKey, id = activeOrderId;
     try {
         const data = await initializePayment(id, user.MaNguoiDung);
         if (disposed || account !== currentKey || id !== activeOrderId) return;
         if (data.code !== 'PAYMENT_INITIALIZED') throw { code: 'INVALID_RESPONSE' };
-        $('checkout-gateway-state').textContent = data.payment?.environment === 'production' ? 'Đang chuyển sang Checkout SePay…' : 'Đang chuyển sang Checkout SePay Sandbox…';
+        $('checkout-gateway-state').textContent = 'Đang chuyển sang trang thanh toán QR…';
         submitCheckout(data.payment, order);
     } catch (error) {
         if (disposed || account !== currentKey || id !== activeOrderId) return;

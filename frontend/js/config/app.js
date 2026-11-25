@@ -1,6 +1,6 @@
 const isLocalhost = ['localhost', '127.0.0.1'].includes(location.hostname);
 const apiOrigin = isLocalhost
-    ? 'http://127.0.0.1:5000'
+    ? `http://${location.hostname}:5000`
     : 'https://lanyenpharmacy-api.onrender.com';
 
 export const APP_CONFIG = {

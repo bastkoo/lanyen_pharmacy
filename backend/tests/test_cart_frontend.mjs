@@ -4,9 +4,41 @@ import assert from 'node:assert/strict';
 globalThis.location = { protocol: 'http:', hostname: 'localhost' };
 const api = await import('../../frontend/js/api/cart.js');
 const auth = await import('../../frontend/js/api/auth.js');
-const { money } = await import('../../frontend/js/components/cart.js');
+const { money, purchaseControls } = await import('../../frontend/js/components/cart.js');
 const { withSessionRequest } = await import('../../frontend/js/utils/session-requests.js');
 const reply = (body, status = 200) => ({ ok: status < 400, status, text: async () => JSON.stringify(body) });
+
+test('consultation products show promotion quota and update it when the unit changes', () => {
+    const previous = globalThis.document;
+    class Element {
+        children = []; listeners = {}; classList = { add() {} };
+        constructor(tag) { this.tagName = tag; }
+        append(...children) { this.children.push(...children); }
+        replaceChildren(...children) { this.children = children; }
+        setAttribute() {}
+        addEventListener(name, callback) { this.listeners[name] = callback; }
+    }
+    globalThis.document = { createElement: tag => new Element(tag) };
+    try {
+        for (const state of ['UPCOMING', 'ACTIVE']) {
+            const controls = purchaseControls({ MaThuoc: 1, TenThuoc: 'Sản phẩm tư vấn', PhanLoai: true,
+                KhuyenMai: { TrangThai: state }, DonViGia: [
+                    { MaDonGia: 1, DonViTinh: 'Hộp', GiaBan: 100000, GiaKhuyenMai: 80000, SoLuongKhuyenMai: 2, ConHang: true },
+                    { MaDonGia: 2, DonViTinh: 'Vỉ', GiaBan: 10000, GiaKhuyenMai: 8000, SoLuongKhuyenMai: 20, ConHang: true }
+                ] });
+            const quota = controls.children.find(child => child.className === 'sale-quota');
+            const price = controls.children.find(child => child.className === 'catalog-price');
+            const prefix = state === 'UPCOMING' ? 'Dự kiến' : 'Còn';
+            assert.equal(quota.hidden, false);
+            assert.equal(quota.textContent, `${prefix} 2 Hộp ưu đãi`);
+            assert.equal(price.textContent, 'Cần dược sĩ tư vấn');
+            const units = controls.children.find(child => child.tagName === 'fieldset');
+            units.children[2].children[0].listeners.change();
+            assert.equal(quota.textContent, `${prefix} 20 Vỉ ưu đãi`);
+            assert.equal(price.textContent, 'Cần dược sĩ tư vấn');
+        }
+    } finally { globalThis.document = previous; }
+});
 
 test('cart guest and account requests use cookies, fresh CSRF and only product/unit identifiers', async () => {
     const calls = [];

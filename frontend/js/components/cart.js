@@ -49,7 +49,7 @@ export function purchaseControls(product, { scope = '' } = {}) {
         if (discounted && product.PhanLoai !== true) original.append(node('span', 'Giá gốc: ', 'sr-only'), node('s', money(selected.GiaBan)));
         original.hidden = !sale || product.PhanLoai === true;
         quota.textContent = selected && sale ? `${sale.TrangThai === 'UPCOMING' ? 'Dự kiến' : 'Còn'} ${selected.SoLuongKhuyenMai || 0} ${selected.DonViTinh} ưu đãi` : '';
-        quota.hidden = !sale || product.PhanLoai === true;
+        quota.hidden = !sale;
         promotionName.textContent = sale ? `${promotionBadge(sale)} · ${sale.TenChuongTrinh || 'Chương trình khuyến mãi'}` : '';
     };
     updatePrice();

@@ -178,5 +178,32 @@ export async function checkSale({ evaluate: run, waitFor, command, key, root, ba
     await key('Escape', 27); await waitFor(`!document.querySelector('#product-detail-dialog').open`);
     mode = 'normal';
     setSaleQuotes(false);
+    await run(`(async()=>{
+        const { purchaseControls } = await import('/js/components/cart.js');
+        const grid = document.createElement('ul'); grid.id = 'sale-layout-fixture'; grid.className = 'sale-products-grid';
+        grid.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+        for (const consultation of [true, false]) {
+            const li = document.createElement('li'), article = document.createElement('article'), content = document.createElement('div');
+            article.className = 'catalog-product'; content.className = 'catalog-product-content';
+            const title = document.createElement('h3'); title.textContent = 'Sản phẩm kiểm thử bố cục';
+            content.append(title, purchaseControls({ MaThuoc: consultation ? 901 : 902, TenThuoc: title.textContent, PhanLoai: consultation,
+                KhuyenMai: { TrangThai: 'UPCOMING' }, DonViGia: [
+                    { MaDonGia: 901, DonViTinh: 'Hộp', GiaBan: 100000, GiaKhuyenMai: 80000, SoLuongKhuyenMai: 2, ConHang: true },
+                    { MaDonGia: 902, DonViTinh: 'Vỉ', GiaBan: 10000, GiaKhuyenMai: 8000, SoLuongKhuyenMai: 20, ConHang: true }
+                ] }));
+            article.append(content); li.append(article); grid.append(li);
+        }
+        document.querySelector('main').append(grid);
+    })()`);
+    for (const width of [1440, 768, 375, 320]) {
+        await command('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 768 });
+        assert.equal(await run(`(()=>{
+            const cards = Array.from(document.querySelectorAll('#sale-layout-fixture article'));
+            return ['.catalog-unit-options', '.sale-quota', '.catalog-buy'].every(selector =>
+                Math.abs(cards[0].querySelector(selector).getBoundingClientRect().top - cards[1].querySelector(selector).getBoundingClientRect().top) < 1)
+                && cards.every(card => card.querySelector('.sale-quota').getBoundingClientRect().height > 0 && card.scrollWidth <= card.clientWidth);
+        })()`), true, `Consultation and priced promotion cards align at ${width}px`);
+    }
+    await run(`document.querySelector('#sale-layout-fixture').remove()`);
     console.log('PASS: sale frame position, chronological programs, active/upcoming, discounted prices, unit switch, quota exhaustion, cart pricing, paging, error/empty/retry, stale response and 1440–320px. API/AUTH MOCK.');
 }

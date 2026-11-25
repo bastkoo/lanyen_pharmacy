@@ -31,6 +31,8 @@
 .sale-countdown-caption { font-size: 11px; color: var(--home-muted); }
 .sale-countdown-separator { display: grid; align-items: center; min-height: 40px; font-size: 18px; font-weight: 700; }
 .sale-original-price { color: var(--home-muted); font-size: 12px; min-height: 1.5em; line-height: 1.5; }
+/* Reserve the price row despite the shared .public-home [hidden] rule. */
+.sale-products-grid .sale-original-price[hidden] { display: block !important; visibility: hidden; }
 .sale-quota { color: var(--primary-dark); font-size: 12px; min-height: 1.5em; margin-block: 8px; overflow-wrap: anywhere; }
 .sale-body [role='status']:empty { display: none; }
 .sale-carousel { position: relative; min-width: 0; }

@@ -39,8 +39,8 @@ export function submitCheckout(payment, order, newTab = false) {
 }
 
 export function paymentMessage(error) {
-    return ({ GATEWAY_NOT_CONFIGURED: 'Thanh toán SePay chưa được cấu hình. Vui lòng liên hệ nhà thuốc.',
-        GATEWAY_CONFIG_INVALID: 'Cấu hình SePay chưa hợp lệ. Vui lòng liên hệ nhà thuốc.',
+    return ({ GATEWAY_NOT_CONFIGURED: 'Thanh toán QR chưa được cấu hình. Vui lòng liên hệ nhà thuốc.',
+        GATEWAY_CONFIG_INVALID: 'Cấu hình thanh toán QR chưa hợp lệ. Vui lòng liên hệ nhà thuốc.',
         GATEWAY_PRODUCTION_DISABLED: 'Thanh toán thật chưa được bật. Vui lòng liên hệ nhà thuốc.',
         ORDER_PAYMENT_ENVIRONMENT_UNKNOWN: 'Đơn cũ chưa xác định môi trường thanh toán. Vui lòng liên hệ nhà thuốc.',
         ORDER_PAYMENT_ENVIRONMENT_MISMATCH: 'Đơn thuộc môi trường thanh toán khác. Vui lòng liên hệ nhà thuốc.',
@@ -51,7 +51,7 @@ export function paymentMessage(error) {
         ORDER_NOT_FOUND: 'Không tìm thấy đơn hàng thuộc tài khoản của bạn.',
         SESSION_CHANGED: 'Tài khoản đã thay đổi. Hãy tải lại trang.',
         UNAUTHENTICATED: 'Vui lòng đăng nhập lại để thanh toán.',
-        INVALID_RESPONSE: 'Dữ liệu Checkout chưa hợp lệ. Chưa chuyển sang SePay.',
+        INVALID_RESPONSE: 'Dữ liệu thanh toán QR chưa hợp lệ. Vui lòng thử lại.',
         CONNECTION_FAILED: 'Chưa kết nối được máy chủ. Hãy kiểm tra lại trạng thái trước khi thanh toán.' })[error.code]
-        || 'Chưa mở được Checkout SePay. Bạn có thể thử lại.';
+        || 'Chưa mở được thanh toán QR. Bạn có thể thử lại.';
 }
