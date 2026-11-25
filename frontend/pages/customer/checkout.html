@@ -45,8 +45,8 @@
         </div>
     </header>
     <main id="main" tabindex="-1" class="page-width checkout-page">
-        <a href="cart.html" class="quiet-link">← Trở về giỏ hàng</a>
-        <h1>Xác nhận mua hàng</h1><p class="checkout-intro">Kiểm tra sản phẩm và lựa chọn cách nhận hàng phù hợp với bạn.</p>
+        <a id="checkout-back" href="cart.html" class="quiet-link">← Trở về giỏ hàng</a>
+        <h1 id="checkout-page-title">Xác nhận mua hàng</h1><p id="checkout-intro" class="checkout-intro">Kiểm tra sản phẩm và lựa chọn cách nhận hàng phù hợp với bạn.</p>
         <p id="checkout-state" class="checkout-state" role="status">Đang kiểm tra sản phẩm đã chọn…</p><button id="checkout-retry" class="quiet-link" type="button" hidden>Thử tải lại</button>
         <div id="checkout-layout" class="checkout-layout" hidden>
             <div class="checkout-content">
@@ -79,7 +79,17 @@
                 <p id="checkout-total-note" class="checkout-total-note">Chưa bao gồm phí giao hàng nếu có.</p><button id="checkout-complete" class="button button-primary" type="button" disabled aria-describedby="checkout-complete-note">Hoàn tất</button><p id="checkout-complete-note" class="checkout-total-note" role="status">Kiểm tra thông tin trước khi tạo đơn hàng.</p>
             </aside>
         </div>
-        <section id="checkout-result" class="checkout-section checkout-result" aria-labelledby="checkout-result-title" hidden><h2 id="checkout-result-title" tabindex="-1">Đơn hàng</h2><p id="checkout-result-status" role="status"></p><p id="checkout-transfer-details"></p><button id="checkout-open-payment" type="button" class="button button-primary" aria-describedby="checkout-gateway-state" hidden>Thanh toán QR</button><p id="checkout-gateway-state" role="status"></p><button id="checkout-payment-check" type="button" class="button button-outline" hidden>Kiểm tra thanh toán</button><a href="products.html" class="quiet-link">Tiếp tục mua hàng</a></section>
+        <section id="checkout-result" class="checkout-section checkout-result" aria-labelledby="checkout-result-title" hidden>
+            <div class="checkout-result-heading">
+                <span class="checkout-result-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="16" r="12"/><path class="checkout-result-clock" d="M16 9v7l4 3"/><path class="checkout-result-tick" d="m10 16 4 4 8-8"/></svg></span>
+                <div><p class="checkout-result-eyebrow">Đơn hàng Lan Yến</p><h2 id="checkout-result-title" tabindex="-1">Đơn hàng</h2></div>
+            </div>
+            <p id="checkout-result-status" class="checkout-result-status" role="status"></p>
+            <p id="checkout-transfer-details" class="checkout-result-description"></p>
+            <dl id="checkout-result-meta" class="checkout-result-meta"><div><dt>Tổng thanh toán</dt><dd id="checkout-result-amount"></dd></div><div><dt>Phương thức</dt><dd id="checkout-result-method"></dd></div></dl>
+            <div class="checkout-result-actions"><a id="checkout-view-order" class="button button-primary" hidden>Xem đơn hàng</a><button id="checkout-open-payment" type="button" class="button button-outline" aria-describedby="checkout-gateway-state" hidden>Thanh toán QR</button><button id="checkout-payment-check" type="button" class="quiet-link" hidden>Kiểm tra thanh toán</button></div>
+            <p id="checkout-gateway-state" class="checkout-gateway-state" role="status"></p>
+        </section>
         <p id="page-status" class="sr-only" role="status"></p><button id="retry-session" class="quiet-link" type="button" hidden>Thử kiểm tra đăng nhập lại</button>
         <dialog id="checkout-address-dialog" class="checkout-address-dialog" aria-labelledby="checkout-address-dialog-title"><div class="checkout-panel-heading"><h2 id="checkout-address-dialog-title">Chọn địa chỉ nhận hàng</h2><button id="checkout-address-close" class="icon-button" type="button" aria-label="Đóng chọn địa chỉ">×</button></div><fieldset id="checkout-address-options"><legend class="sr-only">Địa chỉ nhận hàng của bạn</legend></fieldset><div class="checkout-dialog-actions"><a href="addresses.html" class="quiet-link">Quản lý địa chỉ</a><button id="checkout-address-done" class="button button-primary" type="button">Sử dụng địa chỉ này</button></div></dialog>
         <noscript><p>Bật JavaScript để xem thông tin xác nhận mua hàng.</p></noscript>

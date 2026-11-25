@@ -1,375 +1,2646 @@
 <!doctype html>
 <html lang="vi">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#F5F7F6">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#F5F7F6" />
     <title>Quản lý · Lan Yến Pharmacy</title>
-    <link rel="icon" href="../../assets/images/LY-removebg-preview.png">
-    <link rel="preload" href="../../assets/fonts/be-vietnam-pro-400.ttf" as="font" type="font/ttf" crossorigin>
-    <link rel="stylesheet" href="../../css/base/variables.css">
-    <link rel="stylesheet" href="../../css/base/reset.css">
-    <link rel="stylesheet" href="../../css/base/global.css">
-    <link rel="stylesheet" href="../../css/base/manager-tokens.css">
-    <link rel="stylesheet" href="../../css/components/auth.css">
-    <link rel="stylesheet" href="../../css/components/manager.css">
-    <link rel="stylesheet" href="../../css/layouts/manager.css">
-    <link rel="stylesheet" href="../../css/pages/manager-dashboard.css">
-    <link rel="stylesheet" href="../../css/pages/manager-categories.css">
-    <link rel="stylesheet" href="../../css/pages/manager-products.css">
-    <link rel="stylesheet" href="../../css/pages/manager-units.css">
-    <link rel="stylesheet" href="../../css/pages/manager-stock.css">
-    <link rel="stylesheet" href="../../css/pages/manager-promotions.css">
-    <link rel="stylesheet" href="../../css/pages/manager-accounts.css">
+    <link rel="icon" href="../../assets/images/LY-removebg-preview.png" />
+    <link
+      rel="preload"
+      href="../../assets/fonts/be-vietnam-pro-400.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link rel="stylesheet" href="../../css/base/variables.css" />
+    <link rel="stylesheet" href="../../css/base/reset.css" />
+    <link rel="stylesheet" href="../../css/base/global.css" />
+    <link rel="stylesheet" href="../../css/base/manager-tokens.css" />
+    <link rel="stylesheet" href="../../css/components/auth.css" />
+    <link rel="stylesheet" href="../../css/components/manager.css" />
+    <link rel="stylesheet" href="../../css/layouts/manager.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-dashboard.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-categories.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-products.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-units.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-stock.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-promotions.css" />
+    <link rel="stylesheet" href="../../css/pages/manager-accounts.css" />
     <script type="module" src="../../js/layouts/manager.js"></script>
-</head>
-<body class="manager-app">
-    <a id="manager-skip" class="skip-link" href="#manager-main" hidden>Bỏ qua điều hướng</a>
+  </head>
+  <body class="manager-app">
+    <a id="manager-skip" class="skip-link" href="#manager-main" hidden
+      >Bỏ qua điều hướng</a
+    >
     <main id="manager-gate" class="manager-gate">
-        <a class="manager-brand" href="../customer/home.html" aria-label="Lan Yến Pharmacy, về trang nhà thuốc">
-            <img src="../../assets/images/LY-removebg-preview.png" alt="" width="42" height="42">
-            <span><span class="manager-brand__name">Lan Yến</span><span class="manager-brand__sub" translate="no">Pharmacy</span></span>
-        </a>
-        <section id="access-state" class="manager-state" data-state="loading" aria-busy="true" aria-labelledby="gate-title">
-            <span class="manager-state__icon" data-state-icon><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#loader-circle"></use></svg></span>
-            <div>
-                <p class="manager-eyebrow">Khu vực quản lý</p>
-                <h1 id="gate-title" tabindex="-1" data-state-title>Đang kiểm tra phiên đăng nhập…</h1>
-                <p data-state-description>Vui lòng chờ trong khi hệ thống xác minh quyền truy cập của bạn.</p>
-                <div class="manager-gate__actions">
-                    <button id="manager-login" class="button button-primary" type="button" hidden>Đăng nhập quản lý</button>
-                    <button id="manager-retry" class="button button-outline" type="button" hidden>Kiểm tra lại kết nối</button>
-                    <button id="manager-switch-account" class="button button-primary" type="button" hidden>Đăng nhập tài khoản khác</button>
-                </div>
-            </div>
-        </section>
-        <a class="manager-gate__back" href="../customer/home.html"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-left"></use></svg>Về trang nhà thuốc</a>
-        <noscript><p>Bật JavaScript để kiểm tra phiên đăng nhập và mở khu vực quản lý.</p></noscript>
+      <a
+        class="manager-brand"
+        href="../customer/home.html"
+        aria-label="Lan Yến Pharmacy, về trang nhà thuốc"
+      >
+        <img
+          src="../../assets/images/LY-removebg-preview.png"
+          alt=""
+          width="42"
+          height="42"
+        />
+        <span
+          ><span class="manager-brand__name">Lan Yến</span
+          ><span class="manager-brand__sub" translate="no">Pharmacy</span></span
+        >
+      </a>
+      <section
+        id="access-state"
+        class="manager-state"
+        data-state="loading"
+        aria-busy="true"
+        aria-labelledby="gate-title"
+      >
+        <span class="manager-state__icon" data-state-icon
+          ><svg class="manager-icon" aria-hidden="true">
+            <use
+              href="../../assets/icons/manager-icons.svg#loader-circle"
+            ></use></svg
+        ></span>
+        <div>
+          <p class="manager-eyebrow">Khu vực quản lý</p>
+          <h1 id="gate-title" tabindex="-1" data-state-title>
+            Đang kiểm tra phiên đăng nhập…
+          </h1>
+          <p data-state-description>
+            Vui lòng chờ trong khi hệ thống xác minh quyền truy cập của bạn.
+          </p>
+          <div class="manager-gate__actions">
+            <button
+              id="manager-login"
+              class="button button-primary"
+              type="button"
+              hidden
+            >
+              Đăng nhập quản lý
+            </button>
+            <button
+              id="manager-retry"
+              class="button button-outline"
+              type="button"
+              hidden
+            >
+              Kiểm tra lại kết nối
+            </button>
+            <button
+              id="manager-switch-account"
+              class="button button-primary"
+              type="button"
+              hidden
+            >
+              Đăng nhập tài khoản khác
+            </button>
+          </div>
+        </div>
+      </section>
+      <a class="manager-gate__back" href="../customer/home.html"
+        ><svg class="manager-icon" aria-hidden="true">
+          <use
+            href="../../assets/icons/manager-icons.svg#arrow-left"
+          ></use></svg
+        >Về trang nhà thuốc</a
+      >
+      <noscript
+        ><p>
+          Bật JavaScript để kiểm tra phiên đăng nhập và mở khu vực quản lý.
+        </p></noscript
+      >
     </main>
 
     <div id="manager-shell" class="manager-shell" data-auth-background hidden>
-        <aside id="manager-sidebar" class="manager-sidebar" aria-label="Điều hướng quản lý">
-            <a class="manager-brand manager-sidebar__brand" href="../customer/home.html" aria-label="Lan Yến Pharmacy, về trang chủ hệ thống">
-                <img src="../../assets/images/LY-removebg-preview.png" alt="" width="42" height="42">
-                <span><span class="manager-brand__name">Lan Yến</span><span class="manager-brand__sub" translate="no">Pharmacy</span></span>
-            </a>
-            <button id="close-sidebar" class="manager-icon-button manager-drawer-close" type="button" aria-label="Đóng điều hướng"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button>
-            <nav aria-label="Các khu vực quản lý">
-                <ul><li><a class="manager-nav-item" href="#overview" data-manager-view="overview"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#layout-dashboard"></use></svg>Tổng quan</a></li></ul>
-                <p class="manager-sidebar__group">Dữ liệu thuốc</p>
-                <ul>
-                    <li><a class="manager-nav-item" href="#categories" data-manager-view="categories"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#list-tree"></use></svg>Danh mục thuốc</a></li>
-                    <li><a class="manager-nav-item" href="#products" data-manager-view="products"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#pill"></use></svg>Quản lý thuốc</a></li>
-                    <li><a class="manager-nav-item" href="#units" data-manager-view="units"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#boxes"></use></svg>Đơn vị tính &amp; giá bán</a></li>
-                </ul>
-                <p class="manager-sidebar__group">Hoạt động kinh doanh</p>
-                <ul><li><a class="manager-nav-item" href="#promotions" data-manager-view="promotions"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#boxes"></use></svg>Chương trình khuyến mãi</a></li></ul>
-                <p class="manager-sidebar__group">Đội ngũ nhà thuốc</p>
-                <ul><li><a class="manager-nav-item" href="#accounts" data-manager-view="accounts"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Quản lý tài khoản</a></li></ul>
-                <p class="manager-sidebar__group">Kho nhà thuốc</p>
-                <ul>
-                    <li><a class="manager-nav-item" href="#batches" data-manager-view="batches"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#package-open"></use></svg>Lô thuốc</a></li>
-                    <li><a class="manager-nav-item" href="#inventory" data-manager-view="inventory"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#warehouse"></use></svg>Tồn kho</a></li>
-                </ul>
-            </nav>
-        </aside>
-        <button id="drawer-backdrop" class="manager-drawer-backdrop" type="button" aria-label="Đóng điều hướng" tabindex="-1" hidden></button>
-        <div id="manager-workspace" class="manager-workspace">
-            <header class="manager-header">
-                <button id="open-sidebar" class="manager-icon-button manager-mobile-toggle" type="button" aria-label="Mở điều hướng" aria-controls="manager-sidebar" aria-expanded="false"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#menu"></use></svg></button>
-                <nav class="manager-breadcrumb" aria-label="Đường dẫn trang"><ol><li><a href="#overview">Quản lý nhà thuốc</a></li><li id="breadcrumb-current" aria-current="page">Tổng quan</li></ol></nav>
-                <details id="account-menu" class="manager-account">
-                    <summary id="account-summary" aria-label="Tài khoản quản lý">
-                        <span id="account-avatar" class="manager-avatar" aria-hidden="true"></span>
-                        <span class="manager-account__label"><span id="account-name" class="manager-account__name"></span><span class="manager-account__role">Quản lý nhà thuốc</span></span>
-                    </summary>
-                    <div class="manager-account__panel">
-                        <a href="../customer/profile.html">Thông tin cá nhân</a>
-                        <button id="manager-logout" type="button">Đăng xuất</button>
-                    </div>
-                </details>
-            </header>
-            <main id="manager-main" class="manager-main" tabindex="-1">
-                <div class="manager-page-header">
-                    <div><p id="page-eyebrow" class="manager-eyebrow">Không gian quản lý</p><h1 id="page-title" tabindex="-1">Tổng quan</h1><p id="page-description">Một nơi làm việc thống nhất cho hoạt động nhà thuốc.</p></div>
-                    <div class="manager-page-actions"><button id="category-add" class="button button-primary" type="button" hidden>Thêm danh mục</button><button id="product-add" class="button button-primary" type="button" hidden>Thêm thuốc</button><span class="manager-badge manager-badge--success"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#shield-check"></use></svg>Khu vực quản lý</span></div>
+      <aside
+        id="manager-sidebar"
+        class="manager-sidebar"
+        aria-label="Điều hướng quản lý"
+      >
+        <a
+          class="manager-brand manager-sidebar__brand"
+          href="../customer/home.html"
+          aria-label="Lan Yến Pharmacy, về trang chủ hệ thống"
+        >
+          <img
+            src="../../assets/images/LY-removebg-preview.png"
+            alt=""
+            width="42"
+            height="42"
+          />
+          <span
+            ><span class="manager-brand__name">Lan Yến</span
+            ><span class="manager-brand__sub" translate="no"
+              >Pharmacy</span
+            ></span
+          >
+        </a>
+        <button
+          id="close-sidebar"
+          class="manager-icon-button manager-drawer-close"
+          type="button"
+          aria-label="Đóng điều hướng"
+        >
+          <svg class="manager-icon" aria-hidden="true">
+            <use href="../../assets/icons/manager-icons.svg#x"></use>
+          </svg>
+        </button>
+        <nav aria-label="Các khu vực quản lý">
+          <ul>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#overview"
+                data-manager-view="overview"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#layout-dashboard"
+                  ></use></svg
+                >Tổng quan</a
+              >
+            </li>
+          </ul>
+          <p class="manager-sidebar__group">Dữ liệu thuốc</p>
+          <ul>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#categories"
+                data-manager-view="categories"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#list-tree"
+                  ></use></svg
+                >Danh mục thuốc</a
+              >
+            </li>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#products"
+                data-manager-view="products"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#pill"
+                  ></use></svg
+                >Quản lý thuốc</a
+              >
+            </li>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#units"
+                data-manager-view="units"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#boxes"
+                  ></use></svg
+                >Đơn vị tính &amp; giá bán</a
+              >
+            </li>
+          </ul>
+          <p class="manager-sidebar__group">Hoạt động kinh doanh</p>
+          <ul>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#promotions"
+                data-manager-view="promotions"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#boxes"
+                  ></use></svg
+                >Chương trình khuyến mãi</a
+              >
+            </li>
+          </ul>
+          <p class="manager-sidebar__group">Đội ngũ nhà thuốc</p>
+          <ul>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#accounts"
+                data-manager-view="accounts"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#shield-check"
+                  ></use></svg
+                >Quản lý tài khoản</a
+              >
+            </li>
+          </ul>
+          <p class="manager-sidebar__group">Kho nhà thuốc</p>
+          <ul>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#batches"
+                data-manager-view="batches"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#package-open"
+                  ></use></svg
+                >Lô thuốc</a
+              >
+            </li>
+            <li>
+              <a
+                class="manager-nav-item"
+                href="#inventory"
+                data-manager-view="inventory"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#warehouse"
+                  ></use></svg
+                >Tồn kho</a
+              >
+            </li>
+          </ul>
+        </nav>
+      </aside>
+      <button
+        id="drawer-backdrop"
+        class="manager-drawer-backdrop"
+        type="button"
+        aria-label="Đóng điều hướng"
+        tabindex="-1"
+        hidden
+      ></button>
+      <div id="manager-workspace" class="manager-workspace">
+        <header class="manager-header">
+          <button
+            id="open-sidebar"
+            class="manager-icon-button manager-mobile-toggle"
+            type="button"
+            aria-label="Mở điều hướng"
+            aria-controls="manager-sidebar"
+            aria-expanded="false"
+          >
+            <svg class="manager-icon" aria-hidden="true">
+              <use href="../../assets/icons/manager-icons.svg#menu"></use>
+            </svg>
+          </button>
+          <nav class="manager-breadcrumb" aria-label="Đường dẫn trang">
+            <ol>
+              <li><a href="#overview">Quản lý nhà thuốc</a></li>
+              <li id="breadcrumb-current" aria-current="page">Tổng quan</li>
+            </ol>
+          </nav>
+          <details id="account-menu" class="manager-account">
+            <summary id="account-summary" aria-label="Tài khoản quản lý">
+              <span
+                id="account-avatar"
+                class="manager-avatar"
+                aria-hidden="true"
+              ></span>
+              <span class="manager-account__label"
+                ><span id="account-name" class="manager-account__name"></span
+                ><span class="manager-account__role"
+                  >Quản lý nhà thuốc</span
+                ></span
+              >
+            </summary>
+            <div class="manager-account__panel">
+              <a href="../customer/profile.html">Thông tin cá nhân</a>
+              <button id="manager-logout" type="button">Đăng xuất</button>
+            </div>
+          </details>
+        </header>
+        <main id="manager-main" class="manager-main" tabindex="-1">
+          <div class="manager-page-header">
+            <div>
+              <p id="page-eyebrow" class="manager-eyebrow">
+                Không gian quản lý
+              </p>
+              <h1 id="page-title" tabindex="-1">Tổng quan</h1>
+              <p id="page-description">
+                Một nơi làm việc thống nhất cho hoạt động nhà thuốc.
+              </p>
+            </div>
+            <div class="manager-page-actions">
+              <button
+                id="category-add"
+                class="button button-primary"
+                type="button"
+                hidden
+              >
+                Thêm danh mục</button
+              ><button
+                id="product-add"
+                class="button button-primary"
+                type="button"
+                hidden
+              >
+                Thêm thuốc</button
+              ><span class="manager-badge manager-badge--success"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#shield-check"
+                  ></use></svg
+                >Khu vực quản lý</span
+              >
+            </div>
+          </div>
+          <section id="overview-content" aria-label="Tổng quan khu vực quản lý">
+            <div class="dashboard-toolbar">
+              <div>
+                <div class="dashboard-filter">
+                  <label for="dashboard-days">Doanh thu &amp; đơn hàng</label
+                  ><select id="dashboard-days" name="days">
+                    <option value="7">7 ngày gần nhất</option>
+                    <option value="30" selected>30 ngày gần nhất</option>
+                    <option value="90">90 ngày gần nhất</option>
+                  </select>
                 </div>
-                <section id="overview-content" aria-label="Tổng quan khu vực quản lý">
-                    <div class="dashboard-toolbar">
-                        <div><div class="dashboard-filter"><label for="dashboard-days">Doanh thu &amp; đơn hàng</label><select id="dashboard-days" name="days"><option value="7">7 ngày gần nhất</option><option value="30" selected>30 ngày gần nhất</option><option value="90">90 ngày gần nhất</option></select></div><p id="dashboard-period" class="dashboard-period"></p></div>
-                        <button id="dashboard-refresh" class="button button-outline" type="button">Làm mới dữ liệu</button>
+                <p id="dashboard-period" class="dashboard-period"></p>
+              </div>
+              <button
+                id="dashboard-refresh"
+                class="button button-outline"
+                type="button"
+              >
+                Làm mới dữ liệu
+              </button>
+            </div>
+            <section
+              class="dashboard-metrics"
+              aria-label="Các chỉ số tổng quan"
+              data-dashboard-panel="summary"
+            >
+              <article class="dashboard-metric">
+                <h2>Tổng doanh thu</h2>
+                <strong
+                  id="kpi-revenue"
+                  class="dashboard-metric__value dashboard-metric__value--money"
+                  >—</strong
+                >
+                <p>Đơn hoàn thành, đã thanh toán</p>
+              </article>
+              <article class="dashboard-metric">
+                <h2>Tổng đơn hàng</h2>
+                <strong id="kpi-orders" class="dashboard-metric__value"
+                  >—</strong
+                >
+                <p>Trong khoảng đã chọn · Mọi trạng thái</p>
+              </article>
+              <article class="dashboard-metric">
+                <h2>Khách hàng</h2>
+                <strong id="kpi-customers" class="dashboard-metric__value"
+                  >—</strong
+                >
+                <p>Toàn bộ tài khoản khách hàng</p>
+              </article>
+              <article class="dashboard-metric" data-dashboard-panel="products">
+                <h2>Sản phẩm thuốc</h2>
+                <strong id="kpi-products" class="dashboard-metric__value"
+                  >—</strong
+                >
+                <p>Toàn bộ danh mục thuốc hiện có</p>
+                <div
+                  class="dashboard-status"
+                  data-panel-status="products"
+                  role="status"
+                >
+                  <span>Đang tải dữ liệu…</span
+                  ><button type="button" data-dashboard-retry="products" hidden>
+                    Thử lại
+                  </button>
+                </div>
+              </article>
+            </section>
+            <div
+              class="dashboard-status"
+              data-panel-status="summary"
+              role="status"
+            >
+              <span>Đang tải dữ liệu…</span
+              ><button type="button" data-dashboard-retry="summary" hidden>
+                Thử lại chỉ số
+              </button>
+            </div>
+            <div class="dashboard-body">
+              <section
+                class="dashboard-panel dashboard-revenue"
+                data-dashboard-panel="revenue"
+                aria-labelledby="revenue-title"
+              >
+                <header class="dashboard-panel__header">
+                  <div>
+                    <h2 id="revenue-title">Nhịp doanh thu</h2>
+                    <p>Theo ngày đặt hàng · VND</p>
+                  </div>
+                  <span class="manager-badge">Giờ Việt Nam</span>
+                </header>
+                <div
+                  class="dashboard-status"
+                  data-panel-status="revenue"
+                  role="status"
+                >
+                  <span>Đang tải dữ liệu…</span
+                  ><button type="button" data-dashboard-retry="revenue" hidden>
+                    Thử lại biểu đồ
+                  </button>
+                </div>
+                <div
+                  id="revenue-chart"
+                  data-panel-content="revenue"
+                  hidden
+                ></div>
+                <p class="dashboard-note">
+                  Chỉ ghi nhận đơn hoàn thành và đã thanh toán, sau giảm giá.
+                </p>
+              </section>
+              <section
+                class="dashboard-panel dashboard-orders"
+                data-dashboard-panel="orders"
+                aria-labelledby="orders-title"
+              >
+                <header class="dashboard-panel__header">
+                  <div>
+                    <h2 id="orders-title">Đơn hàng gần đây</h2>
+                    <p>5 đơn gần nhất trong khoảng đã chọn</p>
+                  </div>
+                </header>
+                <div
+                  class="dashboard-status"
+                  data-panel-status="orders"
+                  role="status"
+                >
+                  <span>Đang tải dữ liệu…</span
+                  ><button type="button" data-dashboard-retry="orders" hidden>
+                    Thử lại đơn hàng
+                  </button>
+                </div>
+                <div
+                  class="dashboard-table-scroll"
+                  data-panel-content="orders"
+                  role="region"
+                  aria-label="Bảng đơn hàng, cuộn ngang để xem đầy đủ khi màn hình hẹp"
+                  tabindex="0"
+                  hidden
+                >
+                  <table>
+                    <caption>
+                      Thời gian đặt theo giờ Việt Nam
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">STT</th>
+                        <th scope="col">Đặt lúc</th>
+                        <th scope="col" class="dashboard-money">
+                          Phải thanh toán
+                        </th>
+                        <th scope="col">Trạng thái</th>
+                      </tr>
+                    </thead>
+                    <tbody id="recent-orders-body"></tbody>
+                  </table>
+                </div>
+              </section>
+              <aside
+                class="dashboard-alerts"
+                aria-label="Các cảnh báo hiện tại"
+              >
+                <section
+                  class="dashboard-panel"
+                  data-dashboard-panel="low-stock"
+                  aria-labelledby="low-stock-title"
+                >
+                  <header class="dashboard-panel__header">
+                    <div>
+                      <h2 id="low-stock-title">Thuốc tồn kho thấp</h2>
+                      <p>Chạm hoặc dưới ngưỡng · Hiện tại</p>
                     </div>
-                    <section class="dashboard-metrics" aria-label="Các chỉ số tổng quan" data-dashboard-panel="summary">
-                        <article class="dashboard-metric"><h2>Tổng doanh thu</h2><strong id="kpi-revenue" class="dashboard-metric__value dashboard-metric__value--money">—</strong><p>Đơn hoàn thành, đã thanh toán</p></article>
-                        <article class="dashboard-metric"><h2>Tổng đơn hàng</h2><strong id="kpi-orders" class="dashboard-metric__value">—</strong><p>Trong khoảng đã chọn · Mọi trạng thái</p></article>
-                        <article class="dashboard-metric"><h2>Khách hàng</h2><strong id="kpi-customers" class="dashboard-metric__value">—</strong><p>Toàn bộ tài khoản khách hàng</p></article>
-                        <article class="dashboard-metric" data-dashboard-panel="products"><h2>Sản phẩm thuốc</h2><strong id="kpi-products" class="dashboard-metric__value">—</strong><p>Toàn bộ danh mục thuốc hiện có</p><div class="dashboard-status" data-panel-status="products" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="products" hidden>Thử lại</button></div></article>
-                    </section>
-                    <div class="dashboard-status" data-panel-status="summary" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="summary" hidden>Thử lại chỉ số</button></div>
-                    <div class="dashboard-body">
-                        <section class="dashboard-panel dashboard-revenue" data-dashboard-panel="revenue" aria-labelledby="revenue-title">
-                            <header class="dashboard-panel__header"><div><h2 id="revenue-title">Nhịp doanh thu</h2><p>Theo ngày đặt hàng · VND</p></div><span class="manager-badge">Giờ Việt Nam</span></header>
-                            <div class="dashboard-status" data-panel-status="revenue" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="revenue" hidden>Thử lại biểu đồ</button></div>
-                            <div id="revenue-chart" data-panel-content="revenue" hidden></div>
-                            <p class="dashboard-note">Chỉ ghi nhận đơn hoàn thành và đã thanh toán, sau giảm giá.</p>
-                        </section>
-                        <section class="dashboard-panel dashboard-orders" data-dashboard-panel="orders" aria-labelledby="orders-title">
-                            <header class="dashboard-panel__header"><div><h2 id="orders-title">Đơn hàng gần đây</h2><p>5 đơn gần nhất trong khoảng đã chọn</p></div></header>
-                            <div class="dashboard-status" data-panel-status="orders" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="orders" hidden>Thử lại đơn hàng</button></div>
-                            <div class="dashboard-table-scroll" data-panel-content="orders" role="region" aria-label="Bảng đơn hàng, cuộn ngang để xem đầy đủ khi màn hình hẹp" tabindex="0" hidden>
-                                <table><caption>Thời gian đặt theo giờ Việt Nam</caption><thead><tr><th scope="col">STT</th><th scope="col">Đặt lúc</th><th scope="col" class="dashboard-money">Phải thanh toán</th><th scope="col">Trạng thái</th></tr></thead><tbody id="recent-orders-body"></tbody></table>
-                            </div>
-                        </section>
-                        <aside class="dashboard-alerts" aria-label="Các cảnh báo hiện tại">
-                            <section class="dashboard-panel" data-dashboard-panel="low-stock" aria-labelledby="low-stock-title">
-                                <header class="dashboard-panel__header"><div><h2 id="low-stock-title">Thuốc tồn kho thấp</h2><p>Chạm hoặc dưới ngưỡng · Hiện tại</p></div><strong id="kpi-low-stock" class="dashboard-alert-count">—</strong></header>
-                                <div class="dashboard-status" data-panel-status="low-stock" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="low-stock" hidden>Thử lại cảnh báo</button></div>
-                                <ul id="low-stock-list" class="dashboard-alert-list" data-panel-content="low-stock" hidden></ul>
-                                <p id="low-stock-caption" class="dashboard-note"></p>
-                                <p class="dashboard-note">Số lượng theo đơn vị nhỏ nhất; gồm thuốc chưa có lô.</p>
-                            </section>
-                            <section class="dashboard-panel" data-dashboard-panel="expiring" aria-labelledby="expiring-title">
-                                <header class="dashboard-panel__header"><div><h2 id="expiring-title">Lô sắp hết hạn</h2><p>Còn tồn · Trong 30 ngày tới</p></div><strong id="kpi-expiring" class="dashboard-alert-count">—</strong></header>
-                                <div class="dashboard-status" data-panel-status="expiring" role="status"><span>Đang tải dữ liệu…</span><button type="button" data-dashboard-retry="expiring" hidden>Thử lại cảnh báo</button></div>
-                                <ul id="expiring-list" class="dashboard-alert-list" data-panel-content="expiring" hidden></ul>
-                                <p id="expiring-caption" class="dashboard-note"></p>
-                                <p class="dashboard-note">Không bao gồm lô đã hết hạn hoặc không còn tồn.</p>
-                            </section>
-                        </aside>
+                    <strong id="kpi-low-stock" class="dashboard-alert-count"
+                      >—</strong
+                    >
+                  </header>
+                  <div
+                    class="dashboard-status"
+                    data-panel-status="low-stock"
+                    role="status"
+                  >
+                    <span>Đang tải dữ liệu…</span
+                    ><button
+                      type="button"
+                      data-dashboard-retry="low-stock"
+                      hidden
+                    >
+                      Thử lại cảnh báo
+                    </button>
+                  </div>
+                  <ul
+                    id="low-stock-list"
+                    class="dashboard-alert-list"
+                    data-panel-content="low-stock"
+                    hidden
+                  ></ul>
+                  <p id="low-stock-caption" class="dashboard-note"></p>
+                  <p class="dashboard-note">
+                    Số lượng theo đơn vị nhỏ nhất; gồm thuốc chưa có lô.
+                  </p>
+                </section>
+                <section
+                  class="dashboard-panel"
+                  data-dashboard-panel="expiring"
+                  aria-labelledby="expiring-title"
+                >
+                  <header class="dashboard-panel__header">
+                    <div>
+                      <h2 id="expiring-title">Lô sắp hết hạn</h2>
+                      <p>Còn tồn · Trong 30 ngày tới</p>
                     </div>
-                    <p id="dashboard-live" class="manager-sr-only" role="status" aria-live="polite"></p>
+                    <strong id="kpi-expiring" class="dashboard-alert-count"
+                      >—</strong
+                    >
+                  </header>
+                  <div
+                    class="dashboard-status"
+                    data-panel-status="expiring"
+                    role="status"
+                  >
+                    <span>Đang tải dữ liệu…</span
+                    ><button
+                      type="button"
+                      data-dashboard-retry="expiring"
+                      hidden
+                    >
+                      Thử lại cảnh báo
+                    </button>
+                  </div>
+                  <ul
+                    id="expiring-list"
+                    class="dashboard-alert-list"
+                    data-panel-content="expiring"
+                    hidden
+                  ></ul>
+                  <p id="expiring-caption" class="dashboard-note"></p>
+                  <p class="dashboard-note">
+                    Không bao gồm lô đã hết hạn hoặc không còn tồn.
+                  </p>
                 </section>
-                <section id="accounts-content" aria-label="Quản lý tài khoản nội bộ" hidden>
-                    <div class="accounts-intro"><p>Tổ chức đội ngũ và kiểm soát quyền truy cập nhà thuốc. Chỉ bao gồm nhân viên và quản lý.</p><button id="account-add" class="button button-primary" type="button">Tạo tài khoản</button></div>
-                    <section class="accounts-statistics" aria-label="Thống kê toàn bộ tài khoản nội bộ"><dl><div><dt>Tổng nội bộ</dt><dd id="accounts-stat-total">—</dd></div><div><dt>Nhân viên</dt><dd id="accounts-stat-employees">—</dd></div><div><dt>Quản lý</dt><dd id="accounts-stat-managers">—</dd></div><div><dt>Đã khóa</dt><dd id="accounts-stat-locked">—</dd></div></dl><p id="accounts-stats-status" class="products-note" role="status"></p><button id="accounts-stats-retry" class="categories-action" type="button" hidden>Thử tải thống kê lại</button></section>
-                    <form id="accounts-filters" class="accounts-filters" role="search" novalidate><div class="products-field"><label for="accounts-search">Tìm họ tên hoặc số điện thoại</label><input id="accounts-search" class="categories-input" type="search" aria-describedby="accounts-filter-error"></div><div class="products-field"><label for="accounts-role">Vai trò</label><select id="accounts-role" class="categories-input"><option value="">Tất cả vai trò</option><option value="1">Nhân viên</option><option value="2">Quản lý</option></select></div><div class="products-field"><label for="accounts-status">Trạng thái</label><select id="accounts-status" class="categories-input"><option value="">Tất cả trạng thái</option><option value="false">Hoạt động</option><option value="true">Đã khóa</option></select></div><button id="accounts-reset" class="categories-action" type="button">Bỏ bộ lọc</button><p id="accounts-filter-error" class="category-dialog__error" role="status"></p></form>
-                    <p id="accounts-feedback" class="categories-feedback" role="status" hidden></p>
-                    <section id="accounts-list" class="categories-surface" aria-labelledby="accounts-list-title"><header class="categories-list-header"><div><h2 id="accounts-list-title" tabindex="-1">Danh bạ nội bộ</h2><p id="accounts-count" role="status"></p></div><button id="accounts-refresh" class="button button-outline" type="button">Làm mới dữ liệu</button></header><div id="accounts-state" class="categories-state" role="status"><p id="accounts-state-text"></p><div id="accounts-skeleton" class="accounts-skeleton" aria-hidden="true" hidden><span></span><span></span><span></span></div><button id="accounts-retry" class="button button-outline" type="button" hidden>Thử lại</button></div><div id="accounts-scroll" class="stock-table-scroll" role="region" tabindex="0" aria-label="Danh sách tài khoản, cuộn ngang khi màn hình hẹp" hidden><table class="stock-table accounts-table"><caption class="manager-sr-only">Họ tên, thông tin liên hệ, vai trò, trạng thái và thao tác của tài khoản nội bộ</caption><thead><tr><th scope="col">STT</th><th scope="col">Tài khoản</th><th scope="col">Số điện thoại</th><th scope="col">Email</th><th scope="col">Vai trò</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody id="accounts-body"></tbody></table></div><footer class="categories-pagination"><p id="accounts-page" role="status"></p><nav aria-label="Phân trang tài khoản"><button id="accounts-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="accounts-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer></section>
-                    <dialog id="account-dialog" class="category-dialog accounts-dialog" aria-labelledby="account-dialog-title" aria-describedby="account-dialog-context"><header class="category-dialog__header"><h2 id="account-dialog-title">Tài khoản nội bộ</h2><button id="account-dialog-close" class="categories-action" type="button">Đóng</button></header><p id="account-dialog-context" class="stock-dialog-note"></p><p id="account-dialog-loading" class="stock-dialog-note" role="status"></p><form id="account-form" novalidate><div id="account-fields" class="category-dialog__body accounts-fields"></div><p id="account-role-change" class="stock-dialog-note" role="status"></p><p class="stock-dialog-note">Tài khoản đăng nhập bằng số điện thoại và mã OTP. Không cần tạo mật khẩu.</p><footer class="category-dialog__footer"><button id="account-dialog-cancel" class="button button-outline" type="button">Hủy</button><button id="account-dialog-save" class="button button-primary" type="submit">Lưu tài khoản</button></footer></form><div id="account-detail" class="category-dialog__body" hidden></div><div id="account-detail-actions" class="category-dialog__footer" hidden><button id="account-detail-edit" class="button button-outline" type="button">Chỉnh sửa</button><button id="account-detail-status" class="button button-outline" type="button">Khóa tài khoản</button></div><div id="account-confirm" class="category-dialog__body" hidden><strong id="account-confirm-name" class="category-dialog__name"></strong><p id="account-confirm-description"></p><button id="account-confirm-submit" class="button button-primary" type="button" disabled>Xác nhận</button></div><p id="account-dialog-error" class="category-dialog__body category-dialog__error" role="alert" tabindex="-1"></p></dialog>
-                </section>
-                <section id="promotions-content" aria-label="Quản lý chương trình khuyến mãi" hidden>
-                    <p id="promotions-feedback" class="categories-feedback" role="status" hidden></p>
-                    <div id="promotions-list-view">
-                        <div class="promotions-toolbar"><form id="promotions-filters" class="promotions-filters" role="search"><div class="products-field"><label for="promotions-search">Tìm tên chương trình</label><input id="promotions-search" class="categories-input" type="search"></div><div class="products-field"><label for="promotions-status">Trạng thái theo ngày Việt Nam</label><select id="promotions-status" class="categories-input"><option value="">Tất cả trạng thái</option><option value="upcoming">Sắp diễn ra</option><option value="active">Đang diễn ra</option><option value="ended">Đã kết thúc</option></select></div></form><button id="promotion-add" class="button button-primary" type="button">Tạo chương trình</button></div>
-                        <p id="promotions-filter-note" class="products-note">Tìm kiếm và lọc trên toàn bộ chương trình sau khi tải đủ dữ liệu.</p>
-                        <section class="categories-surface" aria-labelledby="promotions-list-title"><header class="categories-list-header"><div><h2 id="promotions-list-title" tabindex="-1">Lịch chương trình</h2><p id="promotions-count" role="status"></p></div><button id="promotions-refresh" class="button button-outline" type="button">Làm mới</button></header><div id="promotions-state" class="categories-state" role="status"><p id="promotions-state-text"></p><button id="promotions-retry" class="button button-outline" type="button" hidden>Thử lại</button></div><div id="promotions-scroll" class="stock-table-scroll" role="region" tabindex="0" aria-label="Bảng chương trình, cuộn ngang khi màn hình hẹp" hidden><table class="stock-table"><caption>Ngày theo lịch Việt Nam; ngày bắt đầu và kết thúc được tính bao gồm.</caption><thead><tr><th scope="col">STT</th><th scope="col">Chương trình</th><th scope="col">Bắt đầu</th><th scope="col">Kết thúc</th><th scope="col">Trạng thái</th><th scope="col">Thao tác</th></tr></thead><tbody id="promotions-body"></tbody></table></div><footer class="categories-pagination"><p id="promotions-page" role="status"></p><nav aria-label="Phân trang chương trình"><button id="promotions-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="promotions-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer></section>
+              </aside>
+            </div>
+            <p
+              id="dashboard-live"
+              class="manager-sr-only"
+              role="status"
+              aria-live="polite"
+            ></p>
+          </section>
+          <section
+            id="accounts-content"
+            aria-label="Quản lý tài khoản nội bộ"
+            hidden
+          >
+            <div class="accounts-intro">
+              <p>
+                Tổ chức đội ngũ và kiểm soát quyền truy cập nhà thuốc. Chỉ bao
+                gồm nhân viên và quản lý.
+              </p>
+              <button
+                id="account-add"
+                class="button button-primary"
+                type="button"
+              >
+                Tạo tài khoản
+              </button>
+            </div>
+            <section
+              class="accounts-statistics"
+              aria-label="Thống kê toàn bộ tài khoản nội bộ"
+            >
+              <dl>
+                <div>
+                  <dt>Tổng nội bộ</dt>
+                  <dd id="accounts-stat-total">—</dd>
+                </div>
+                <div>
+                  <dt>Nhân viên</dt>
+                  <dd id="accounts-stat-employees">—</dd>
+                </div>
+                <div>
+                  <dt>Quản lý</dt>
+                  <dd id="accounts-stat-managers">—</dd>
+                </div>
+                <div>
+                  <dt>Đã khóa</dt>
+                  <dd id="accounts-stat-locked">—</dd>
+                </div>
+              </dl>
+              <p
+                id="accounts-stats-status"
+                class="products-note"
+                role="status"
+              ></p>
+              <button
+                id="accounts-stats-retry"
+                class="categories-action"
+                type="button"
+                hidden
+              >
+                Thử tải thống kê lại
+              </button>
+            </section>
+            <form
+              id="accounts-filters"
+              class="accounts-filters"
+              role="search"
+              novalidate
+            >
+              <div class="products-field">
+                <label for="accounts-search"
+                  >Tìm họ tên hoặc số điện thoại</label
+                ><input
+                  id="accounts-search"
+                  class="categories-input"
+                  type="search"
+                  aria-describedby="accounts-filter-error"
+                />
+              </div>
+              <div class="products-field">
+                <label for="accounts-role">Vai trò</label
+                ><select id="accounts-role" class="categories-input">
+                  <option value="">Tất cả vai trò</option>
+                  <option value="1">Nhân viên</option>
+                  <option value="2">Quản lý</option>
+                </select>
+              </div>
+              <div class="products-field">
+                <label for="accounts-status">Trạng thái</label
+                ><select id="accounts-status" class="categories-input">
+                  <option value="">Tất cả trạng thái</option>
+                  <option value="false">Hoạt động</option>
+                  <option value="true">Đã khóa</option>
+                </select>
+              </div>
+              <button
+                id="accounts-reset"
+                class="categories-action"
+                type="button"
+              >
+                Bỏ bộ lọc
+              </button>
+              <p
+                id="accounts-filter-error"
+                class="category-dialog__error"
+                role="status"
+              ></p>
+            </form>
+            <p
+              id="accounts-feedback"
+              class="categories-feedback"
+              role="status"
+              hidden
+            ></p>
+            <section
+              id="accounts-list"
+              class="categories-surface"
+              aria-labelledby="accounts-list-title"
+            >
+              <header class="categories-list-header">
+                <div>
+                  <h2 id="accounts-list-title" tabindex="-1">Danh bạ nội bộ</h2>
+                  <p id="accounts-count" role="status"></p>
+                </div>
+                <button
+                  id="accounts-refresh"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Làm mới dữ liệu
+                </button>
+              </header>
+              <div id="accounts-state" class="categories-state" role="status">
+                <p id="accounts-state-text"></p>
+                <div
+                  id="accounts-skeleton"
+                  class="accounts-skeleton"
+                  aria-hidden="true"
+                  hidden
+                >
+                  <span></span><span></span><span></span>
+                </div>
+                <button
+                  id="accounts-retry"
+                  class="button button-outline"
+                  type="button"
+                  hidden
+                >
+                  Thử lại
+                </button>
+              </div>
+              <div
+                id="accounts-scroll"
+                class="stock-table-scroll"
+                role="region"
+                tabindex="0"
+                aria-label="Danh sách tài khoản, cuộn ngang khi màn hình hẹp"
+                hidden
+              >
+                <table class="stock-table accounts-table">
+                  <caption class="manager-sr-only">
+                    Họ tên, thông tin liên hệ, vai trò, trạng thái và thao tác
+                    của tài khoản nội bộ
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">STT</th>
+                      <th scope="col">Tài khoản</th>
+                      <th scope="col">Số điện thoại</th>
+                      <th scope="col">Email</th>
+                      <th scope="col">Vai trò</th>
+                      <th scope="col">Trạng thái</th>
+                      <th scope="col">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="accounts-body"></tbody>
+                </table>
+              </div>
+              <footer class="categories-pagination">
+                <p id="accounts-page" role="status"></p>
+                <nav aria-label="Phân trang tài khoản">
+                  <button
+                    id="accounts-prev"
+                    class="button button-outline"
+                    type="button"
+                    disabled
+                  >
+                    Trang trước</button
+                  ><button
+                    id="accounts-next"
+                    class="button button-outline"
+                    type="button"
+                    disabled
+                  >
+                    Trang sau
+                  </button>
+                </nav>
+              </footer>
+            </section>
+            <dialog
+              id="account-dialog"
+              class="category-dialog accounts-dialog"
+              aria-labelledby="account-dialog-title"
+              aria-describedby="account-dialog-context"
+            >
+              <header class="category-dialog__header">
+                <h2 id="account-dialog-title">Tài khoản nội bộ</h2>
+                <button
+                  id="account-dialog-close"
+                  class="categories-action"
+                  type="button"
+                >
+                  Đóng
+                </button>
+              </header>
+              <p id="account-dialog-context" class="stock-dialog-note"></p>
+              <p
+                id="account-dialog-loading"
+                class="stock-dialog-note"
+                role="status"
+              ></p>
+              <form id="account-form" novalidate>
+                <div
+                  id="account-fields"
+                  class="category-dialog__body accounts-fields"
+                ></div>
+                <p
+                  id="account-role-change"
+                  class="stock-dialog-note"
+                  role="status"
+                ></p>
+                <p class="stock-dialog-note">
+                  Tài khoản đăng nhập bằng số điện thoại và mã OTP. Không cần
+                  tạo mật khẩu.
+                </p>
+                <footer class="category-dialog__footer">
+                  <button
+                    id="account-dialog-cancel"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Hủy</button
+                  ><button
+                    id="account-dialog-save"
+                    class="button button-primary"
+                    type="submit"
+                  >
+                    Lưu tài khoản
+                  </button>
+                </footer>
+              </form>
+              <div
+                id="account-detail"
+                class="category-dialog__body"
+                hidden
+              ></div>
+              <div
+                id="account-detail-actions"
+                class="category-dialog__footer"
+                hidden
+              >
+                <button
+                  id="account-detail-edit"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Chỉnh sửa</button
+                ><button
+                  id="account-detail-status"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Khóa tài khoản
+                </button>
+              </div>
+              <div id="account-confirm" class="category-dialog__body" hidden>
+                <strong
+                  id="account-confirm-name"
+                  class="category-dialog__name"
+                ></strong>
+                <p id="account-confirm-description"></p>
+                <button
+                  id="account-confirm-submit"
+                  class="button button-primary"
+                  type="button"
+                  disabled
+                >
+                  Xác nhận
+                </button>
+              </div>
+              <p
+                id="account-dialog-error"
+                class="category-dialog__body category-dialog__error"
+                role="alert"
+                tabindex="-1"
+              ></p>
+            </dialog>
+          </section>
+          <section
+            id="promotions-content"
+            aria-label="Quản lý chương trình khuyến mãi"
+            hidden
+          >
+            <p
+              id="promotions-feedback"
+              class="categories-feedback"
+              role="status"
+              hidden
+            ></p>
+            <div id="promotions-list-view">
+              <div class="promotions-toolbar">
+                <form
+                  id="promotions-filters"
+                  class="promotions-filters"
+                  role="search"
+                >
+                  <div class="products-field">
+                    <label for="promotions-search">Tìm tên chương trình</label
+                    ><input
+                      id="promotions-search"
+                      class="categories-input"
+                      type="search"
+                    />
+                  </div>
+                  <div class="products-field">
+                    <label for="promotions-status"
+                      >Trạng thái theo ngày Việt Nam</label
+                    ><select id="promotions-status" class="categories-input">
+                      <option value="">Tất cả trạng thái</option>
+                      <option value="upcoming">Sắp diễn ra</option>
+                      <option value="active">Đang diễn ra</option>
+                      <option value="ended">Đã kết thúc</option>
+                    </select>
+                  </div>
+                </form>
+                <button
+                  id="promotion-add"
+                  class="button button-primary"
+                  type="button"
+                >
+                  Tạo chương trình
+                </button>
+              </div>
+              <p id="promotions-filter-note" class="products-note">
+                Tìm kiếm và lọc trên toàn bộ chương trình sau khi tải đủ dữ
+                liệu.
+              </p>
+              <section
+                class="categories-surface"
+                aria-labelledby="promotions-list-title"
+              >
+                <header class="categories-list-header">
+                  <div>
+                    <h2 id="promotions-list-title" tabindex="-1">
+                      Lịch chương trình
+                    </h2>
+                    <p id="promotions-count" role="status"></p>
+                  </div>
+                  <button
+                    id="promotions-refresh"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Làm mới
+                  </button>
+                </header>
+                <div
+                  id="promotions-state"
+                  class="categories-state"
+                  role="status"
+                >
+                  <p id="promotions-state-text"></p>
+                  <button
+                    id="promotions-retry"
+                    class="button button-outline"
+                    type="button"
+                    hidden
+                  >
+                    Thử lại
+                  </button>
+                </div>
+                <div
+                  id="promotions-scroll"
+                  class="stock-table-scroll"
+                  role="region"
+                  tabindex="0"
+                  aria-label="Bảng chương trình, cuộn ngang khi màn hình hẹp"
+                  hidden
+                >
+                  <table class="stock-table">
+                    <caption>
+                      Ngày theo lịch Việt Nam; ngày bắt đầu và kết thúc được
+                      tính bao gồm.
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">STT</th>
+                        <th scope="col">Chương trình</th>
+                        <th scope="col">Bắt đầu</th>
+                        <th scope="col">Kết thúc</th>
+                        <th scope="col">Trạng thái</th>
+                        <th scope="col">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="promotions-body"></tbody>
+                  </table>
+                </div>
+                <footer class="categories-pagination">
+                  <p id="promotions-page" role="status"></p>
+                  <nav aria-label="Phân trang chương trình">
+                    <button
+                      id="promotions-prev"
+                      class="button button-outline"
+                      type="button"
+                      disabled
+                    >
+                      Trang trước</button
+                    ><button
+                      id="promotions-next"
+                      class="button button-outline"
+                      type="button"
+                      disabled
+                    >
+                      Trang sau
+                    </button>
+                  </nav>
+                </footer>
+              </section>
+            </div>
+            <div id="promotion-detail-view" hidden>
+              <div class="promotions-toolbar">
+                <button
+                  id="promotion-back"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Về danh sách chương trình</button
+                ><button
+                  id="promotion-detail-refresh"
+                  class="categories-action"
+                  type="button"
+                >
+                  Làm mới chi tiết
+                </button>
+              </div>
+              <p
+                id="promotion-detail-status"
+                class="products-note"
+                role="status"
+              ></p>
+              <button
+                id="promotion-detail-retry"
+                class="button button-outline"
+                type="button"
+                hidden
+              >
+                Thử tải chi tiết lại
+              </button>
+              <section
+                id="promotion-identity"
+                class="promotion-identity"
+                aria-label="Thông tin chương trình"
+              ></section>
+              <div class="promotions-toolbar">
+                <p class="products-note">
+                  Số lượng còn được hưởng khuyến mãi. Về 0 là hết số lượng áp
+                  dụng; không phải tồn kho thuốc.
+                </p>
+                <button
+                  id="promotion-item-add"
+                  class="button button-primary"
+                  type="button"
+                  disabled
+                >
+                  Thêm thuốc vào chương trình
+                </button>
+              </div>
+              <section
+                id="promotion-items-table"
+                class="categories-surface"
+              ></section>
+            </div>
+            <dialog
+              id="promotion-dialog"
+              class="category-dialog promotion-dialog"
+              aria-labelledby="promotion-dialog-title"
+              aria-describedby="promotion-dialog-context"
+            >
+              <header class="category-dialog__header">
+                <h2 id="promotion-dialog-title">Chương trình khuyến mãi</h2>
+                <button
+                  id="promotion-dialog-close"
+                  class="categories-action"
+                  type="button"
+                >
+                  Đóng
+                </button>
+              </header>
+              <p id="promotion-dialog-context" class="stock-dialog-note"></p>
+              <p
+                id="promotion-dialog-loading"
+                class="stock-dialog-note"
+                role="status"
+              ></p>
+              <form id="promotion-form" novalidate>
+                <div
+                  id="promotion-program-fields"
+                  class="category-dialog__body promotion-fields"
+                ></div>
+                <div
+                  id="promotion-item-fields"
+                  class="category-dialog__body promotion-fields"
+                  hidden
+                >
+                  <div id="promotion-product-picker">
+                    <label for="promotion-product-search"
+                      >Tìm thuốc theo tên, mã vạch, mã dược, số đăng ký</label
+                    >
+                    <div class="promotion-product-search">
+                      <input
+                        id="promotion-product-search"
+                        class="categories-input"
+                        type="search"
+                      />
                     </div>
-                    <div id="promotion-detail-view" hidden>
-                        <div class="promotions-toolbar"><button id="promotion-back" class="button button-outline" type="button">Về danh sách chương trình</button><button id="promotion-detail-refresh" class="categories-action" type="button">Làm mới chi tiết</button></div>
-                        <p id="promotion-detail-status" class="products-note" role="status"></p><button id="promotion-detail-retry" class="button button-outline" type="button" hidden>Thử tải chi tiết lại</button>
-                        <section id="promotion-identity" class="promotion-identity" aria-label="Thông tin chương trình"></section>
-                        <div class="promotions-toolbar"><p class="products-note">Số lượng còn được hưởng khuyến mãi. Về 0 là hết số lượng áp dụng; không phải tồn kho thuốc.</p><button id="promotion-item-add" class="button button-primary" type="button" disabled>Thêm thuốc vào chương trình</button></div>
-                        <section id="promotion-items-table" class="categories-surface"></section>
+                    <label for="promotion-MaThuoc">Chọn thuốc *</label
+                    ><select
+                      id="promotion-MaThuoc"
+                      class="categories-input"
+                      aria-describedby="promotion-MaThuoc-error"
+                      disabled
+                    >
+                      <option value="">Chọn thuốc…</option>
+                    </select>
+                    <p
+                      id="promotion-MaThuoc-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                    <p
+                      id="promotion-picker-status"
+                      class="products-note"
+                      role="status"
+                    ></p>
+                    <button
+                      id="promotion-picker-retry"
+                      class="button button-outline"
+                      type="button"
+                      hidden
+                    >
+                      Thử tải thuốc lại
+                    </button>
+                    <div class="categories-actions">
+                      <button
+                        id="promotion-picker-prev"
+                        class="categories-action"
+                        type="button"
+                        disabled
+                      >
+                        Trang thuốc trước</button
+                      ><button
+                        id="promotion-picker-next"
+                        class="categories-action"
+                        type="button"
+                        disabled
+                      >
+                        Trang thuốc sau
+                      </button>
                     </div>
-                    <dialog id="promotion-dialog" class="category-dialog promotion-dialog" aria-labelledby="promotion-dialog-title" aria-describedby="promotion-dialog-context">
-                        <header class="category-dialog__header"><h2 id="promotion-dialog-title">Chương trình khuyến mãi</h2><button id="promotion-dialog-close" class="categories-action" type="button">Đóng</button></header><p id="promotion-dialog-context" class="stock-dialog-note"></p><p id="promotion-dialog-loading" class="stock-dialog-note" role="status"></p>
-                        <form id="promotion-form" novalidate>
-                            <div id="promotion-program-fields" class="category-dialog__body promotion-fields"></div>
-                            <div id="promotion-item-fields" class="category-dialog__body promotion-fields" hidden>
-                                <div id="promotion-product-picker"><label for="promotion-product-search">Tìm thuốc theo tên, mã vạch, mã dược, số đăng ký</label><div class="promotion-product-search"><input id="promotion-product-search" class="categories-input" type="search"></div><label for="promotion-MaThuoc">Chọn thuốc *</label><select id="promotion-MaThuoc" class="categories-input" aria-describedby="promotion-MaThuoc-error" disabled><option value="">Chọn thuốc…</option></select><p id="promotion-MaThuoc-error" class="category-dialog__error" role="status"></p><p id="promotion-picker-status" class="products-note" role="status"></p><button id="promotion-picker-retry" class="button button-outline" type="button" hidden>Thử tải thuốc lại</button><div class="categories-actions"><button id="promotion-picker-prev" class="categories-action" type="button" disabled>Trang thuốc trước</button><button id="promotion-picker-next" class="categories-action" type="button" disabled>Trang thuốc sau</button></div></div>
-                                <p id="promotion-selected-product" class="products-note" hidden></p>
-                                <div><label for="promotion-LoaiGiamGia">Loại giảm giá *</label><select id="promotion-LoaiGiamGia" class="categories-input" aria-describedby="promotion-LoaiGiamGia-error"><option value="true">Theo phần trăm</option><option value="false">Giảm tiền trực tiếp</option></select><p id="promotion-LoaiGiamGia-error" class="category-dialog__error" role="status"></p></div>
-                                <div><label id="promotion-discount-label" for="promotion-GiaTriGiam">Giá trị giảm (%) *</label><input id="promotion-GiaTriGiam" class="categories-input" type="text" inputmode="decimal" required aria-describedby="promotion-discount-help promotion-GiaTriGiam-error"><p id="promotion-discount-help" class="category-dialog__help"></p><p id="promotion-GiaTriGiam-error" class="category-dialog__error" role="status"></p></div>
-                                <div><label for="promotion-SoLuong">Số sản phẩm còn được hưởng khuyến mãi *</label><input id="promotion-SoLuong" class="categories-input" type="text" inputmode="numeric" required aria-describedby="promotion-quantity-help promotion-SoLuong-error"><p id="promotion-quantity-help" class="category-dialog__help">Khi thêm thuốc, nhập số nguyên dương. Khi sửa, 0 biểu thị hết số lượng áp dụng.</p><p id="promotion-SoLuong-error" class="category-dialog__error" role="status"></p></div>
-                            </div>
-                            <footer class="category-dialog__footer"><button id="promotion-dialog-cancel" class="button button-outline" type="button">Hủy</button><button id="promotion-dialog-save" class="button button-primary" type="submit">Lưu</button></footer>
-                        </form>
-                        <div id="promotion-delete-panel" class="category-dialog__body" hidden><p id="promotion-delete-description"></p><strong id="promotion-delete-name" class="category-dialog__name"></strong><button id="promotion-delete-confirm" class="button button-danger" type="button" disabled>Xác nhận xóa</button></div><p id="promotion-dialog-error" class="category-dialog__body category-dialog__error" role="alert" tabindex="-1"></p>
-                    </dialog>
-                </section>
-                <section id="batches-content" aria-label="Quản lý lô thuốc" hidden>
-                    <section class="categories-surface stock-picker" aria-labelledby="batch-picker-title">
-                        <h2 id="batch-picker-title">Chọn thuốc để quản lý lô</h2>
-                        <form id="batch-product-search" class="stock-picker-form" role="search" novalidate>
-                            <div class="products-field"><label for="batch-category">Danh mục thuốc</label><select id="batch-category" class="categories-input" aria-describedby="batch-categories-status" disabled><option value="">Tất cả danh mục</option></select></div>
-                            <div class="products-field"><label for="batch-search">Tìm tên thuốc, mã vạch, mã dược hoặc số đăng ký</label><input id="batch-search" class="categories-input" type="search" aria-describedby="batch-search-error"></div>
-                            <button id="batch-reset" class="button button-outline" type="button">Bỏ bộ lọc</button>
-                        </form>
-                        <p id="batch-categories-status" class="products-note" role="status"></p><button id="batch-categories-retry" class="categories-action" type="button" hidden>Thử tải danh mục lại</button>
-                        <p id="batch-search-error" class="category-dialog__error" role="status"></p>
-                        <div class="stock-picker-form"><div class="products-field"><label for="batch-product-select">Thuốc trong trang kết quả</label><select id="batch-product-select" class="categories-input" disabled><option value="">Chọn thuốc…</option></select></div><button id="batch-products-prev" class="button button-outline" type="button" disabled>Trước</button><button id="batch-products-next" class="button button-outline" type="button" disabled>Sau</button><button id="batch-products-retry" class="categories-action" type="button">Tải lại thuốc</button></div>
-                        <p id="batch-picker-status" class="products-note" role="status"></p>
-                        <div id="batch-product-identity" class="stock-identity" hidden></div>
-                    </section>
-                    <div class="stock-actions"><p>Số lượng theo đơn vị nhỏ nhất của thuốc; không điều chỉnh tồn thủ công.</p><button id="batch-add" class="button button-primary" type="button" disabled>Thêm lô thuốc</button></div>
-                    <p id="batch-feedback" class="categories-feedback" role="status" hidden></p>
-                    <section id="batch-table" class="categories-surface"></section>
-                    <dialog id="batch-dialog" class="category-dialog stock-dialog" aria-labelledby="batch-dialog-title" aria-describedby="batch-dialog-context">
-                        <header class="category-dialog__header"><h2 id="batch-dialog-title">Thông tin lô thuốc</h2><button id="batch-close" class="categories-action" type="button">Đóng</button></header>
-                        <p id="batch-dialog-context" class="stock-dialog-note"></p><p id="batch-dialog-status" class="stock-dialog-note" role="status"></p>
-                        <form id="batch-form" novalidate><div id="batch-fields" class="category-dialog__body stock-fields"></div><p id="batch-edit-note" class="stock-dialog-note">Số lượng tồn do hệ thống quản lý. Khi sửa, lượng nhập và lượng tồn được giữ nguyên.</p><footer class="category-dialog__footer"><button id="batch-cancel" class="button button-outline" type="button">Hủy</button><button id="batch-save" class="button button-primary" type="submit">Lưu lô</button></footer></form>
-                        <div id="batch-detail-panel" class="category-dialog__body" hidden></div>
-                        <div id="batch-delete-panel" class="category-dialog__body" hidden><p>Xác nhận yêu cầu xóa lô:</p><strong id="batch-delete-name" class="category-dialog__name"></strong><p>Backend hiện chưa cho phép xóa lô vì không thể xác minh lịch sử xuất kho an toàn.</p><button id="batch-delete-confirm" class="button button-danger" type="button" disabled>Xác nhận yêu cầu xóa</button></div>
-                        <p id="batch-dialog-error" class="category-dialog__body category-dialog__error" role="alert" tabindex="-1"></p>
-                    </dialog>
-                </section>
-                <section id="inventory-content" aria-label="Theo dõi tồn kho và hạn sử dụng" hidden>
-                    <p class="stock-explanation">Tồn vật lý gồm tất cả lô, kể cả lô đã hết hạn; không phải số lượng có thể bán. Số lượng theo đơn vị nhỏ nhất của thuốc.</p>
-                    <nav class="stock-jump-links" aria-label="Các bảng tồn kho"><button type="button" class="categories-action" data-inventory-jump="summary">Tổng hợp tồn</button><button type="button" class="categories-action" data-inventory-jump="low">Tồn kho thấp</button><button type="button" class="categories-action" data-inventory-jump="expiry">Hạn sử dụng</button></nav>
-                    <section id="inventory-summary" class="categories-surface stock-section"></section>
-                    <section id="inventory-low" class="categories-surface stock-section"></section>
-                    <section class="stock-expiry-settings" aria-labelledby="inventory-expiry-settings-title"><h2 id="inventory-expiry-settings-title">Theo dõi hạn sử dụng</h2><form id="inventory-expiry-form" class="stock-picker-form" novalidate><div class="products-field"><label for="inventory-expiry-status">Trạng thái hạn</label><select id="inventory-expiry-status" class="categories-input"><option value="expiring">Sắp hết hạn</option><option value="expired">Đã hết hạn</option></select></div><div class="products-field"><label for="inventory-expiry-days">Khoảng theo dõi (ngày)</label><input id="inventory-expiry-days" class="categories-input" type="text" inputmode="numeric" value="30" aria-describedby="inventory-expiry-help inventory-expiry-error"></div><button class="button button-outline" type="submit">Áp dụng</button></form><p id="inventory-expiry-help" class="products-note">Mặc định Backend: 30 ngày; nhận 0–36500 ngày. Lô hết hạn hôm nay vẫn thuộc nhóm còn hạn. Chỉ liệt kê lô còn tồn.</p><p id="inventory-expiry-error" class="category-dialog__error" role="status"></p><p id="inventory-as-of" class="products-note" role="status"></p></section>
-                    <section id="inventory-expiry" class="categories-surface stock-section"></section>
-                </section>
-                <section id="units-content" aria-label="Đơn vị tính và giá bán" hidden>
-                    <p id="units-feedback" class="categories-feedback" role="status" hidden></p>
-                    <div class="units-layout">
-                        <section class="units-picker categories-surface" aria-labelledby="units-picker-title">
-                            <h2 id="units-picker-title">Chọn thuốc</h2>
-                            <form id="units-search-form" role="search">
-                                <label for="units-category">Loại thuốc</label>
-                                <select id="units-category" class="categories-input" aria-describedby="units-categories-status" disabled><option value="">Tất cả loại thuốc</option></select>
-                                <p id="units-categories-status" role="status"></p>
-                                <button id="units-categories-retry" class="button button-outline" type="button" hidden>Thử tải loại thuốc lại</button>
-                                <label for="units-search">Tên thuốc, mã vạch, mã dược hoặc số đăng ký</label>
-                                <input id="units-search" class="categories-input" type="search" aria-describedby="units-search-error" placeholder="Tìm thuốc…">
-                                <button id="units-reset" class="button button-outline" type="button">Bỏ bộ lọc</button>
-                                <p id="units-search-error" class="category-dialog__error" role="status"></p>
-                            </form>
-                            <p id="units-picker-status" role="status"></p>
-                            <button id="units-picker-retry" class="button button-outline" type="button" hidden>Thử tải thuốc lại</button>
-                            <ul id="units-products" class="units-products" aria-label="Kết quả tìm thuốc"></ul>
-                            <nav class="units-picker-pages" aria-label="Phân trang chọn thuốc"><button id="units-products-prev" class="categories-action" type="button" disabled>Trước</button><span id="units-products-page" role="status"></span><button id="units-products-next" class="categories-action" type="button" disabled>Sau</button></nav>
-                        </section>
-                        <section id="units-workspace" class="categories-surface" aria-labelledby="units-title">
-                            <header class="categories-list-header"><div><h2 id="units-title" tabindex="-1">Bảng đơn vị &amp; giá bán</h2><p>Mỗi đơn vị bán có giá và số lượng quy đổi riêng.</p></div><button id="units-add" class="button button-primary" type="button" disabled>Thêm đơn vị</button></header>
-                            <div id="units-product" class="units-product" hidden></div>
-                            <div class="units-toolbar"><p id="units-count" role="status"></p><button id="units-reload" class="categories-action" type="button" disabled>Làm mới bảng giá</button></div>
-                            <div id="units-state" class="categories-state" role="status"><h3 id="units-state-title">Chọn một thuốc để bắt đầu</h3><p id="units-state-description">Tìm và chọn thuốc ở danh sách để quản lý đơn vị bán.</p><button id="units-retry" class="button button-outline" type="button" hidden>Thử lại</button></div>
-                            <div id="units-table-wrap" class="units-table-scroll" role="region" tabindex="0" aria-label="Bảng giá, cuộn ngang để xem đầy đủ trên màn hình nhỏ" hidden>
-                                <table class="units-table"><caption>Số lượng quy đổi theo đơn vị nhỏ nhất; tên đơn vị cơ sở chưa được xác định.</caption><thead><tr><th scope="col">STT</th><th scope="col">Đơn vị tính</th><th scope="col" class="units-number">SL quy đổi</th><th scope="col" class="units-number">Giá bán (VND)</th><th scope="col">Thao tác</th></tr></thead><tbody id="units-body"></tbody></table>
-                            </div>
-                            <footer class="categories-pagination"><p id="units-page" role="status"></p><nav aria-label="Phân trang đơn vị giá"><button id="units-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="units-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer>
-                        </section>
+                  </div>
+                  <p
+                    id="promotion-selected-product"
+                    class="products-note"
+                    hidden
+                  ></p>
+                  <div>
+                    <label for="promotion-LoaiGiamGia">Loại giảm giá *</label
+                    ><select
+                      id="promotion-LoaiGiamGia"
+                      class="categories-input"
+                      aria-describedby="promotion-LoaiGiamGia-error"
+                    >
+                      <option value="true">Theo phần trăm</option>
+                      <option value="false">Giảm tiền trực tiếp</option>
+                    </select>
+                    <p
+                      id="promotion-LoaiGiamGia-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                  <div>
+                    <label
+                      id="promotion-discount-label"
+                      for="promotion-GiaTriGiam"
+                      >Giá trị giảm (%) *</label
+                    ><input
+                      id="promotion-GiaTriGiam"
+                      class="categories-input"
+                      type="text"
+                      inputmode="decimal"
+                      required
+                      aria-describedby="promotion-discount-help promotion-GiaTriGiam-error"
+                    />
+                    <p
+                      id="promotion-discount-help"
+                      class="category-dialog__help"
+                    ></p>
+                    <p
+                      id="promotion-GiaTriGiam-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                  <div>
+                    <label for="promotion-SoLuong"
+                      >Số sản phẩm còn được hưởng khuyến mãi *</label
+                    ><input
+                      id="promotion-SoLuong"
+                      class="categories-input"
+                      type="text"
+                      inputmode="numeric"
+                      required
+                      aria-describedby="promotion-quantity-help promotion-SoLuong-error"
+                    />
+                    <p
+                      id="promotion-quantity-help"
+                      class="category-dialog__help"
+                    >
+                      Khi thêm thuốc, nhập số nguyên dương. Khi sửa, 0 biểu thị
+                      hết số lượng áp dụng.
+                    </p>
+                    <p
+                      id="promotion-SoLuong-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                </div>
+                <footer class="category-dialog__footer">
+                  <button
+                    id="promotion-dialog-cancel"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Hủy</button
+                  ><button
+                    id="promotion-dialog-save"
+                    class="button button-primary"
+                    type="submit"
+                  >
+                    Lưu
+                  </button>
+                </footer>
+              </form>
+              <div
+                id="promotion-delete-panel"
+                class="category-dialog__body"
+                hidden
+              >
+                <p id="promotion-delete-description"></p>
+                <strong
+                  id="promotion-delete-name"
+                  class="category-dialog__name"
+                ></strong
+                ><button
+                  id="promotion-delete-confirm"
+                  class="button button-danger"
+                  type="button"
+                  disabled
+                >
+                  Xác nhận xóa
+                </button>
+              </div>
+              <p
+                id="promotion-dialog-error"
+                class="category-dialog__body category-dialog__error"
+                role="alert"
+                tabindex="-1"
+              ></p>
+            </dialog>
+          </section>
+          <section id="batches-content" aria-label="Quản lý lô thuốc" hidden>
+            <section
+              class="categories-surface stock-picker"
+              aria-labelledby="batch-picker-title"
+            >
+              <h2 id="batch-picker-title">Chọn thuốc để quản lý lô</h2>
+              <form
+                id="batch-product-search"
+                class="stock-picker-form"
+                role="search"
+                novalidate
+              >
+                <div class="products-field">
+                  <label for="batch-category">Danh mục thuốc</label
+                  ><select
+                    id="batch-category"
+                    class="categories-input"
+                    aria-describedby="batch-categories-status"
+                    disabled
+                  >
+                    <option value="">Tất cả danh mục</option>
+                  </select>
+                </div>
+                <div class="products-field">
+                  <label for="batch-search"
+                    >Tìm tên thuốc, mã vạch, mã dược hoặc số đăng ký</label
+                  ><input
+                    id="batch-search"
+                    class="categories-input"
+                    type="search"
+                    aria-describedby="batch-search-error"
+                  />
+                </div>
+                <button
+                  id="batch-reset"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Bỏ bộ lọc
+                </button>
+              </form>
+              <p
+                id="batch-categories-status"
+                class="products-note"
+                role="status"
+              ></p>
+              <button
+                id="batch-categories-retry"
+                class="categories-action"
+                type="button"
+                hidden
+              >
+                Thử tải danh mục lại
+              </button>
+              <p
+                id="batch-search-error"
+                class="category-dialog__error"
+                role="status"
+              ></p>
+              <div class="stock-picker-form">
+                <div class="products-field">
+                  <label for="batch-product-select"
+                    >Thuốc trong trang kết quả</label
+                  ><select
+                    id="batch-product-select"
+                    class="categories-input"
+                    disabled
+                  >
+                    <option value="">Chọn thuốc…</option>
+                  </select>
+                </div>
+                <button
+                  id="batch-products-prev"
+                  class="button button-outline"
+                  type="button"
+                  disabled
+                >
+                  Trước</button
+                ><button
+                  id="batch-products-next"
+                  class="button button-outline"
+                  type="button"
+                  disabled
+                >
+                  Sau</button
+                ><button
+                  id="batch-products-retry"
+                  class="categories-action"
+                  type="button"
+                >
+                  Tải lại thuốc
+                </button>
+              </div>
+              <p
+                id="batch-picker-status"
+                class="products-note"
+                role="status"
+              ></p>
+              <div
+                id="batch-product-identity"
+                class="stock-identity"
+                hidden
+              ></div>
+            </section>
+            <div class="stock-actions">
+              <p>
+                Số lượng theo đơn vị nhỏ nhất của thuốc; không điều chỉnh tồn
+                thủ công.
+              </p>
+              <button
+                id="batch-add"
+                class="button button-primary"
+                type="button"
+                disabled
+              >
+                Thêm lô thuốc
+              </button>
+            </div>
+            <p
+              id="batch-feedback"
+              class="categories-feedback"
+              role="status"
+              hidden
+            ></p>
+            <section id="batch-table" class="categories-surface"></section>
+            <dialog
+              id="batch-dialog"
+              class="category-dialog stock-dialog"
+              aria-labelledby="batch-dialog-title"
+              aria-describedby="batch-dialog-context"
+            >
+              <header class="category-dialog__header">
+                <h2 id="batch-dialog-title">Thông tin lô thuốc</h2>
+                <button
+                  id="batch-close"
+                  class="categories-action"
+                  type="button"
+                >
+                  Đóng
+                </button>
+              </header>
+              <p id="batch-dialog-context" class="stock-dialog-note"></p>
+              <p
+                id="batch-dialog-status"
+                class="stock-dialog-note"
+                role="status"
+              ></p>
+              <form id="batch-form" novalidate>
+                <div
+                  id="batch-fields"
+                  class="category-dialog__body stock-fields"
+                ></div>
+                <p id="batch-edit-note" class="stock-dialog-note">
+                  Số lượng tồn do hệ thống quản lý. Khi sửa, lượng nhập và lượng
+                  tồn được giữ nguyên.
+                </p>
+                <footer class="category-dialog__footer">
+                  <button
+                    id="batch-cancel"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Hủy</button
+                  ><button
+                    id="batch-save"
+                    class="button button-primary"
+                    type="submit"
+                  >
+                    Lưu lô
+                  </button>
+                </footer>
+              </form>
+              <div
+                id="batch-detail-panel"
+                class="category-dialog__body"
+                hidden
+              ></div>
+              <div id="batch-delete-panel" class="category-dialog__body" hidden>
+                <p>Xác nhận yêu cầu xóa lô:</p>
+                <strong
+                  id="batch-delete-name"
+                  class="category-dialog__name"
+                ></strong>
+                <p>
+                  Backend hiện chưa cho phép xóa lô vì không thể xác minh lịch
+                  sử xuất kho an toàn.
+                </p>
+                <button
+                  id="batch-delete-confirm"
+                  class="button button-danger"
+                  type="button"
+                  disabled
+                >
+                  Xác nhận yêu cầu xóa
+                </button>
+              </div>
+              <p
+                id="batch-dialog-error"
+                class="category-dialog__body category-dialog__error"
+                role="alert"
+                tabindex="-1"
+              ></p>
+            </dialog>
+          </section>
+          <section
+            id="inventory-content"
+            aria-label="Theo dõi tồn kho và hạn sử dụng"
+            hidden
+          >
+            <p class="stock-explanation">
+              Tồn vật lý gồm tất cả lô, kể cả lô đã hết hạn; không phải số lượng
+              có thể bán. Số lượng theo đơn vị nhỏ nhất của thuốc.
+            </p>
+            <nav class="stock-jump-links" aria-label="Các bảng tồn kho">
+              <button
+                type="button"
+                class="categories-action"
+                data-inventory-jump="summary"
+              >
+                Tổng hợp tồn</button
+              ><button
+                type="button"
+                class="categories-action"
+                data-inventory-jump="low"
+              >
+                Tồn kho thấp</button
+              ><button
+                type="button"
+                class="categories-action"
+                data-inventory-jump="expiry"
+              >
+                Hạn sử dụng
+              </button>
+            </nav>
+            <section
+              id="inventory-summary"
+              class="categories-surface stock-section"
+            ></section>
+            <section
+              id="inventory-low"
+              class="categories-surface stock-section"
+            ></section>
+            <section
+              class="stock-expiry-settings"
+              aria-labelledby="inventory-expiry-settings-title"
+            >
+              <h2 id="inventory-expiry-settings-title">Theo dõi hạn sử dụng</h2>
+              <form
+                id="inventory-expiry-form"
+                class="stock-picker-form"
+                novalidate
+              >
+                <div class="products-field">
+                  <label for="inventory-expiry-status">Trạng thái hạn</label
+                  ><select
+                    id="inventory-expiry-status"
+                    class="categories-input"
+                  >
+                    <option value="expiring">Sắp hết hạn</option>
+                    <option value="expired">Đã hết hạn</option>
+                  </select>
+                </div>
+                <div class="products-field">
+                  <label for="inventory-expiry-days"
+                    >Khoảng theo dõi (ngày)</label
+                  ><input
+                    id="inventory-expiry-days"
+                    class="categories-input"
+                    type="text"
+                    inputmode="numeric"
+                    value="30"
+                    aria-describedby="inventory-expiry-help inventory-expiry-error"
+                  />
+                </div>
+                <button class="button button-outline" type="submit">
+                  Áp dụng
+                </button>
+              </form>
+              <p id="inventory-expiry-help" class="products-note">
+                Lưu ý: Lô hết hạn hôm nay vẫn thuộc nhóm còn hạn. Chỉ liệt kê lô còn tồn.
+              </p>
+              <p
+                id="inventory-expiry-error"
+                class="category-dialog__error"
+                role="status"
+              ></p>
+              <p id="inventory-as-of" class="products-note" role="status"></p>
+            </section>
+            <section
+              id="inventory-expiry"
+              class="categories-surface stock-section"
+            ></section>
+          </section>
+          <section
+            id="units-content"
+            aria-label="Đơn vị tính và giá bán"
+            hidden
+          >
+            <p
+              id="units-feedback"
+              class="categories-feedback"
+              role="status"
+              hidden
+            ></p>
+            <div class="units-layout">
+              <section
+                class="units-picker categories-surface"
+                aria-labelledby="units-picker-title"
+              >
+                <h2 id="units-picker-title">Chọn thuốc</h2>
+                <form id="units-search-form" role="search">
+                  <label for="units-category">Loại thuốc</label>
+                  <select
+                    id="units-category"
+                    class="categories-input"
+                    aria-describedby="units-categories-status"
+                    disabled
+                  >
+                    <option value="">Tất cả loại thuốc</option>
+                  </select>
+                  <p id="units-categories-status" role="status"></p>
+                  <button
+                    id="units-categories-retry"
+                    class="button button-outline"
+                    type="button"
+                    hidden
+                  >
+                    Thử tải loại thuốc lại
+                  </button>
+                  <label for="units-search"
+                    >Tên thuốc, mã vạch, mã dược hoặc số đăng ký</label
+                  >
+                  <input
+                    id="units-search"
+                    class="categories-input"
+                    type="search"
+                    aria-describedby="units-search-error"
+                    placeholder="Tìm thuốc…"
+                  />
+                  <button
+                    id="units-reset"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Bỏ bộ lọc
+                  </button>
+                  <p
+                    id="units-search-error"
+                    class="category-dialog__error"
+                    role="status"
+                  ></p>
+                </form>
+                <p id="units-picker-status" role="status"></p>
+                <button
+                  id="units-picker-retry"
+                  class="button button-outline"
+                  type="button"
+                  hidden
+                >
+                  Thử tải thuốc lại
+                </button>
+                <ul
+                  id="units-products"
+                  class="units-products"
+                  aria-label="Kết quả tìm thuốc"
+                ></ul>
+                <nav
+                  class="units-picker-pages"
+                  aria-label="Phân trang chọn thuốc"
+                >
+                  <button
+                    id="units-products-prev"
+                    class="categories-action"
+                    type="button"
+                    disabled
+                  >
+                    Trước</button
+                  ><span id="units-products-page" role="status"></span
+                  ><button
+                    id="units-products-next"
+                    class="categories-action"
+                    type="button"
+                    disabled
+                  >
+                    Sau
+                  </button>
+                </nav>
+              </section>
+              <section
+                id="units-workspace"
+                class="categories-surface"
+                aria-labelledby="units-title"
+              >
+                <header class="categories-list-header">
+                  <div>
+                    <h2 id="units-title" tabindex="-1">
+                      Bảng đơn vị &amp; giá bán
+                    </h2>
+                    <p>Mỗi đơn vị bán có giá và số lượng quy đổi riêng.</p>
+                  </div>
+                  <button
+                    id="units-add"
+                    class="button button-primary"
+                    type="button"
+                    disabled
+                  >
+                    Thêm đơn vị
+                  </button>
+                </header>
+                <div id="units-product" class="units-product" hidden></div>
+                <div class="units-toolbar">
+                  <p id="units-count" role="status"></p>
+                  <button
+                    id="units-reload"
+                    class="categories-action"
+                    type="button"
+                    disabled
+                  >
+                    Làm mới bảng giá
+                  </button>
+                </div>
+                <div id="units-state" class="categories-state" role="status">
+                  <h3 id="units-state-title">Chọn một thuốc để bắt đầu</h3>
+                  <p id="units-state-description">
+                    Tìm và chọn thuốc ở danh sách để quản lý đơn vị bán.
+                  </p>
+                  <button
+                    id="units-retry"
+                    class="button button-outline"
+                    type="button"
+                    hidden
+                  >
+                    Thử lại
+                  </button>
+                </div>
+                <div
+                  id="units-table-wrap"
+                  class="units-table-scroll"
+                  role="region"
+                  tabindex="0"
+                  aria-label="Bảng giá, cuộn ngang để xem đầy đủ trên màn hình nhỏ"
+                  hidden
+                >
+                  <table class="units-table">
+                    <caption>
+                      Số lượng quy đổi theo đơn vị nhỏ nhất; tên đơn vị cơ sở
+                      chưa được xác định.
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">STT</th>
+                        <th scope="col">Đơn vị tính</th>
+                        <th scope="col" class="units-number">SL quy đổi</th>
+                        <th scope="col" class="units-number">Giá bán (VND)</th>
+                        <th scope="col">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="units-body"></tbody>
+                  </table>
+                </div>
+                <footer class="categories-pagination">
+                  <p id="units-page" role="status"></p>
+                  <nav aria-label="Phân trang đơn vị giá">
+                    <button
+                      id="units-prev"
+                      class="button button-outline"
+                      type="button"
+                      disabled
+                    >
+                      Trang trước</button
+                    ><button
+                      id="units-next"
+                      class="button button-outline"
+                      type="button"
+                      disabled
+                    >
+                      Trang sau
+                    </button>
+                  </nav>
+                </footer>
+              </section>
+            </div>
+            <dialog
+              id="unit-dialog"
+              class="category-dialog"
+              aria-labelledby="unit-dialog-title"
+              aria-describedby="unit-dialog-context"
+            >
+              <header class="category-dialog__header">
+                <h2 id="unit-dialog-title">Thêm đơn vị bán</h2>
+                <button
+                  id="unit-close"
+                  class="categories-action"
+                  type="button"
+                  aria-label="Đóng hộp thoại đơn vị giá"
+                >
+                  Đóng
+                </button>
+              </header>
+              <p id="unit-dialog-context" class="units-dialog-context"></p>
+              <p
+                id="unit-dialog-status"
+                class="units-dialog-context"
+                role="status"
+              ></p>
+              <form id="unit-form" novalidate>
+                <div class="category-dialog__body units-fields">
+                  <div>
+                    <label for="unit-DonViTinh">Đơn vị tính *</label
+                    ><input
+                      id="unit-DonViTinh"
+                      class="categories-input"
+                      type="text"
+                      required
+                      aria-describedby="unit-DonViTinh-error"
+                    />
+                    <p
+                      id="unit-DonViTinh-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                  <div>
+                    <label for="unit-GiaBan">Giá bán (VND) *</label
+                    ><input
+                      id="unit-GiaBan"
+                      class="categories-input"
+                      type="text"
+                      inputmode="numeric"
+                      required
+                      aria-describedby="unit-GiaBan-error"
+                    />
+                    <p
+                      id="unit-GiaBan-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                  <div>
+                    <label for="unit-SoLuongQuyDoi">Số lượng quy đổi *</label
+                    ><input
+                      id="unit-SoLuongQuyDoi"
+                      class="categories-input"
+                      type="text"
+                      inputmode="numeric"
+                      required
+                      aria-describedby="unit-conversion-help unit-SoLuongQuyDoi-error"
+                    />
+                    <p id="unit-conversion-help" class="category-dialog__help">
+                      Số lượng đơn vị nhỏ nhất tương ứng với một đơn vị bán.
+                    </p>
+                    <p
+                      id="unit-SoLuongQuyDoi-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                </div>
+                <footer class="category-dialog__footer">
+                  <button
+                    id="unit-cancel"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Hủy</button
+                  ><button
+                    id="unit-save"
+                    class="button button-primary"
+                    type="submit"
+                  >
+                    Thêm đơn vị
+                  </button>
+                </footer>
+              </form>
+              <div id="unit-delete-panel" hidden>
+                <div class="category-dialog__body">
+                  <p>Xác nhận xóa đơn vị giá sau đây:</p>
+                  <strong
+                    id="unit-delete-summary"
+                    class="category-dialog__name"
+                  ></strong>
+                  <p>
+                    Đơn vị đang được sử dụng trong giỏ thuốc hoặc đơn hàng sẽ
+                    không thể xóa.
+                  </p>
+                </div>
+                <footer class="category-dialog__footer">
+                  <button
+                    id="unit-delete-cancel"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Hủy</button
+                  ><button
+                    id="unit-delete-confirm"
+                    class="button button-danger"
+                    type="button"
+                    disabled
+                  >
+                    Xóa đơn vị
+                  </button>
+                </footer>
+              </div>
+              <p
+                id="unit-error"
+                class="category-dialog__body category-dialog__error"
+                role="alert"
+                tabindex="-1"
+              ></p>
+            </dialog>
+          </section>
+          <section
+            id="categories-content"
+            aria-label="Quản lý danh mục thuốc"
+            hidden
+          >
+            <div class="categories-toolbar">
+              <form
+                id="categories-search-form"
+                class="categories-search"
+                role="search"
+              >
+                <div class="categories-field">
+                  <label for="categories-search-input"
+                    >Tìm theo tên danh mục</label
+                  ><input
+                    id="categories-search-input"
+                    class="categories-input"
+                    type="search"
+                    placeholder="Nhập tên danh mục…"
+                    aria-describedby="categories-search-error"
+                  />
+                </div>
+                <button
+                  id="categories-clear-search"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Bỏ tìm kiếm
+                </button>
+                <p
+                  id="categories-search-error"
+                  class="categories-search-error"
+                  role="status"
+                ></p>
+              </form>
+              <div class="categories-page-size">
+                <label for="categories-per-page">Số mục / trang</label
+                ><select id="categories-per-page">
+                  <option value="10">10</option>
+                  <option value="20" selected>20</option>
+                  <option value="50">50</option>
+                </select>
+              </div>
+            </div>
+            <p
+              id="categories-feedback"
+              class="categories-feedback"
+              role="status"
+              hidden
+            ></p>
+            <section
+              class="categories-surface"
+              aria-labelledby="categories-list-title"
+            >
+              <header class="categories-list-header">
+                <div>
+                  <h2 id="categories-list-title" tabindex="-1">
+                    Danh sách danh mục
+                  </h2>
+                  <p id="categories-result-count" role="status"></p>
+                </div>
+                <button
+                  id="categories-reload"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Làm mới
+                </button>
+              </header>
+              <div id="categories-state" class="categories-state" role="status">
+                <svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#list-tree"
+                  ></use>
+                </svg>
+                <h3 id="categories-state-title">Đang tải danh mục…</h3>
+                <p id="categories-state-description"></p>
+                <button
+                  id="categories-retry"
+                  class="button button-outline"
+                  type="button"
+                  hidden
+                >
+                  Thử lại
+                </button>
+              </div>
+              <div id="categories-table-wrap" hidden>
+                <table class="categories-table">
+                  <caption class="manager-sr-only">
+                    Số thứ tự, tên và thao tác quản lý danh mục thuốc
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">STT</th>
+                      <th scope="col">Tên danh mục</th>
+                      <th scope="col">Thao tác</th>
+                    </tr>
+                  </thead>
+                  <tbody id="categories-body"></tbody>
+                </table>
+              </div>
+              <footer class="categories-pagination">
+                <p id="categories-page-status" role="status"></p>
+                <nav aria-label="Phân trang danh mục">
+                  <button
+                    id="categories-prev"
+                    class="button button-outline"
+                    type="button"
+                    disabled
+                  >
+                    Trang trước</button
+                  ><button
+                    id="categories-next"
+                    class="button button-outline"
+                    type="button"
+                    disabled
+                  >
+                    Trang sau
+                  </button>
+                </nav>
+              </footer>
+            </section>
+            <dialog
+              id="category-dialog"
+              class="category-dialog"
+              aria-labelledby="category-dialog-title"
+            >
+              <header class="category-dialog__header">
+                <div>
+                  <p class="manager-eyebrow">Danh mục thuốc</p>
+                  <h2 id="category-dialog-title">Thêm danh mục thuốc</h2>
+                </div>
+                <button
+                  id="category-close"
+                  class="manager-icon-button"
+                  type="button"
+                  aria-label="Đóng hộp thoại"
+                >
+                  <svg class="manager-icon" aria-hidden="true">
+                    <use href="../../assets/icons/manager-icons.svg#x"></use>
+                  </svg>
+                </button>
+              </header>
+              <form id="category-form" novalidate>
+                <div class="category-dialog__body">
+                  <p id="category-detail-status" role="status" hidden></p>
+                  <div id="category-name-field">
+                    <label for="category-name"
+                      >Tên danh mục <span aria-hidden="true">*</span></label
+                    ><input
+                      id="category-name"
+                      class="categories-input"
+                      name="TenLoaiThuoc"
+                      type="text"
+                      autocomplete="off"
+                      required
+                      aria-describedby="category-name-help category-name-error"
+                    />
+                    <p id="category-name-help" class="category-dialog__help">
+                      Từ 1 đến 255 ký tự. Các khoảng trắng liên tiếp sẽ được gộp
+                      lại.
+                    </p>
+                    <p
+                      id="category-name-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                  </div>
+                  <div id="category-delete-summary" hidden>
+                    <p>Bạn đang yêu cầu xóa danh mục:</p>
+                    <strong
+                      id="category-delete-name"
+                      class="category-dialog__name"
+                    ></strong>
+                    <p>
+                      Chỉ danh mục chưa được thuốc sử dụng mới có thể xóa. Thuốc
+                      liên quan sẽ không bị xóa.
+                    </p>
+                  </div>
+                  <p
+                    id="category-form-error"
+                    class="category-dialog__error"
+                    role="alert"
+                  ></p>
+                </div>
+                <footer class="category-dialog__footer">
+                  <button
+                    id="category-cancel"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Hủy</button
+                  ><button
+                    id="category-save"
+                    class="button button-primary"
+                    type="submit"
+                  >
+                    Thêm danh mục
+                  </button>
+                </footer>
+              </form>
+            </dialog>
+          </section>
+          <section id="products-content" aria-label="Quản lý thuốc" hidden>
+            <p
+              id="products-feedback"
+              class="categories-feedback"
+              role="status"
+              hidden
+            ></p>
+            <div id="products-list">
+              <form
+                id="products-filters"
+                class="products-filters"
+                role="search"
+              >
+                <div class="products-field products-filters__search">
+                  <label for="products-search">Tìm thuốc</label
+                  ><input
+                    id="products-search"
+                    class="categories-input"
+                    type="search"
+                    placeholder="Tên thuốc, mã vạch, mã dược, số đăng ký"
+                    aria-describedby="products-filter-error"
+                  />
+                </div>
+                <div class="products-field">
+                  <label for="products-category">Danh mục</label
+                  ><select id="products-category" class="categories-input">
+                    <option value="">Tất cả danh mục</option>
+                  </select>
+                </div>
+                <div class="products-field">
+                  <label for="products-classification">Tư vấn dược sĩ</label
+                  ><select
+                    id="products-classification"
+                    class="categories-input"
+                  >
+                    <option value="">Tất cả nhu cầu tư vấn</option>
+                    <option value="true">Cần dược sĩ tư vấn</option>
+                    <option value="false">Không cần tư vấn</option>
+                  </select>
+                </div>
+                <div class="products-field">
+                  <label for="products-sort">Sắp xếp</label
+                  ><select id="products-sort" class="categories-input">
+                    <option value="MaThuoc:desc">Mới nhất</option>
+                    <option value="MaThuoc:asc">Cũ nhất</option>
+                    <option value="TenThuoc:asc">Tên A → Z</option>
+                    <option value="TenThuoc:desc">Tên Z → A</option>
+                    <option value="MaDuoc:asc">Mã dược tăng dần</option>
+                    <option value="MaVach:asc">Mã vạch tăng dần</option>
+                    <option value="NguongTonKho:asc">
+                      Ngưỡng tồn tăng dần
+                    </option>
+                  </select>
+                </div>
+                <div class="products-filters__actions">
+                  <button
+                    id="products-reset"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Bỏ bộ lọc
+                  </button>
+                </div>
+                <p
+                  id="products-filter-error"
+                  class="category-dialog__error"
+                  role="status"
+                ></p>
+              </form>
+              <p
+                id="products-categories-status"
+                class="products-note"
+                role="status"
+              ></p>
+              <button
+                id="products-categories-retry"
+                class="categories-action"
+                type="button"
+                hidden
+              >
+                Tải lại danh mục
+              </button>
+              <section
+                class="categories-surface"
+                aria-labelledby="products-list-title"
+              >
+                <header class="categories-list-header">
+                  <div>
+                    <h2 id="products-list-title" tabindex="-1">Hồ sơ thuốc</h2>
+                    <p id="products-result-count" role="status"></p>
+                  </div>
+                  <button
+                    id="products-reload"
+                    class="button button-outline"
+                    type="button"
+                  >
+                    Làm mới
+                  </button>
+                </header>
+                <div id="products-state" class="categories-state" role="status">
+                  <svg class="manager-icon" aria-hidden="true">
+                    <use href="../../assets/icons/manager-icons.svg#pill"></use>
+                  </svg>
+                  <h3 id="products-state-title">Đang tải thuốc…</h3>
+                  <p id="products-state-description"></p>
+                  <button
+                    id="products-retry"
+                    class="button button-outline"
+                    type="button"
+                    hidden
+                  >
+                    Thử lại
+                  </button>
+                </div>
+                <div
+                  id="products-table-wrap"
+                  class="products-table-scroll"
+                  role="region"
+                  aria-label="Bảng thuốc, cuộn ngang để xem đủ thông tin"
+                  tabindex="0"
+                  hidden
+                >
+                  <table class="products-table">
+                    <caption class="manager-sr-only">
+                      Hồ sơ thuốc và thao tác quản lý; không bao gồm giá bán
+                      hoặc tồn kho
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">STT</th>
+                        <th scope="col">Thuốc</th>
+                        <th scope="col">Thông tin đăng ký</th>
+                        <th scope="col">Danh mục</th>
+                        <th scope="col">Phân loại</th>
+                        <th scope="col">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody id="products-body"></tbody>
+                  </table>
+                </div>
+                <footer class="categories-pagination">
+                  <div class="categories-page-size">
+                    <label for="products-per-page">Số mục / trang</label
+                    ><select id="products-per-page">
+                      <option value="10">10</option>
+                      <option value="20" selected>20</option>
+                      <option value="50">50</option>
+                    </select>
+                  </div>
+                  <p id="products-page-status" role="status"></p>
+                  <nav aria-label="Phân trang thuốc">
+                    <button
+                      id="products-prev"
+                      class="button button-outline"
+                      type="button"
+                      disabled
+                    >
+                      Trang trước</button
+                    ><button
+                      id="products-next"
+                      class="button button-outline"
+                      type="button"
+                      disabled
+                    >
+                      Trang sau
+                    </button>
+                  </nav>
+                </footer>
+              </section>
+            </div>
+            <section
+              id="product-workspace"
+              aria-labelledby="product-workspace-title"
+              hidden
+            >
+              <header class="product-workspace-header">
+                <div>
+                  <button
+                    id="product-back"
+                    class="categories-action"
+                    type="button"
+                  >
+                    ← Về danh sách thuốc
+                  </button>
+                  <h2 id="product-workspace-title" tabindex="-1">
+                    Hồ sơ thuốc
+                  </h2>
+                  <p
+                    id="product-workspace-description"
+                    class="products-note"
+                  ></p>
+                </div>
+                <button
+                  id="product-detail-edit"
+                  class="button button-primary"
+                  type="button"
+                  hidden
+                >
+                  Sửa thuốc
+                </button>
+              </header>
+              <p id="product-detail-status" role="status"></p>
+              <button
+                id="product-detail-retry"
+                class="button button-outline"
+                type="button"
+                hidden
+              >
+                Thử tải lại
+              </button>
+              <form id="product-form" novalidate hidden>
+                <p
+                  id="product-form-error"
+                  class="products-form-error"
+                  role="alert"
+                ></p>
+                <div class="product-editor-layout">
+                  <div id="product-field-groups"></div>
+                  <aside
+                    class="product-image-panel"
+                    aria-labelledby="product-image-title"
+                  >
+                    <h3 id="product-image-title">Hình ảnh thuốc</h3>
+                    <div class="product-preview">
+                      <img
+                        id="product-image-preview"
+                        alt="Ảnh thuốc đang chỉnh sửa"
+                        hidden
+                      />
+                      <p id="product-image-placeholder">Chưa có ảnh thuốc</p>
                     </div>
-                    <dialog id="unit-dialog" class="category-dialog" aria-labelledby="unit-dialog-title" aria-describedby="unit-dialog-context">
-                        <header class="category-dialog__header"><h2 id="unit-dialog-title">Thêm đơn vị bán</h2><button id="unit-close" class="categories-action" type="button" aria-label="Đóng hộp thoại đơn vị giá">Đóng</button></header>
-                        <p id="unit-dialog-context" class="units-dialog-context"></p>
-                        <p id="unit-dialog-status" class="units-dialog-context" role="status"></p>
-                        <form id="unit-form" novalidate>
-                            <div class="category-dialog__body units-fields">
-                                <div><label for="unit-DonViTinh">Đơn vị tính *</label><input id="unit-DonViTinh" class="categories-input" type="text" required aria-describedby="unit-DonViTinh-error"><p id="unit-DonViTinh-error" class="category-dialog__error" role="status"></p></div>
-                                <div><label for="unit-GiaBan">Giá bán (VND) *</label><input id="unit-GiaBan" class="categories-input" type="text" inputmode="numeric" required aria-describedby="unit-GiaBan-error"><p id="unit-GiaBan-error" class="category-dialog__error" role="status"></p></div>
-                                <div><label for="unit-SoLuongQuyDoi">Số lượng quy đổi *</label><input id="unit-SoLuongQuyDoi" class="categories-input" type="text" inputmode="numeric" required aria-describedby="unit-conversion-help unit-SoLuongQuyDoi-error"><p id="unit-conversion-help" class="category-dialog__help">Số lượng đơn vị nhỏ nhất tương ứng với một đơn vị bán.</p><p id="unit-SoLuongQuyDoi-error" class="category-dialog__error" role="status"></p></div>
-                            </div>
-                            <footer class="category-dialog__footer"><button id="unit-cancel" class="button button-outline" type="button">Hủy</button><button id="unit-save" class="button button-primary" type="submit">Thêm đơn vị</button></footer>
-                        </form>
-                        <div id="unit-delete-panel" hidden><div class="category-dialog__body"><p>Xác nhận xóa đơn vị giá sau đây:</p><strong id="unit-delete-summary" class="category-dialog__name"></strong><p>Đơn vị đang được sử dụng trong giỏ thuốc hoặc đơn hàng sẽ không thể xóa.</p></div><footer class="category-dialog__footer"><button id="unit-delete-cancel" class="button button-outline" type="button">Hủy</button><button id="unit-delete-confirm" class="button button-danger" type="button" disabled>Xóa đơn vị</button></footer></div>
-                        <p id="unit-error" class="category-dialog__body category-dialog__error" role="alert" tabindex="-1"></p>
-                    </dialog>
-                </section>
-                <section id="categories-content" aria-label="Quản lý danh mục thuốc" hidden>
-                    <div class="categories-toolbar">
-                        <form id="categories-search-form" class="categories-search" role="search">
-                            <div class="categories-field"><label for="categories-search-input">Tìm theo tên danh mục</label><input id="categories-search-input" class="categories-input" type="search" placeholder="Nhập tên danh mục…" aria-describedby="categories-search-error"></div>
-                            <button id="categories-clear-search" class="button button-outline" type="button">Bỏ tìm kiếm</button>
-                            <p id="categories-search-error" class="categories-search-error" role="status"></p>
-                        </form>
-                        <div class="categories-page-size"><label for="categories-per-page">Số mục / trang</label><select id="categories-per-page"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div>
+                    <label for="product-image-file">Chọn ảnh mới</label
+                    ><input
+                      id="product-image-file"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      aria-describedby="product-image-help product-image-error"
+                    />
+                    <p id="product-image-help" class="products-note">
+                      JPEG, PNG hoặc WebP · Tối đa 5 MiB. Chọn ảnh, sau đó nhấn
+                      upload.
+                    </p>
+                    <div class="product-image-actions">
+                      <button
+                        id="product-upload"
+                        class="button button-outline"
+                        type="button"
+                        disabled
+                      >
+                        Upload ảnh</button
+                      ><button
+                        id="product-image-cancel"
+                        class="categories-action"
+                        type="button"
+                        hidden
+                      >
+                        Bỏ ảnh đã chọn
+                      </button>
                     </div>
-                    <p id="categories-feedback" class="categories-feedback" role="status" hidden></p>
-                    <section class="categories-surface" aria-labelledby="categories-list-title">
-                        <header class="categories-list-header"><div><h2 id="categories-list-title" tabindex="-1">Danh sách danh mục</h2><p id="categories-result-count" role="status"></p></div><button id="categories-reload" class="button button-outline" type="button">Làm mới</button></header>
-                        <div id="categories-state" class="categories-state" role="status"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#list-tree"></use></svg><h3 id="categories-state-title">Đang tải danh mục…</h3><p id="categories-state-description"></p><button id="categories-retry" class="button button-outline" type="button" hidden>Thử lại</button></div>
-                        <div id="categories-table-wrap" hidden><table class="categories-table"><caption class="manager-sr-only">Số thứ tự, tên và thao tác quản lý danh mục thuốc</caption><thead><tr><th scope="col">STT</th><th scope="col">Tên danh mục</th><th scope="col">Thao tác</th></tr></thead><tbody id="categories-body"></tbody></table></div>
-                        <footer class="categories-pagination"><p id="categories-page-status" role="status"></p><nav aria-label="Phân trang danh mục"><button id="categories-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="categories-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer>
-                    </section>
-                    <dialog id="category-dialog" class="category-dialog" aria-labelledby="category-dialog-title">
-                        <header class="category-dialog__header"><div><p class="manager-eyebrow">Danh mục thuốc</p><h2 id="category-dialog-title">Thêm danh mục thuốc</h2></div><button id="category-close" class="manager-icon-button" type="button" aria-label="Đóng hộp thoại"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button></header>
-                        <form id="category-form" novalidate>
-                            <div class="category-dialog__body">
-                                <p id="category-detail-status" role="status" hidden></p>
-                                <div id="category-name-field"><label for="category-name">Tên danh mục <span aria-hidden="true">*</span></label><input id="category-name" class="categories-input" name="TenLoaiThuoc" type="text" autocomplete="off" required aria-describedby="category-name-help category-name-error"><p id="category-name-help" class="category-dialog__help">Từ 1 đến 255 ký tự. Các khoảng trắng liên tiếp sẽ được gộp lại.</p><p id="category-name-error" class="category-dialog__error" role="status"></p></div>
-                                <div id="category-delete-summary" hidden><p>Bạn đang yêu cầu xóa danh mục:</p><strong id="category-delete-name" class="category-dialog__name"></strong><p>Chỉ danh mục chưa được thuốc sử dụng mới có thể xóa. Thuốc liên quan sẽ không bị xóa.</p></div>
-                                <p id="category-form-error" class="category-dialog__error" role="alert"></p>
-                            </div>
-                            <footer class="category-dialog__footer"><button id="category-cancel" class="button button-outline" type="button">Hủy</button><button id="category-save" class="button button-primary" type="submit">Thêm danh mục</button></footer>
-                        </form>
-                    </dialog>
-                </section>
-                <section id="products-content" aria-label="Quản lý thuốc" hidden>
-                    <p id="products-feedback" class="categories-feedback" role="status" hidden></p>
-                    <div id="products-list">
-                        <form id="products-filters" class="products-filters" role="search">
-                            <div class="products-field products-filters__search"><label for="products-search">Tìm thuốc</label><input id="products-search" class="categories-input" type="search" placeholder="Tên thuốc, mã vạch, mã dược, số đăng ký" aria-describedby="products-filter-error"></div>
-                            <div class="products-field"><label for="products-category">Danh mục</label><select id="products-category" class="categories-input"><option value="">Tất cả danh mục</option></select></div>
-                            <div class="products-field"><label for="products-classification">Tư vấn dược sĩ</label><select id="products-classification" class="categories-input"><option value="">Tất cả nhu cầu tư vấn</option><option value="true">Cần dược sĩ tư vấn</option><option value="false">Không cần tư vấn</option></select></div>
-                            <div class="products-field"><label for="products-sort">Sắp xếp</label><select id="products-sort" class="categories-input"><option value="MaThuoc:desc">Mới nhất</option><option value="MaThuoc:asc">Cũ nhất</option><option value="TenThuoc:asc">Tên A → Z</option><option value="TenThuoc:desc">Tên Z → A</option><option value="MaDuoc:asc">Mã dược tăng dần</option><option value="MaVach:asc">Mã vạch tăng dần</option><option value="NguongTonKho:asc">Ngưỡng tồn tăng dần</option></select></div>
-                            <div class="products-filters__actions"><button id="products-reset" class="button button-outline" type="button">Bỏ bộ lọc</button></div>
-                            <p id="products-filter-error" class="category-dialog__error" role="status"></p>
-                        </form>
-                        <p id="products-categories-status" class="products-note" role="status"></p><button id="products-categories-retry" class="categories-action" type="button" hidden>Tải lại danh mục</button>
-                        <section class="categories-surface" aria-labelledby="products-list-title">
-                            <header class="categories-list-header"><div><h2 id="products-list-title" tabindex="-1">Hồ sơ thuốc</h2><p id="products-result-count" role="status"></p></div><button id="products-reload" class="button button-outline" type="button">Làm mới</button></header>
-                            <div id="products-state" class="categories-state" role="status"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#pill"></use></svg><h3 id="products-state-title">Đang tải thuốc…</h3><p id="products-state-description"></p><button id="products-retry" class="button button-outline" type="button" hidden>Thử lại</button></div>
-                            <div id="products-table-wrap" class="products-table-scroll" role="region" aria-label="Bảng thuốc, cuộn ngang để xem đủ thông tin" tabindex="0" hidden><table class="products-table"><caption class="manager-sr-only">Hồ sơ thuốc và thao tác quản lý; không bao gồm giá bán hoặc tồn kho</caption><thead><tr><th scope="col">STT</th><th scope="col">Thuốc</th><th scope="col">Thông tin đăng ký</th><th scope="col">Danh mục</th><th scope="col">Phân loại</th><th scope="col">Thao tác</th></tr></thead><tbody id="products-body"></tbody></table></div>
-                            <footer class="categories-pagination"><div class="categories-page-size"><label for="products-per-page">Số mục / trang</label><select id="products-per-page"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select></div><p id="products-page-status" role="status"></p><nav aria-label="Phân trang thuốc"><button id="products-prev" class="button button-outline" type="button" disabled>Trang trước</button><button id="products-next" class="button button-outline" type="button" disabled>Trang sau</button></nav></footer>
-                        </section>
-                    </div>
-                    <section id="product-workspace" aria-labelledby="product-workspace-title" hidden>
-                        <header class="product-workspace-header"><div><button id="product-back" class="categories-action" type="button">← Về danh sách thuốc</button><h2 id="product-workspace-title" tabindex="-1">Hồ sơ thuốc</h2><p id="product-workspace-description" class="products-note"></p></div><button id="product-detail-edit" class="button button-primary" type="button" hidden>Sửa thuốc</button></header>
-                        <p id="product-detail-status" role="status"></p><button id="product-detail-retry" class="button button-outline" type="button" hidden>Thử tải lại</button>
-                        <form id="product-form" novalidate hidden>
-                            <p id="product-form-error" class="products-form-error" role="alert"></p>
-                            <div class="product-editor-layout"><div id="product-field-groups"></div>
-                                <aside class="product-image-panel" aria-labelledby="product-image-title"><h3 id="product-image-title">Hình ảnh thuốc</h3><div class="product-preview"><img id="product-image-preview" alt="Ảnh thuốc đang chỉnh sửa" hidden><p id="product-image-placeholder">Chưa có ảnh thuốc</p></div>
-                                    <label for="product-image-file">Chọn ảnh mới</label><input id="product-image-file" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="product-image-help product-image-error"><p id="product-image-help" class="products-note">JPEG, PNG hoặc WebP · Tối đa 5 MiB. Chọn ảnh, sau đó nhấn upload.</p>
-                                    <div class="product-image-actions"><button id="product-upload" class="button button-outline" type="button" disabled>Upload ảnh</button><button id="product-image-cancel" class="categories-action" type="button" hidden>Bỏ ảnh đã chọn</button></div><p id="product-upload-status" class="products-note" role="status"></p><p id="product-image-error" class="category-dialog__error" role="alert"></p>
-                                    <label for="product-HinhAnh">URL ảnh HTTPS <span aria-hidden="true">*</span></label><input id="product-HinhAnh" class="categories-input" type="url" required aria-describedby="product-HinhAnh-error"><p id="product-HinhAnh-error" class="category-dialog__error" role="status"></p><p class="products-note">URL từ upload được điền tự động. Có thể sử dụng URL ảnh HTTPS hiện có.</p>
-                                </aside>
-                            </div>
-                            <footer class="product-form-footer"><p class="products-note">Các trường có dấu * là bắt buộc.</p><div><button id="product-cancel" class="button button-outline" type="button">Hủy / Về danh sách</button><button id="product-save" class="button button-primary" type="submit">Lưu thuốc</button></div></footer>
-                        </form>
-                        <article id="product-details" hidden></article>
-                    </section>
-                    <dialog id="product-delete-dialog" class="category-dialog" aria-labelledby="product-delete-title"><header class="category-dialog__header"><h2 id="product-delete-title">Xóa thuốc?</h2><button id="product-delete-close" class="manager-icon-button" type="button" aria-label="Đóng xác nhận xóa"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#x"></use></svg></button></header><div class="category-dialog__body"><p id="product-delete-status" role="status"></p><strong id="product-delete-name" class="category-dialog__name"></strong><p>Không thể xóa thuốc đang có dữ liệu liên quan. Thao tác này không xóa ảnh Cloudinary, lô thuốc hay đơn vị giá.</p><p id="product-delete-error" class="category-dialog__error" role="alert"></p></div><footer class="category-dialog__footer"><button id="product-delete-cancel" class="button button-outline" type="button">Hủy</button><button id="product-delete-confirm" class="button button-danger" type="button" disabled>Xóa thuốc</button></footer></dialog>
-                </section>
-                <section id="module-content" class="manager-placeholder" aria-labelledby="placeholder-title" hidden>
-                    <div id="placeholder-icon" class="manager-placeholder__mark" aria-hidden="true"></div>
-                    <div><span id="module-badge" class="manager-badge manager-badge--warning">Chưa triển khai</span><h2 id="placeholder-title"></h2><p id="placeholder-description"></p><a class="button button-outline" href="#overview"><svg class="manager-icon" aria-hidden="true"><use href="../../assets/icons/manager-icons.svg#arrow-left"></use></svg>Về Tổng quan</a></div>
-                </section>
-                <footer class="manager-footer"><span>Lan Yến Pharmacy · Quản lý nhà thuốc</span><span>Chính xác trong từng thông tin.</span></footer>
-            </main>
-        </div>
+                    <p
+                      id="product-upload-status"
+                      class="products-note"
+                      role="status"
+                    ></p>
+                    <p
+                      id="product-image-error"
+                      class="category-dialog__error"
+                      role="alert"
+                    ></p>
+                    <label for="product-HinhAnh"
+                      >URL ảnh HTTPS <span aria-hidden="true">*</span></label
+                    ><input
+                      id="product-HinhAnh"
+                      class="categories-input"
+                      type="url"
+                      required
+                      aria-describedby="product-HinhAnh-error"
+                    />
+                    <p
+                      id="product-HinhAnh-error"
+                      class="category-dialog__error"
+                      role="status"
+                    ></p>
+                    <p class="products-note">
+                      URL từ upload được điền tự động. Có thể sử dụng URL ảnh
+                      HTTPS hiện có.
+                    </p>
+                  </aside>
+                </div>
+                <footer class="product-form-footer">
+                  <p class="products-note">Các trường có dấu * là bắt buộc.</p>
+                  <div>
+                    <button
+                      id="product-cancel"
+                      class="button button-outline"
+                      type="button"
+                    >
+                      Hủy / Về danh sách</button
+                    ><button
+                      id="product-save"
+                      class="button button-primary"
+                      type="submit"
+                    >
+                      Lưu thuốc
+                    </button>
+                  </div>
+                </footer>
+              </form>
+              <article id="product-details" hidden></article>
+            </section>
+            <dialog
+              id="product-delete-dialog"
+              class="category-dialog"
+              aria-labelledby="product-delete-title"
+            >
+              <header class="category-dialog__header">
+                <h2 id="product-delete-title">Xóa thuốc?</h2>
+                <button
+                  id="product-delete-close"
+                  class="manager-icon-button"
+                  type="button"
+                  aria-label="Đóng xác nhận xóa"
+                >
+                  <svg class="manager-icon" aria-hidden="true">
+                    <use href="../../assets/icons/manager-icons.svg#x"></use>
+                  </svg>
+                </button>
+              </header>
+              <div class="category-dialog__body">
+                <p id="product-delete-status" role="status"></p>
+                <strong
+                  id="product-delete-name"
+                  class="category-dialog__name"
+                ></strong>
+                <p>
+                  Không thể xóa thuốc đang có dữ liệu liên quan. Thao tác này
+                  không xóa ảnh Cloudinary, lô thuốc hay đơn vị giá.
+                </p>
+                <p
+                  id="product-delete-error"
+                  class="category-dialog__error"
+                  role="alert"
+                ></p>
+              </div>
+              <footer class="category-dialog__footer">
+                <button
+                  id="product-delete-cancel"
+                  class="button button-outline"
+                  type="button"
+                >
+                  Hủy</button
+                ><button
+                  id="product-delete-confirm"
+                  class="button button-danger"
+                  type="button"
+                  disabled
+                >
+                  Xóa thuốc
+                </button>
+              </footer>
+            </dialog>
+          </section>
+          <section
+            id="module-content"
+            class="manager-placeholder"
+            aria-labelledby="placeholder-title"
+            hidden
+          >
+            <div
+              id="placeholder-icon"
+              class="manager-placeholder__mark"
+              aria-hidden="true"
+            ></div>
+            <div>
+              <span
+                id="module-badge"
+                class="manager-badge manager-badge--warning"
+                >Chưa triển khai</span
+              >
+              <h2 id="placeholder-title"></h2>
+              <p id="placeholder-description"></p>
+              <a class="button button-outline" href="#overview"
+                ><svg class="manager-icon" aria-hidden="true">
+                  <use
+                    href="../../assets/icons/manager-icons.svg#arrow-left"
+                  ></use></svg
+                >Về Tổng quan</a
+              >
+            </div>
+          </section>
+          <footer class="manager-footer">
+            <span>Lan Yến Pharmacy · Quản lý nhà thuốc</span
+            ><span>Chính xác trong từng thông tin.</span>
+          </footer>
+        </main>
+      </div>
     </div>
-    <p id="manager-live-status" class="manager-sr-only" role="status" aria-live="polite"></p>
+    <p
+      id="manager-live-status"
+      class="manager-sr-only"
+      role="status"
+      aria-live="polite"
+    ></p>
     <div id="auth-backdrop" hidden aria-hidden="true"></div>
-    <dialog id="auth-dialog" aria-modal="true" aria-labelledby="auth-title" aria-describedby="auth-description">
-        <div class="auth-heading"><p class="eyebrow">TÀI KHOẢN LAN YẾN</p><button type="button" id="close-auth" class="close-button" aria-label="Đóng đăng nhập">×</button></div>
-        <p id="auth-progress" class="auth-progress" hidden></p>
-        <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
-        <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
-        <p id="auth-status" class="auth-status" role="status" aria-live="polite"></p>
-        <form id="phone-form" novalidate>
-            <label for="phone">Số điện thoại</label>
-            <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="24" required aria-describedby="phone-error">
-            <p id="phone-error" class="field-error" aria-live="polite"></p>
-            <button type="submit" class="button button-primary">Gửi mã OTP</button>
-        </form>
-        <form id="otp-form" hidden novalidate>
-            <label for="otp">Mã OTP gồm 6 chữ số</label>
-            <div class="otp-digits" role="group" aria-label="Mã OTP gồm 6 chữ số">
-            <input id="otp" class="otp-input" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required spellcheck="false" aria-label="Chữ số 1" aria-describedby="otp-help otp-error">
-            <input id="otp-2" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 2" aria-describedby="otp-help otp-error">
-            <input id="otp-3" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 3" aria-describedby="otp-help otp-error">
-            <input id="otp-4" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 4" aria-describedby="otp-help otp-error">
-            <input id="otp-5" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 5" aria-describedby="otp-help otp-error">
-            <input id="otp-6" class="otp-input" type="text" inputmode="numeric" autocomplete="off" maxlength="1" required spellcheck="false" aria-label="Chữ số 6" aria-describedby="otp-help otp-error">
+    <dialog
+      id="auth-dialog"
+      aria-modal="true"
+      aria-labelledby="auth-title"
+      aria-describedby="auth-description"
+    >
+      <div class="auth-heading">
+        <p class="eyebrow">TÀI KHOẢN LAN YẾN</p>
+        <button
+          type="button"
+          id="close-auth"
+          class="close-button"
+          aria-label="Đóng đăng nhập"
+        >
+          ×
+        </button>
+      </div>
+      <p id="auth-progress" class="auth-progress" hidden></p>
+      <h2 id="auth-title">Đăng nhập cùng Lan Yến</h2>
+      <p id="auth-description">Nhập số điện thoại để nhận mã xác thực.</p>
+      <p
+        id="auth-status"
+        class="auth-status"
+        role="status"
+        aria-live="polite"
+      ></p>
+      <form id="phone-form" novalidate>
+        <label for="phone">Số điện thoại</label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          maxlength="24"
+          required
+          aria-describedby="phone-error"
+        />
+        <p id="phone-error" class="field-error" aria-live="polite"></p>
+        <button type="submit" class="button button-primary">Gửi mã OTP</button>
+      </form>
+      <form id="otp-form" hidden novalidate>
+        <label for="otp">Mã OTP gồm 6 chữ số</label>
+        <div class="otp-digits" role="group" aria-label="Mã OTP gồm 6 chữ số">
+          <input
+            id="otp"
+            class="otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            required
+            spellcheck="false"
+            aria-label="Chữ số 1"
+            aria-describedby="otp-help otp-error"
+          />
+          <input
+            id="otp-2"
+            class="otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="1"
+            required
+            spellcheck="false"
+            aria-label="Chữ số 2"
+            aria-describedby="otp-help otp-error"
+          />
+          <input
+            id="otp-3"
+            class="otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="1"
+            required
+            spellcheck="false"
+            aria-label="Chữ số 3"
+            aria-describedby="otp-help otp-error"
+          />
+          <input
+            id="otp-4"
+            class="otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="1"
+            required
+            spellcheck="false"
+            aria-label="Chữ số 4"
+            aria-describedby="otp-help otp-error"
+          />
+          <input
+            id="otp-5"
+            class="otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="1"
+            required
+            spellcheck="false"
+            aria-label="Chữ số 5"
+            aria-describedby="otp-help otp-error"
+          />
+          <input
+            id="otp-6"
+            class="otp-input"
+            type="text"
+            inputmode="numeric"
+            autocomplete="off"
+            maxlength="1"
+            required
+            spellcheck="false"
+            aria-label="Chữ số 6"
+            aria-describedby="otp-help otp-error"
+          />
         </div>
-            <p id="otp-help" class="field-help">Bạn có thể dán toàn bộ mã gồm 6 chữ số.</p>
-            <p id="otp-error" class="field-error" aria-live="polite"></p>
-            <button type="submit" class="button button-primary">Xác nhận mã OTP</button>
-            <div class="auth-secondary"><button type="button" id="change-phone" class="text-button">Đổi số điện thoại</button><button type="button" id="resend-otp" class="text-button">Gửi lại mã</button></div>
-        </form>
-        <form id="profile-form" hidden novalidate>
-            <label for="full-name">Họ và tên</label>
-            <input id="full-name" name="ho_ten" type="text" autocomplete="name" maxlength="255" required aria-describedby="name-help name-error">
-            <p id="name-help" class="field-help">Tên này sẽ hiển thị trong tài khoản của bạn.</p>
-            <p id="name-error" class="field-error" aria-live="polite"></p>
-            <button type="submit" class="button button-primary">Hoàn tất và đăng nhập</button>
-        </form>
+        <p id="otp-help" class="field-help">
+          Bạn có thể dán toàn bộ mã gồm 6 chữ số.
+        </p>
+        <p id="otp-error" class="field-error" aria-live="polite"></p>
+        <button type="submit" class="button button-primary">
+          Xác nhận mã OTP
+        </button>
+        <div class="auth-secondary">
+          <button type="button" id="change-phone" class="text-button">
+            Đổi số điện thoại</button
+          ><button type="button" id="resend-otp" class="text-button">
+            Gửi lại mã
+          </button>
+        </div>
+      </form>
+      <form id="profile-form" hidden novalidate>
+        <label for="full-name">Họ và tên</label>
+        <input
+          id="full-name"
+          name="ho_ten"
+          type="text"
+          autocomplete="name"
+          maxlength="255"
+          required
+          aria-describedby="name-help name-error"
+        />
+        <p id="name-help" class="field-help">
+          Tên này sẽ hiển thị trong tài khoản của bạn.
+        </p>
+        <p id="name-error" class="field-error" aria-live="polite"></p>
+        <button type="submit" class="button button-primary">
+          Hoàn tất và đăng nhập
+        </button>
+      </form>
     </dialog>
-    <div id="manager-notice" class="manager-notice" role="status" aria-live="polite" aria-atomic="true" popover="manual" hidden></div>
-</body>
+    <div
+      id="manager-notice"
+      class="manager-notice"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      popover="manual"
+      hidden
+    ></div>
+  </body>
 </html>
-

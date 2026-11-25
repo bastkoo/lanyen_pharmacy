@@ -32,8 +32,8 @@ export function setupInventory({ root, onAccessError, onOpenBatches }) {
     const stockColumns = [['Thuốc'], ['Tổng SL tồn', true], ['Ngưỡng tồn', true], ['Trạng thái tồn'], ['Thao tác']];
     for (const [key, title, description, columns, renderRow, api, code] of [
         ['summary', 'Tổng hợp tồn theo thuốc', 'Tất cả thuốc, bao gồm thuốc chưa có lô. Tồn vật lý gồm cả lô đã hết hạn.', stockColumns, summaryRow, getInventorySummary, 'INVENTORY_SUMMARY'],
-        ['low', 'Thuốc tồn kho thấp', 'Tổng tồn nhỏ hơn hoặc bằng ngưỡng của thuốc, theo kết quả Backend.', stockColumns, summaryRow, getLowStock, 'LOW_STOCK_LISTED'],
-        ['expiry', 'Các lô cần theo dõi hạn', 'Chỉ lô còn số lượng tồn. Số ngày được tính từ mốc as_of của Backend.', [['Thuốc'], ['Số lô'], ['Hạn sử dụng'], ['SL tồn', true], ['Trạng thái hạn'], ['Thời gian còn lại'], ['Thao tác']], expiryRow, getExpiry, null]
+        ['low', 'Thuốc tồn kho thấp', 'Tổng tồn nhỏ hơn hoặc bằng ngưỡng của thuốc.', stockColumns, summaryRow, getLowStock, 'LOW_STOCK_LISTED'],
+        ['expiry', 'Các lô cần theo dõi hạn', 'Chỉ lô còn số lượng tồn.', [['Thuốc'], ['Số lô'], ['Hạn sử dụng'], ['SL tồn', true], ['Trạng thái hạn'], ['Thời gian còn lại'], ['Thao tác']], expiryRow, getExpiry, null]
     ]) {
         const table = setupStockTable({ root: $(`inventory-${key}`), id: `inventory-${key}`, title, description, columns, filterLabel: key === 'expiry' ? 'Lọc tên / mã vạch / số lô trong trang này' : 'Lọc tên / mã vạch trong trang này', onLoad: page => load(key, page), renderRow });
         sections.set(key, { table, api, code, page: 1, version: 0, controller: undefined, data: undefined });
@@ -52,7 +52,7 @@ export function setupInventory({ root, onAccessError, onOpenBatches }) {
             if (key === 'expiry' && (dateValue(data.as_of) === null || data.status !== status || data.days !== days)) throw new ApiError('INVALID_RESPONSE');
             if (!data.items.length && page > 1) return load(key, Math.max(1, data.pages));
             section.data = data; section.table.render(data);
-            if (key === 'expiry') $('inventory-as-of').textContent = `Mốc ngày Backend (UTC+7): ${formatBatchDate(data.as_of)} · ${status === 'expired' ? 'Tất cả lô đã hết hạn còn tồn; không giới hạn số ngày' : `Trong ${days} ngày, gồm hôm nay và ngày cuối`}`;
+            if (key === 'expiry') $('inventory-as-of').textContent = `Mốc ngày: ${formatBatchDate(data.as_of)} · ${status === 'expired' ? 'Tất cả lô đã hết hạn còn tồn; không giới hạn số ngày' : `Trong ${days} ngày, gồm hôm nay và ngày cuối`}`;
         } catch (error) {
             if (!active || attempt !== section.version || error.code === 'REQUEST_ABORTED') return;
             if (['UNAUTHENTICATED', 'FORBIDDEN', 'ACCOUNT_LOCKED'].includes(error.code)) onAccessError(error);
