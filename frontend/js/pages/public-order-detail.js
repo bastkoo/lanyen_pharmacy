@@ -111,15 +111,15 @@ function render(value) {
     }
     $('order-shipping').textContent = receipt.pickup ? 'Không áp dụng' : 'Chưa xác nhận';
     $('order-total-note').textContent = receipt.pickup ? 'Nhận hàng tại nhà thuốc Lan Yến.' : 'Phí giao hàng nếu có được nhà thuốc xác nhận riêng.';
-    $('order-payment-method').textContent = value.PhuongThucThanhToan === 0 ? 'Thanh toán khi nhận hàng (COD)' : 'Chuyển khoản QR qua SePay';
+    $('order-payment-method').textContent = value.PhuongThucThanhToan === 0 ? 'Thanh toán khi nhận hàng (COD)' : 'Thanh toán QR';
     $('order-payment-status').textContent = value.TrangThaiThanhToan === 1 ? '✓ Đã thanh toán' : 'Chưa thanh toán';
     $('order-payment-status').dataset.paid = String(value.TrangThaiThanhToan === 1);
     const payable = value.PhuongThucThanhToan === 1 && value.TrangThaiThanhToan === 0 && value.TrangThaiDonHang === 0;
     $('order-open-payment').hidden = !payable || !['sandbox', 'production'].includes(value.payment_environment);
-    $('order-open-payment').textContent = value.payment_environment === 'sandbox' ? 'Mở Checkout SePay Sandbox' : 'Thanh toán qua SePay';
+    $('order-open-payment').textContent = 'Thanh toán QR';
     $('order-payment-message').textContent = value.TrangThaiThanhToan === 1 ? 'Thanh toán đã được ghi nhận cho đơn hàng này.'
         : value.PhuongThucThanhToan === 0 ? 'Bạn thanh toán khi nhận hàng. Thời gian nhận hàng sẽ được nhà thuốc xác nhận.'
-        : payable ? (value.payment_environment ? 'Trạng thái sẽ cập nhật sau khi SePay xác nhận thanh toán.' : 'Đơn cũ chưa xác định môi trường thanh toán. Vui lòng liên hệ nhà thuốc.') : 'Đơn hiện không ở trạng thái chờ thanh toán QR.';
+        : payable ? (value.payment_environment ? 'Trạng thái sẽ cập nhật sau khi nhà thuốc xác nhận thanh toán.' : 'Đơn cũ chưa xác định môi trường thanh toán. Vui lòng liên hệ nhà thuốc.') : 'Đơn hiện không ở trạng thái chờ thanh toán QR.';
     renderProgress(value); renderProducts(value.items);
     $('order-detail-layout').hidden = false;
 }

@@ -175,7 +175,7 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
         } content.append(products);
         $('counter-bill-totals').replaceChildren();
         for (const [title, amount] of [['Tiền hàng', value.TongTien], ['Giảm giá / đổi xu', value.TienGiamGia], ['Tổng thanh toán', value.TongThanhToan]]) { const row = node('div'); row.append(node('dt', title), node('dd', money(amount))); $('counter-bill-totals').append(row); }
-        $('counter-bill-payment').textContent = `${value.PhuongThucThanhToan === 1 ? 'QR / SePay' : value.KenhDatHang ? 'Tiền mặt' : 'COD'} · ${value.TrangThaiThanhToan === 1 ? 'Đã thanh toán' : 'Chưa thanh toán'}`;
+        $('counter-bill-payment').textContent = `${value.PhuongThucThanhToan === 1 ? 'Thanh toán QR' : value.KenhDatHang ? 'Tiền mặt' : 'COD'} · ${value.TrangThaiThanhToan === 1 ? 'Đã thanh toán' : 'Chưa thanh toán'}`;
         $('counter-bill-rewards').replaceChildren();
         if (value.TrangThaiDonHang === 3 && value.XuDaCong && BigInt(value.XuDaCong) > 0n) { const earned = node('p', `Đã cộng ${value.XuDaCong} `, 'employee-earned-points'); earned.append(rewardCoin(), document.createTextNode(' vào tài khoản khách hàng.')); $('counter-bill-rewards').append(earned); }
         $('counter-print').hidden = !value.CanPrint;
@@ -219,7 +219,7 @@ export function setupEmployeeCounter({ getUser, onSessionError }) {
         finally { if (run === epoch) { checking = false; $('counter-check').disabled = false; } }
     });
     $('counter-coins').addEventListener('change', requestQuote);
-    $('counter-payment').addEventListener('change', () => { $('counter-cash-note').textContent = $('counter-payment').value === '0' ? 'Chỉ hoàn thành sau khi đã thu đủ tiền mặt.' : 'Đơn QR chỉ hoàn tất và cộng xu sau khi SePay xác nhận đã thanh toán.'; });
+    $('counter-payment').addEventListener('change', () => { $('counter-cash-note').textContent = $('counter-payment').value === '0' ? 'Chỉ hoàn thành sau khi đã thu đủ tiền mặt.' : 'Đơn QR chỉ hoàn tất và cộng xu sau khi hệ thống xác nhận đã thanh toán.'; });
     $('counter-finish').addEventListener('click', async () => {
         if (!allowed() || busy || !customer || !quote) return;
         if (!customer.exists && !$('counter-name').value.trim()) { setState('Nhập tên khách hàng mới.'); $('counter-name').focus(); return; }

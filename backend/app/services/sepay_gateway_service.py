@@ -92,6 +92,12 @@ def sign_fields(fields, secret):
     return base64.b64encode(hmac.new(secret.encode('utf-8'), signed.encode('utf-8'), hashlib.sha256).digest()).decode('ascii')
 
 
+def storefront_key(origin):
+    # A public selector, not an authentication token. The return handler only
+    # resolves it against configured origins; no redirect URL is carried in it.
+    return hashlib.sha256(origin.encode('utf-8')).hexdigest()[:16]
+
+
 def require_pending(order):
     from app.services.order_expiry_service import overdue
     if overdue(order):
@@ -107,7 +113,7 @@ def require_pending(order):
 
 
 @operation
-def initialize(user_id, order_id, *, employee=False):
+def initialize(user_id, order_id, *, employee=False, frontend_origin=None):
     config = gateway_config()
     if not 0 < order_id <= MAX_ID:
         raise AuthError('ORDER_NOT_FOUND', 404)
@@ -127,6 +133,16 @@ def initialize(user_id, order_id, *, employee=False):
             parsed = urlsplit(config['SEPAY_' + name.upper()])
             query = [(key, value) for key, value in parse_qsl(parsed.query) if key != 'order']
             query.append(('order', str(order.MaDonHang)))
+            # Production keeps the configured callback unchanged. Only local
+            # development needs to distinguish localhost from 127.0.0.1.
+            if parsed.path == '/api/payments/sepay/return':
+                query = [(key, value) for key, value in query if key not in ('frontend_origin', 'storefront')]
+                allowed = current_app.config['AUTH_ALLOWED_ORIGINS']
+                default_origin = current_app.config.get('SEPAY_FRONTEND_ORIGIN') or (allowed[0] if allowed else '')
+                if (current_app.config['APP_ENV'] == 'development' and frontend_origin in allowed
+                        and frontend_origin != default_origin
+                        and urlsplit(frontend_origin).hostname in ('localhost', '127.0.0.1')):
+                    query.append(('storefront', storefront_key(frontend_origin)))
             if employee:
                 query = [(key, value) for key, value in query if key != 'workspace']
                 query.append(('workspace', 'employee'))

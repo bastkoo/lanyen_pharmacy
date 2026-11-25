@@ -79,19 +79,21 @@ function card(value) {
     let message = value.TrangThaiThanhToan === 1 ? 'Đã thanh toán.' : value.PhuongThucThanhToan === 0 ? 'Thanh toán khi nhận hàng.' : 'Chưa thanh toán.';
     if ([0, 1].includes(value.TrangThaiDonHang)) message = value.TrangThaiDonHang === 1 ? `Đơn hàng đang được xử lý. ${message}` : `Đơn hàng đang chờ xử lý. ${message}`;
     actions.append(node('p', message, 'orders-card-message'));
+    const buttons = node('div', undefined, 'orders-card-buttons');
     if ([0, 1].includes(value.TrangThaiDonHang)) {
         const cancel = node('button', 'Hủy đơn', 'button button-outline'); cancel.type = 'button'; cancel.dataset.cancelOrder = value.MaDonHang;
-        cancel.setAttribute('aria-label', `Hủy đơn ${value.MaDonHang}`); cancel.setAttribute('aria-haspopup', 'dialog'); cancel.setAttribute('aria-controls', 'order-cancel-dialog'); actions.append(cancel);
+        cancel.setAttribute('aria-label', `Hủy đơn ${value.MaDonHang}`); cancel.setAttribute('aria-haspopup', 'dialog'); cancel.setAttribute('aria-controls', 'order-cancel-dialog'); buttons.append(cancel);
     }
     if ([3, 4].includes(value.TrangThaiDonHang) && !value.items.some(item => item.PhanLoai === true)) {
         const buy = node('button', 'Mua lại', 'button button-outline orders-buy-again'); buy.type = 'button';
         buy.dataset.reorder = value.MaDonHang; buy.setAttribute('aria-haspopup', 'dialog'); buy.setAttribute('aria-controls', 'reorder-dialog');
-        buy.setAttribute('aria-label', `Mua lại đơn ${value.MaDonHang}`); actions.append(buy);
+        buy.setAttribute('aria-label', `Mua lại đơn ${value.MaDonHang}`); buttons.append(buy);
     }
     if (value.can_pay === true) {
         const pay = node('button', 'Thanh toán', 'button button-primary'); pay.type = 'button'; pay.dataset.payOrder = value.MaDonHang;
-        pay.setAttribute('aria-label', `Thanh toán đơn ${value.MaDonHang}`); pay.disabled = opening; actions.append(pay);
+        pay.setAttribute('aria-label', `Thanh toán đơn ${value.MaDonHang}`); pay.disabled = opening; buttons.append(pay);
     }
+    if (buttons.children.length) actions.append(buttons);
     article.append(actions);
     const feedback = node('p', '', 'orders-pay-state'); feedback.dataset.payState = value.MaDonHang; feedback.setAttribute('role', 'status'); article.append(feedback);
     li.append(article); return li;
@@ -164,7 +166,7 @@ $('orders-list').addEventListener('click', async event => {
     opening = true;
     for (const pay of document.querySelectorAll('[data-pay-order]')) pay.disabled = true;
     const feedback = button.closest('article').querySelector('[data-pay-state]'), account = String(user.MaNguoiDung), attempt = version;
-    feedback.textContent = 'Đang mở trang thanh toán SePay…';
+    feedback.textContent = 'Đang mở trang thanh toán QR…';
     try {
         const data = await initializePayment(value.MaDonHang, account);
         if (disposed || attempt !== version || !user || String(user.MaNguoiDung) !== account) return;

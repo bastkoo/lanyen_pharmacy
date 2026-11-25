@@ -111,6 +111,19 @@ def payment_return():
     origin = current_app.config.get('SEPAY_FRONTEND_ORIGIN') or (allowed[0] if allowed else '')
     if not origin or origin not in allowed:
         return jsonify(code='GATEWAY_CONFIG_INVALID'), 503
+    storefront = request.args.get('storefront')
+    frontend_origin = request.args.get('frontend_origin')
+    if storefront is not None:
+        matches = [value for value in allowed if sepay_gateway_service.storefront_key(value) == storefront]
+        if (len(request.args.getlist('storefront')) != 1 or len(matches) != 1
+                or frontend_origin is not None):
+            return jsonify(code='INVALID_REQUEST'), 400
+        origin = matches[0]
+    # Compatibility with forms issued before the local storefront selector.
+    if frontend_origin is not None:
+        if len(request.args.getlist('frontend_origin')) != 1 or frontend_origin not in allowed:
+            return jsonify(code='INVALID_REQUEST'), 400
+        origin = frontend_origin
     if request.args.get('workspace') == 'employee':
         return redirect(f'{origin}/pages/employee/index.html?bill={int(order_id)}#counter', code=303)
     return redirect(f'{origin}/pages/customer/order-detail.html?order={int(order_id)}', code=303)
@@ -131,7 +144,8 @@ def initialize_payment(order_id):
     if request.args or request.get_data():
         return jsonify(code='INVALID_REQUEST'), 400
     try:
-        payment = sepay_gateway_service.initialize(g.current_user.MaNguoiDung, order_id)
+        payment = sepay_gateway_service.initialize(g.current_user.MaNguoiDung, order_id,
+                                                  frontend_origin=request.headers.get('Origin'))
         current_app.logger.info('sepay_initialize order_id=%s status=200 code=PAYMENT_INITIALIZED', order_id)
         return jsonify(code='PAYMENT_INITIALIZED', payment=payment)
     except AuthError as error:

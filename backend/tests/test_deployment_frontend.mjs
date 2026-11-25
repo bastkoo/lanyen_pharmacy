@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-test('localhost and 127.0.0.1 use the local API; deployed hosts use HTTPS Render API', async () => {
+test('local API preserves the storefront hostname for session cookies; deployed hosts use HTTPS Render API', async () => {
     const previous = globalThis.location;
     try {
         for (const [hostname, protocol, expected] of [
-            ['localhost', 'http:', 'http://127.0.0.1:5000/api'],
+            ['localhost', 'http:', 'http://localhost:5000/api'],
             ['127.0.0.1', 'http:', 'http://127.0.0.1:5000/api'],
-            ['localhost', 'https:', 'http://127.0.0.1:5000/api'],
+            ['localhost', 'https:', 'http://localhost:5000/api'],
             ['lanyenpharmacy.onrender.com', 'https:', 'https://lanyenpharmacy-api.onrender.com/api'],
             ['shop.example.com', 'https:', 'https://lanyenpharmacy-api.onrender.com/api'],
             ['localhost.example.com', 'https:', 'https://lanyenpharmacy-api.onrender.com/api'],
@@ -84,4 +84,14 @@ test('static HTML assets and JS module imports resolve inside the publish direct
         }
     }
     assert.ok(checked > 100);
+});
+
+test('payment UI uses QR labels without exposing the gateway provider', () => {
+    const files = ['pages/customer/checkout.html', 'pages/customer/order-detail.html', 'pages/employee/index.html',
+        'js/pages/public-checkout.js', 'js/pages/public-order-detail.js', 'js/pages/public-orders.js',
+        'js/pages/employee-counter.js', 'js/utils/sepay-checkout.js'];
+    for (const file of files) {
+        const source = readFileSync(new URL(`../../frontend/${file}`, import.meta.url), 'utf8');
+        assert.doesNotMatch(source, /(?:Thanh toán|thanh toán|Checkout|Chuyển khoản QR|Cấu hình|sang|khi)\s+(?:qua\s+)?SePay|QR\s*\/\s*SePay/, file);
+    }
 });

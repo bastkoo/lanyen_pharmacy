@@ -34,10 +34,13 @@
 .orders-card-total { text-align: right; color: var(--home-muted); font-size: 13px; }
 .orders-card-total strong { color: var(--primary-dark); font-weight: 600; font-size: var(--font-size-lg); margin-left: 8px; font-variant-numeric: tabular-nums; }
 .orders-card-discount { display: block; font-size: 12px; margin-top: 6px; }
-.orders-card-actions { border-top: 1px solid var(--home-line); margin-inline: 20px; padding-block: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.orders-card-message { color: var(--home-muted); font-size: 13px; line-height: 1.7; }
+.orders-card-actions { border-top: 1px solid var(--home-line); margin-inline: 20px; padding-block: 14px; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; }
+.orders-card-message { flex: 1 1 240px; margin-right: auto; color: var(--home-muted); font-size: 13px; line-height: 1.7; }
 .orders-pay-state { font-size: 13px; color: var(--home-muted); padding-inline: 20px; padding-bottom: 12px; }
 .orders-card .button { min-width: 130px; }
+.orders-card-buttons { display: flex; gap: 12px; margin-left: auto; max-width: 100%; }
+.orders-card-buttons .button { flex: 0 1 auto; min-width: 0; padding-inline: 20px; white-space: nowrap; }
+.orders-card-buttons [data-pay-order] { min-width: 140px; }
 .orders-empty { text-align: center; background: var(--surface-color); border: 1px solid var(--home-line); border-radius: var(--radius-lg); padding: var(--spacing-2xl) var(--spacing-lg); }
 .orders-empty h2 { font-size: var(--font-size-lg); font-weight: 500; }
 .orders-empty p { margin-block: 12px 20px; color: var(--home-muted); }
