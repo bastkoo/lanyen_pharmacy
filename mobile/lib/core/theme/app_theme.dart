@@ -46,6 +46,15 @@ abstract final class AppTheme {
           shape: shape,
         ),
       ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primaryDark,
+          minimumSize: const Size(
+            AppSpacing.touchTarget,
+            AppSpacing.touchTarget,
+          ),
+        ),
+      ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(

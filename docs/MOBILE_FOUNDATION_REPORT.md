@@ -2,6 +2,10 @@
 
 Ngày 26/11/2026 · Nhánh `feat/mobile` · Flutter 3.47.0 / Dart 3.13.0.
 
+> Báo cáo lịch sử của giai đoạn nền tảng. Giai đoạn đăng nhập JWT tiếp theo đã
+> thay cổng demo và transport chưa triển khai; xem [MOBILE_AUTH.md](MOBILE_AUTH.md)
+> để biết luồng và kết quả kiểm chứng hiện tại.
+
 ## Tổng quan và trạng thái
 
 Đã chỉnh sửa trực tiếp workspace: đồng bộ Skills, quy tắc phạm vi, tài liệu Mobile,

@@ -1,6 +1,5 @@
 // Cấu hình công khai khi biên dịch; tuyệt đối không chứa secret.
 abstract final class AppConfig {
-  static const demoMode = bool.fromEnvironment('DEMO_MODE', defaultValue: true);
   static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
   static const requestTimeout = Duration(seconds: 20);
 

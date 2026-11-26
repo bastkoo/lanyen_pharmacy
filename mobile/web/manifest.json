@@ -1,11 +1,11 @@
 {
-    "name": "Lan Yến Pharmacy · Demo",
+    "name": "Lan Yến Pharmacy",
     "short_name": "Lan Yến",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F5F7F6",
     "theme_color": "#16865B",
-    "description": "Nền tảng demo Local Lan Yến Pharmacy.",
+    "description": "Ứng dụng Lan Yến Pharmacy.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

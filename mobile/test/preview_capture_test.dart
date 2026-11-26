@@ -6,15 +6,17 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lan_yen_pharmacy/app/app_router.dart';
-import 'package:lan_yen_pharmacy/core/constants/app_roles.dart';
 import 'package:lan_yen_pharmacy/core/theme/app_theme.dart';
-import 'package:lan_yen_pharmacy/features/auth/auth_controller.dart';
 
-// Xuất ảnh từ Flutter renderer để review trực quan, không phải ảnh Chrome/native.
+import 'auth_test_support.dart';
+
+// Xuất ảnh các bước bằng Flutter renderer và font thực, không phải ảnh thiết bị.
 void main() {
-  testWidgets('Xuất mẫu giao diện với font tiếng Việt thực', (tester) async {
+  testWidgets('Xuất ảnh đăng nhập, OTP, họ tên và đích sau xác thực', (
+    tester,
+  ) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(390, 1600);
+    tester.view.physicalSize = const Size(390, 1000);
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final loader = FontLoader('BeVietnamPro');
@@ -24,11 +26,12 @@ void main() {
       );
     }
     await loader.load();
-    final iconLoader = FontLoader('MaterialIcons')
+    final icons = FontLoader('MaterialIcons')
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-    await iconLoader.load();
-    final controller = AuthController();
+    await icons.load();
+    final controller = testController(AuthStubTransport(newUser: true));
     addTearDown(controller.dispose);
+    await controller.restoreSession();
     final boundaryKey = GlobalKey();
     await tester.pumpWidget(
       RepaintBoundary(
@@ -40,22 +43,28 @@ void main() {
         ),
       ),
     );
-    for (final role in [null, ...AppRole.values]) {
-      if (role != null) controller.enterDemo(role);
+    for (final step in ['phone', 'otp', 'profile', 'signed-in']) {
+      await tester.runAsync(
+        () => precacheImage(
+          const AssetImage('assets/images/logo.png'),
+          tester.element(find.byType(AppRouter)),
+        ),
+      );
       await tester.pumpAndSettle();
-      expect(tester.takeException(), isNull);
       final boundary =
           boundaryKey.currentContext!.findRenderObject()!
               as RenderRepaintBoundary;
       await tester.runAsync(() async {
         final image = await boundary.toImage();
         final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
-        final file = File('build/preview/${role?.name ?? 'entry'}.png');
+        final file = File('build/login-preview/$step.png');
         await file.parent.create(recursive: true);
         await file.writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       });
-      if (role != null) controller.leaveDemo();
+      if (step == 'phone') await controller.requestOtp('0901234567');
+      if (step == 'otp') await controller.verifyOtp('123456');
+      if (step == 'profile') await controller.register('Nguyễn An');
       await tester.pumpAndSettle();
     }
   });

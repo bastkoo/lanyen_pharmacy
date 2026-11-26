@@ -2,6 +2,12 @@
 
 ## Rà soát trước thay đổi — 26/11/2026
 
+**Cập nhật giai đoạn đăng nhập:** Luồng hiện tại dùng OTP qua API
+`/api/mobile/auth` và access/refresh JWT, không còn cổng chọn vai trò demo.
+Dio/secure storage đã được bổ sung. Các mô tả chưa login/transport trong phần
+nền tảng bên dưới là lịch sử; xem [MOBILE_AUTH.md](MOBILE_AUTH.md).
+Website vẫn dùng cookie/session/CSRF; các endpoint cũ không thay đổi.
+
 - Nhánh `feat/mobile`; staged, unstaged và untracked đều sạch.
 - Có đủ 14 Skills trong `.agents/skills/`; có thêm `accessibility/SKILL.backup.md` không phải Skill đang hoạt động.
 - `mobile/` đã có Android, iOS, Web; chỉ có counter app và counter test. Không chạy lại `flutter create`.

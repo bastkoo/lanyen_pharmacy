@@ -1,12 +1,12 @@
 enum ApiFailure {
   configuration,
-  transportUnavailable,
   connection,
   timeout,
   response,
   authentication,
   forbidden,
   server,
+  storage,
 }
 
 // Không đưa raw body, cookie hoặc lỗi nội bộ lên UI.
@@ -16,9 +16,9 @@ class ApiException implements Exception {
   final int? status;
   final String? code;
   String get message => switch (failure) {
-    ApiFailure.configuration => 'Chưa có cấu hình kết nối hợp lệ.',
-    ApiFailure.transportUnavailable =>
-      'Kết nối Backend chưa được bật trong nền tảng demo.',
+    ApiFailure.storage =>
+      'Không thể truy cập nơi lưu phiên an toàn. Vui lòng thử lại.',
+    ApiFailure.configuration => 'Chưa thể kết nối dịch vụ đăng nhập. Vui lòng kiểm tra cấu hình khi chạy ứng dụng.',
     ApiFailure.connection => 'Không thể kết nối đến máy chủ.',
     ApiFailure.timeout => 'Kết nối quá thời gian chờ.',
     ApiFailure.authentication => 'Vui lòng xác thực lại phiên đăng nhập.',

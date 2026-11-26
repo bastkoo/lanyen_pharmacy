@@ -50,6 +50,12 @@ class Config:
         for origin in os.getenv("AUTH_ALLOWED_ORIGINS", "").split(",")
         if origin.strip()
     ]
+    # Origin bổ sung chỉ cho API Mobile JWT, không mở rộng CORS của Web.
+    MOBILE_AUTH_ALLOWED_ORIGINS = [
+        origin.strip().rstrip('/')
+        for origin in os.getenv('MOBILE_AUTH_ALLOWED_ORIGINS', '').split(',')
+        if origin.strip() and origin.strip() != '*'
+    ]
     SESSION_COOKIE_NAME = "lanyen_session"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true"

@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_roles.dart';
-import '../preview/foundation_preview.dart';
+import '../auth/auth_controller.dart';
+import '../../shared/widgets/session_landing.dart';
 
-// Shell employee chuẩn bị điểm vào riêng; chưa thêm nghiệp vụ hoặc tab giả.
+// Điểm đến employee sau xác thực; chưa thêm nghiệp vụ.
 class EmployeeShell extends StatelessWidget {
-  const EmployeeShell({super.key, required this.onExit});
-  final VoidCallback onExit;
+  const EmployeeShell({super.key, required this.controller});
+  final AuthController controller;
   @override
-  Widget build(BuildContext context) => FoundationPreview(
-    role: AppRole.employee,
-    title: 'Rõ việc, thuận thao tác.',
-    description: 'Không gian nhân viên dành cho quy trình tác nghiệp. Phạm vi tính năng sẽ được xác định ở giai đoạn tiếp theo.',
-    onExit: onExit,
-  );
+  Widget build(BuildContext context) => SessionLanding(controller: controller);
 }

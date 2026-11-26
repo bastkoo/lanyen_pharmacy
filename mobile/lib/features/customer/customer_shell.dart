@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_roles.dart';
-import '../preview/foundation_preview.dart';
+import '../auth/auth_controller.dart';
+import '../../shared/widgets/session_landing.dart';
 
-// Shell customer chuẩn bị điểm vào riêng; chưa thêm nghiệp vụ hoặc tab giả.
+// Điểm đến customer sau xác thực; chưa thêm nghiệp vụ.
 class CustomerShell extends StatelessWidget {
-  const CustomerShell({super.key, required this.onExit});
-  final VoidCallback onExit;
+  const CustomerShell({super.key, required this.controller});
+  final AuthController controller;
   @override
-  Widget build(BuildContext context) => FoundationPreview(
-    role: AppRole.customer,
-    title: 'Chăm sóc từ điều giản dị.',
-    description:
-        'Không gian khách hàng ưu tiên nội dung dễ đọc và thao tác rõ ràng.',
-    onExit: onExit,
-  );
+  Widget build(BuildContext context) => SessionLanding(controller: controller);
 }

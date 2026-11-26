@@ -1,6 +1,15 @@
 ﻿# Mobile API Contract — Lan Yến Pharmacy
 
-Ngày đối chiếu source: 26/11/2026. Tài liệu chuẩn bị nền tảng, không chứng nhận API runtime.
+## Cập nhật: Mobile dùng JWT
+
+Theo quyết định mới của chủ dự án, Flutter dùng nhóm API **/api/mobile/auth** với
+Bearer access/refresh token, không dùng cookie/session của Website.
+Contract mới và cách chạy tại [MOBILE_AUTH.md](MOBILE_AUTH.md).
+Phần cookie/CSRF bên dưới được giữ làm tài liệu đối chiếu API Website; trạng thái
+transport chưa triển khai bên dưới là lịch sử của giai đoạn nền tảng.
+JWT hiện đã được triển khai trong API mới và Flutter.
+
+Ngày đối chiếu source: 26/11/2026. Phần dưới ghi nhận giai đoạn nền tảng trước JWT.
 Không khởi động Flask trong nhiệm vụ này: create_app/before_request có thể khởi động
 worker hết hạn đơn. Không gọi endpoint hay truy cập PostgreSQL.
 

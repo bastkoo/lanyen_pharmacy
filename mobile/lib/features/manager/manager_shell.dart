@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants/app_roles.dart';
-import '../preview/foundation_preview.dart';
+import '../auth/auth_controller.dart';
+import '../../shared/widgets/session_landing.dart';
 
-// Shell manager chuẩn bị điểm vào riêng; chưa thêm nghiệp vụ hoặc tab giả.
+// Điểm đến manager sau xác thực; chưa thêm nghiệp vụ.
 class ManagerShell extends StatelessWidget {
-  const ManagerShell({super.key, required this.onExit});
-  final VoidCallback onExit;
+  const ManagerShell({super.key, required this.controller});
+  final AuthController controller;
   @override
-  Widget build(BuildContext context) => FoundationPreview(
-    role: AppRole.manager,
-    title: 'Thông tin có trật tự.',
-    description: 'Không gian quản lý ưu tiên phân cấp thông tin. Báo cáo và dữ liệu nghiệp vụ chưa triển khai.',
-    onExit: onExit,
-  );
+  Widget build(BuildContext context) => SessionLanding(controller: controller);
 }
