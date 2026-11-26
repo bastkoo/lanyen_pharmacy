@@ -27,6 +27,8 @@ class AuthStubTransport implements ApiTransport {
   int failureStatus = 503;
   Completer<void>? hold;
   int refreshCount = 0;
+  final Map<String, Map<String, dynamic>> catalogData = {};
+  bool catalogFails = false;
   Map<String, dynamic> get user => {
     'MaNguoiDung': 42,
     'HoTen': 'Nguyễn An',
@@ -60,6 +62,31 @@ class AuthStubTransport implements ApiTransport {
       return ApiResponse(failureStatus, jsonEncode({'code': failureCode}));
     }
     final path = uri.path;
+    if (path.contains('/mobile/catalog/')) {
+      if (catalogFails) {
+        return const ApiResponse(503, '{"code":"SERVICE_UNAVAILABLE"}');
+      }
+      final name = path.split('/mobile/catalog/').last;
+      return ApiResponse(
+        200,
+        jsonEncode(
+          catalogData['$name?page=${uri.queryParameters['page'] ?? '1'}'] ??
+              catalogData[name] ??
+              {
+                'code': name == 'categories'
+                    ? 'CATEGORIES_LISTED'
+                    : name == 'promotions'
+                    ? 'PROMOTIONS_LISTED'
+                    : 'PRODUCTS_LISTED',
+                'items': [],
+                'page': int.parse(uri.queryParameters['page'] ?? '1'),
+                'per_page': 100,
+                'total': 0,
+                'pages': 0,
+              },
+        ),
+      );
+    }
     if (path.endsWith('/otp/request')) {
       return ApiResponse(
         200,

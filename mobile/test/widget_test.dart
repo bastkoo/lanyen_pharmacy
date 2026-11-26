@@ -57,7 +57,12 @@ void main() {
     await tester.ensureVisible(find.byKey(const ValueKey('auth-submit')));
     await tester.tap(find.byKey(const ValueKey('auth-submit')));
     await tester.pumpAndSettle();
-    expect(transport.requests.last.body!['otp'], '123456');
+    expect(
+      transport.requests
+          .firstWhere((request) => request.uri.path.endsWith('/otp/verify'))
+          .body!['otp'],
+      '123456',
+    );
     expect(controller.stage, AuthStage.authenticated);
   });
 
@@ -177,6 +182,10 @@ void main() {
         await submit(tester, 'otp-input', '123456');
         expect(controller.user!.role.value, role);
         expect(find.text('Xin chào, Nguyễn An'), findsOneWidget);
+        if (role == 0) {
+          await tester.tap(find.byKey(const ValueKey('customer-tab-4')));
+          await tester.pumpAndSettle();
+        }
         await tester.ensureVisible(find.text('Đăng xuất'));
         await tester.tap(find.text('Đăng xuất'));
         await tester.pumpAndSettle();

@@ -92,8 +92,16 @@ class ApiClient {
   final ApiTransport transport;
   final Duration timeout;
 
-  Future<Map<String, dynamic>> get(String path, {bool authorized = false}) =>
-      _request('GET', path, authorized: authorized);
+  Future<Map<String, dynamic>> get(
+    String path, {
+    bool authorized = false,
+    Map<String, String>? queryParameters,
+  }) => _request(
+    'GET',
+    path,
+    authorized: authorized,
+    queryParameters: queryParameters,
+  );
   Future<Map<String, dynamic>> post(
     String path,
     Map<String, dynamic> body, {
@@ -105,6 +113,7 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? body,
     bool authorized = false,
+    Map<String, String>? queryParameters,
   }) async {
     late final Uri base;
     try {
@@ -131,7 +140,12 @@ class ApiClient {
     }
     try {
       final response = await transport
-          .send(base.resolve(path), method, headers, body: body)
+          .send(
+            base.resolve(path).replace(queryParameters: queryParameters),
+            method,
+            headers,
+            body: body,
+          )
           .timeout(timeout);
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) {

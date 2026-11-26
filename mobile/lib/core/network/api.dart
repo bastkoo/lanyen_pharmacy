@@ -1,5 +1,6 @@
 import '../../models/auth_session.dart';
 import '../../models/session_user.dart';
+import '../../models/catalog.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 
@@ -124,5 +125,75 @@ class AuthApi {
       if (error.status != 401) rethrow;
     }
     await _clearSession();
+  }
+}
+
+// Danh mục dùng lại nghiệp vụ công khai của Website qua CORS riêng cho Mobile.
+class CatalogApi {
+  const CatalogApi(this.client);
+  final ApiClient client;
+
+  Future<CatalogPage<T>> _list<T>(
+    String path,
+    String code,
+    T Function(Map<String, dynamic>) parse,
+    int page,
+    Map<String, String> filters,
+  ) async {
+    final data = await client.get(
+      'mobile/catalog/$path',
+      queryParameters: {'page': '$page', ...filters},
+    );
+    try {
+      return CatalogPage.parse(data, code, parse, page);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<CatalogPage<CatalogCategory>> categories({int page = 1}) => _list(
+    'categories',
+    'CATEGORIES_LISTED',
+    CatalogCategory.fromJson,
+    page,
+    {'per_page': '100'},
+  );
+  Future<CatalogPage<CatalogPromotion>> promotions({int page = 1}) => _list(
+    'promotions',
+    'PROMOTIONS_LISTED',
+    CatalogPromotion.fromJson,
+    page,
+    {'per_page': '100'},
+  );
+  Future<CatalogPage<CatalogProduct>> promotionProducts(
+    int id, {
+    int page = 1,
+  }) => _list(
+    'promotions/$id/products',
+    'PROMOTION_PRODUCTS_LISTED',
+    CatalogProduct.fromJson,
+    page,
+    {'per_page': '12'},
+  );
+  Future<CatalogPage<CatalogProduct>> products({
+    String search = '',
+    int? categoryId,
+    int page = 1,
+  }) => _list('products', 'PRODUCTS_LISTED', CatalogProduct.fromJson, page, {
+    'per_page': '12',
+    if (search.isNotEmpty) 'search': search,
+    if (categoryId != null) 'category_id': '$categoryId',
+  });
+  Future<CatalogProduct> product(int id) async {
+    final data = await client.get('mobile/catalog/products/$id');
+    try {
+      if (data['code'] != 'PRODUCT_FOUND' ||
+          data['product'] is! Map<String, dynamic>) {
+        throw const FormatException();
+      }
+      return CatalogProduct.fromJson(data['product'] as Map<String, dynamic>);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
   }
 }
