@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lan_yen_pharmacy/app/app_router.dart';
 import 'package:lan_yen_pharmacy/core/network/api.dart';
 import 'package:lan_yen_pharmacy/core/theme/app_theme.dart';
+import 'package:lan_yen_pharmacy/features/customer/customer_product_widgets.dart';
 import 'package:lan_yen_pharmacy/features/customer/customer_home_controller.dart';
 import 'package:lan_yen_pharmacy/models/catalog.dart';
 
@@ -67,11 +68,167 @@ AuthStubTransport catalogFixture() {
     ]),
     'products': page('PRODUCTS_LISTED', [productFixture(3)]),
     'products/1': {'code': 'PRODUCT_FOUND', 'product': productFixture(1)},
+    'products/2': {'code': 'PRODUCT_FOUND', 'product': productFixture(2)},
+    'products/3': {'code': 'PRODUCT_FOUND', 'product': productFixture(3)},
   });
   return transport;
 }
 
 void main() {
+  test('Nhãn ưu đãi theo loại Backend, không suy giảm tiền ra tỷ lệ', () {
+    final percent = {
+      ...productFixture(1),
+      'KhuyenMai': {
+        'TrangThai': 'ACTIVE',
+        'LoaiGiamGia': true,
+        'GiaTriGiam': '10.00',
+      },
+    };
+    expect(CatalogProduct.fromJson(percent).offerBadge, '-10%');
+    percent['KhuyenMai'] = {
+      'TrangThai': 'ACTIVE',
+      'LoaiGiamGia': false,
+      'GiaTriGiam': '10000',
+    };
+    expect(CatalogProduct.fromJson(percent).offerBadge, 'Ưu đãi');
+  });
+
+  testWidgets(
+    'Refactor màu giữ nguyên foreground/background/overlay theo trạng thái Theme',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Builder(
+            builder: (context) {
+              final original =
+                  (Theme.of(context).filledButtonTheme.style ??
+                          const ButtonStyle())
+                      .merge(
+                        const FilledButton(
+                          onPressed: null,
+                          child: SizedBox(),
+                        ).defaultStyleOf(context),
+                      );
+              final local = CustomerProductColors.purchaseStyle(context);
+              expect(local.shape?.resolve({}), original.shape?.resolve({}));
+              expect(
+                local.minimumSize?.resolve({}),
+                original.minimumSize?.resolve({}),
+              );
+              expect(local.padding?.resolve({}), original.padding?.resolve({}));
+              for (final states in <Set<WidgetState>>[
+                {},
+                {WidgetState.disabled},
+                {WidgetState.focused},
+                {WidgetState.hovered},
+                {WidgetState.pressed},
+              ]) {
+                expect(
+                  local.foregroundColor?.resolve(states),
+                  original.foregroundColor?.resolve(states),
+                );
+                expect(
+                  local.backgroundColor?.resolve(states),
+                  original.backgroundColor?.resolve(states),
+                );
+                expect(
+                  local.overlayColor?.resolve(states),
+                  original.overlayColor?.resolve(states),
+                );
+              }
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+    },
+  );
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets(
+      'Tên chương trình dài, đơn vị hiện đủ và quota/giá cập nhật ở scale $scale',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(scale == 1 ? 390 : 320, 1100);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final transport = catalogFixture();
+        final longName =
+            'Ưu đãi chăm sóc sức khỏe gia đình và những người thương yêu nhân dịp chương trình tri ân khách hàng Lan Yến';
+        (transport.catalogData['promotions']!['items'] as List)
+                .first['TenChuongTrinh'] =
+            longName;
+        transport.catalogData['promotions/7/products']!['items'] = [
+          {
+            ...productFixture(1),
+            'KhuyenMai': {
+              'TrangThai': 'ACTIVE',
+              'LoaiGiamGia': true,
+              'GiaTriGiam': '10.00',
+            },
+            'DonViGia': [
+              {
+                'MaDonGia': 101,
+                'DonViTinh': 'Hộp',
+                'GiaBan': 120000,
+                'GiaKhuyenMai': 108000,
+                'SoLuongKhuyenMai': 4,
+                'ConHang': true,
+              },
+              {
+                'MaDonGia': 901,
+                'DonViTinh': 'Vỉ',
+                'GiaBan': 12000,
+                'GiaKhuyenMai': 10800,
+                'SoLuongKhuyenMai': 40,
+                'ConHang': true,
+              },
+              {
+                'MaDonGia': 902,
+                'DonViTinh': 'Viên',
+                'GiaBan': 1200,
+                'GiaKhuyenMai': 1080,
+                'SoLuongKhuyenMai': 400,
+                'ConHang': true,
+              },
+            ],
+          },
+        ];
+        final auth = testController(transport);
+        addTearDown(auth.dispose);
+        await loginFixture(auth);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: MediaQuery(
+              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+              child: AppRouter(controller: auth),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(tester.widget<Text>(find.text(longName)).maxLines, 2);
+        expect(find.text('-10%'), findsOneWidget);
+        expect(find.byType(DropdownButtonFormField<int>), findsNothing);
+        expect(find.byKey(const ValueKey('unit-option-101')), findsOneWidget);
+        expect(find.byKey(const ValueKey('unit-option-902')), findsOneWidget);
+        expect(find.text('Còn 4 Hộp ưu đãi'), findsOneWidget);
+        expect(find.text('120.000đ'), findsOneWidget);
+        expect(find.textContaining(RegExp(r'^\d{2,} ngày$')), findsNothing);
+        final option = find.byKey(const ValueKey('unit-option-901'));
+        await Scrollable.ensureVisible(tester.element(option), alignment: .4);
+        await tester.pumpAndSettle();
+        await tester.tap(option);
+        await tester.pumpAndSettle();
+        expect(find.text('Còn 40 Vỉ ưu đãi'), findsOneWidget);
+        expect(find.text('10.800đ / Vỉ'), findsOneWidget);
+        expect(transport.cartAdds, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   test(
     'Danh mục đọc đủ trang, sản phẩm chuyển trang, lỗi contract được xử lý',
     () async {
@@ -162,7 +319,12 @@ void main() {
     expect(home.offers.length, 2);
     await home.browse(query: 'vitamin & khoáng / chất?');
     expect(
-      transport.requests.last.uri.queryParameters['search'],
+      transport.requests
+          .lastWhere(
+            (request) => request.uri.path == '/api/mobile/catalog/products',
+          )
+          .uri
+          .queryParameters['search'],
       'vitamin & khoáng / chất?',
     );
     expect(
@@ -262,27 +424,53 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Danh mục 9'));
     await tester.pumpAndSettle();
-    expect(transport.requests.last.uri.queryParameters['category_id'], '9');
+    expect(
+      transport.requests
+          .lastWhere(
+            (request) => request.uri.path == '/api/mobile/catalog/products',
+          )
+          .uri
+          .queryParameters['category_id'],
+      '9',
+    );
     await tester.enterText(
-      find.byKey(const ValueKey('home-search')),
+      find.byKey(const ValueKey('products-search')),
       'vitamin',
     );
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
-    expect(transport.requests.last.uri.queryParameters['search'], 'vitamin');
-    expect(find.byKey(const ValueKey('customer-tab-2')), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('customer-tab-0')));
+    expect(
+      transport.requests
+          .lastWhere(
+            (request) => request.uri.path == '/api/mobile/catalog/products',
+          )
+          .uri
+          .queryParameters['search'],
+      'vitamin',
+    );
+    expect(find.byKey(const ValueKey('products-search')), findsOneWidget);
+    await tester.pageBack();
     await tester.pumpAndSettle();
     await Scrollable.ensureVisible(
       tester.element(find.text('Sản phẩm kiểm thử 1')),
       alignment: .4,
     );
     await tester.pumpAndSettle();
+    // NestedScrollView có header ghim: đưa thẻ vào vùng giữa, tránh nút bị thanh dưới che.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final y = tester.getCenter(find.text('Sản phẩm kiểm thử 1')).dy;
+      if (y >= 140 && y <= 800) break;
+      await tester.drag(
+        find.byKey(const ValueKey('customer-home-content')),
+        Offset(0, 400 - y),
+      );
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('Sản phẩm kiểm thử 1'));
     await tester.pumpAndSettle();
     expect(transport.requests.last.uri.path, endsWith('/products/1'));
     expect(find.text('Thông tin mô tả từ API kiểm thử.'), findsOneWidget);
-    await tester.tap(find.text('Đóng'));
+    await tester.pageBack();
     await tester.pumpAndSettle();
     await Scrollable.ensureVisible(
       tester.element(find.text('Tư vấn thuốc')),
@@ -310,7 +498,31 @@ void main() {
     await (FontLoader(
       'MaterialIcons',
     )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-    final auth = testController(catalogFixture());
+    final transport = catalogFixture();
+    final previewProducts = List.generate(
+      3,
+      (index) => {
+        ...productFixture(index + 1),
+        'QuyCachDongGoi': 'Hộp 10 vỉ',
+        'TenLoaiThuoc': 'Danh mục 1',
+        'DangBaoChe': 'Dạng bào chế từ API kiểm thử',
+        'NhaSanXuat': 'Nhà sản xuất kiểm thử',
+        'NuocSanXuat': 'Nước sản xuất kiểm thử',
+        'CachDung': 'Thông tin cách dùng từ API kiểm thử',
+        'BaoQuan': 'Thông tin bảo quản từ API kiểm thử',
+      },
+    );
+    transport.catalogData['products'] = page(
+      'PRODUCTS_LISTED',
+      previewProducts,
+    );
+    for (final product in previewProducts) {
+      transport.catalogData['products/${product['MaThuoc']}'] = {
+        'code': 'PRODUCT_FOUND',
+        'product': product,
+      };
+    }
+    final auth = testController(transport);
     addTearDown(auth.dispose);
     await loginFixture(auth);
     final key = GlobalKey();
@@ -338,6 +550,30 @@ void main() {
       });
       await tester.drag(find.byType(ListView).first, const Offset(0, -750));
       await tester.pumpAndSettle();
+    }
+    await tester.enterText(
+      find.byKey(const ValueKey('home-search')),
+      'vitamin',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    for (final section in ['products', 'detail']) {
+      final boundary =
+          key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+      await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final data = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File('build/home-preview/$section.png')
+            .writeAsBytes(data!.buffer.asUint8List());
+        image.dispose();
+      });
+      if (section == 'products') {
+        final name = find.text('Sản phẩm kiểm thử 1 (Hộp 10 vỉ)');
+        await tester.ensureVisible(name);
+        await tester.pumpAndSettle();
+        await tester.tap(name);
+        await tester.pumpAndSettle();
+      }
     }
   });
 }

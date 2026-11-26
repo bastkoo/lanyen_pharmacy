@@ -183,14 +183,43 @@ class CatalogApi {
   Future<CatalogPage<CatalogProduct>> products({
     String search = '',
     int? categoryId,
+    bool? prescription,
     int page = 1,
-  }) => _list('products', 'PRODUCTS_LISTED', CatalogProduct.fromJson, page, {
-    'per_page': '12',
-    if (search.isNotEmpty) 'search': search,
-    if (categoryId != null) 'category_id': '$categoryId',
-  });
-  Future<CatalogProduct> product(int id) async {
-    final data = await client.get('mobile/catalog/products/$id');
+    bool includeOffers = false,
+  }) async {
+    final data = await _list(
+      'products',
+      'PRODUCTS_LISTED',
+      CatalogProduct.fromJson,
+      page,
+      {
+        'per_page': '12',
+        if (search.isNotEmpty) 'search': search,
+        if (categoryId != null) 'category_id': '$categoryId',
+        if (prescription != null) 'ke_don': '$prescription',
+      },
+    );
+    if (!includeOffers) return data;
+    // API danh sách chỉ có giá gốc. Đọc chi tiết theo nhóm tối đa bốn request để
+    // thẻ tìm kiếm/danh mục cũng có giá/ưu đãi hiện hành, không suy giá trên client.
+    final items = <CatalogProduct>[];
+    for (var start = 0; start < data.items.length; start += 4) {
+      items.addAll(
+        await Future.wait(
+          data.items.skip(start).take(4).map((item) => product(item.id)),
+        ),
+      );
+    }
+    return CatalogPage(items, data.page, data.pages, data.total);
+  }
+
+  Future<CatalogProduct> product(int id, {int? promotionId}) async {
+    final data = await client.get(
+      'mobile/catalog/products/$id',
+      queryParameters: promotionId == null
+          ? null
+          : {'promotion_id': '$promotionId'},
+    );
     try {
       if (data['code'] != 'PRODUCT_FOUND' ||
           data['product'] is! Map<String, dynamic>) {

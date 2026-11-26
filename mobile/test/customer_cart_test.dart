@@ -189,16 +189,20 @@ void main() {
       }
 
       await mount(false);
-      final logo = find.image(const AssetImage('assets/images/logo.png'));
+      final logo = find.byKey(const ValueKey('home-brand-logo'));
       expect(tester.getCenter(logo).dy, greaterThan(0));
       await tester.drag(find.byType(ListView).first, const Offset(0, -400));
       await tester.pumpAndSettle();
       expect(logo.hitTestable(), findsNothing);
       expect(
+        find.byKey(const ValueKey('home-search-logo')).hitTestable(),
+        findsOneWidget,
+      );
+      expect(
         find.byKey(const ValueKey('home-search')).hitTestable(),
         findsOneWidget,
       );
-      await tester.pump(const Duration(seconds: 4));
+      await tester.pump(const Duration(seconds: 2));
       await tester.pump(const Duration(milliseconds: 250));
       expect(
         find.descendant(

@@ -42,12 +42,16 @@ def create_app(test_config=None):
     # API JWT riêng cho Mobile, không thay đổi luồng cookie/session của Web.
     from app.routes.mobile_auth_routes import mobile_auth_bp
     app.register_blueprint(mobile_auth_bp)
+    from app.routes.mobile_cart_routes import mobile_cart_bp
+    app.register_blueprint(mobile_cart_bp)
     from app.routes.category_routes import category_bp
     app.register_blueprint(category_bp)
     from app.routes.product_routes import product_bp
     app.register_blueprint(product_bp)
     from app.routes.public_catalog_routes import public_catalog_bp
     app.register_blueprint(public_catalog_bp)
+    from app.routes.mobile_catalog_routes import mobile_catalog_bp
+    app.register_blueprint(mobile_catalog_bp)
     from app.routes.cart_routes import cart_bp
     app.register_blueprint(cart_bp)
     from app.routes.order_routes import order_bp

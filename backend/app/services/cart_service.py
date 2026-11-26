@@ -111,8 +111,9 @@ def add_item(product_id, unit_id):
 
 
 @operation
-def get_cart(selected_ids=None, lock_promotions=False, entries=None):
-    user_id = owner()
+def get_cart(selected_ids=None, lock_promotions=False, entries=None, *, owner_id=None):
+    # Mobile truyền chủ giỏ đã xác thực JWT; lời gọi Web cũ giữ nguyên owner().
+    user_id = owner() if owner_id is None else owner_id
     if entries is None:
         entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
                    if user_id is not None else guest_items())

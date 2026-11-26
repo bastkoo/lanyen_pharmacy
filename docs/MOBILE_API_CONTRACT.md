@@ -136,3 +136,93 @@ Timeout chỉ giới hạn chờ; không chứng minh request bị hủy phía s
 
 Cần xác nhận tiếp: phạm vi feature, origin dev được phép, cấu hình kết nối từng
 thiết bị, transport và chính sách session. Tất cả thay đổi Backend phải đề xuất riêng.
+
+## Trang chủ khách hàng — cập nhật 26/11/2026
+
+Flutter sử dụng adapter chỉ đọc `/api/mobile/catalog` để có CORS cho các origin
+Mobile đã cấu hình. Adapter gọi lại đúng public_catalog_controller và các service
+của Website; không đổi endpoint `/api/categories`, `/api/products`, `/api/promotions`,
+không đổi cookie/CSRF/JWT, không có migration hay thay đổi dữ liệu.
+
+| Phương thức | Endpoint (sau /api) | Query | Dữ liệu chính |
+|---|---|---|---|
+| GET | mobile/catalog/categories | page, per_page (tối đa 100) | code CATEGORIES_LISTED, items MaLoaiThuoc/TenLoaiThuoc, page/pages/total |
+| GET | mobile/catalog/promotions | page, per_page (tối đa 100) | code PROMOTIONS_LISTED, items MaChuongTrinh/TenChuongTrinh/NgayBatDau/NgayKetThuc/TrangThai |
+| GET | mobile/catalog/promotions/{id}/products | page, per_page (12 trên app) | code PROMOTION_PRODUCTS_LISTED, promotion, items, page/pages/total |
+| GET | mobile/catalog/products | search, category_id, page, per_page | code PRODUCTS_LISTED, items, page/pages/total |
+| GET | mobile/catalog/products/{id} | không truyền filter | code PRODUCT_FOUND, product |
+
+Các endpoint này công khai như Website, không gửi JWT, cookie hay CSRF.
+CORS chỉ cho AUTH_ALLOWED_ORIGINS và MOBILE_AUTH_ALLOWED_ORIGINS trên adapter mới.
+Nguồn: backend/app/routes/mobile_catalog_routes.py,
+controllers/public_catalog_controller.py, schemas/public_catalog_schema.py,
+services/category_service.py, product_service.py, public_promotion_service.py.
+
+Giá lấy từ DonViGia (GiaBan, DonViTinh, ConHang); ưu đãi chỉ hiển thị giá giảm
+khi chương trình ACTIVE, GiaKhuyenMai < GiaBan, còn quota SoLuongKhuyenMai
+và còn hàng. Chi tiết có thể có KhuyenMai trên từng đơn vị giá. Giữ số nguyên
+và định dạng VND không dùng double; từ chối số JSON vượt miền nguyên chính xác
+của Flutter Web thay vì hiển thị giá bị làm tròn.
+
+Trang chủ tải độc lập khuyến mãi/danh mục, tải tất cả trang danh mục rồi hiển thị
+6 mục đầu, mở rộng/thu gọn tại chỗ. Tìm kiếm gửi khi nhấn nút hoặc Enter; có
+phân trang, bỏ kết quả cũ sau khi đóng/đổi truy vấn. Sản phẩm mở bảng chi tiết
+đọc API mới nhất. Hỗ trợ kéo để tải lại và tải lại khi ứng dụng trở về foreground.
+FAQ chuyển các thông điệp thương hiệu hiện có ở frontend/pages/customer/home.html
+thành câu hỏi; không bổ sung chứng nhận, địa chỉ hoặc công dụng thuốc giả định.
+
+Thanh cố định có Trang chủ/Điểm thưởng/Tư vấn/Giỏ hàng/Tài khoản.
+Tài khoản hiển thị người đăng nhập và đăng xuất JWT thật. Đơn của tôi, điểm thưởng,
+giỏ hàng hiện chỉ thông báo đang hoàn thiện; tư vấn là giao diện chờ nhắn tin theo
+yêu cầu. Không gọi API cookie của Website hoặc giả lập số điểm/số lượng giỏ hàng.
+
+Đã kiểm tra đọc HTTP local: /api/categories trả 13 danh mục; adapter promotions
+trả 2 chương trình (ACTIVE/UPCOMING); sản phẩm chương trình và tìm kiếm trả 200;
+Origin http://127.0.0.1:5510 nhận CORS phù hợp. Không ghi dữ liệu qua các lần kiểm tra.
+Widget tests dùng fixture cô lập; kiểm thử TalkBack/VoiceOver, Android/iOS thật
+và tương tác Chrome thực tế chưa được thực hiện.
+
+## Điều chỉnh trang chủ và giỏ hàng JWT — 26/11/2026
+
+Phần này thay trạng thái giỏ hàng chờ triển khai ở mục trước.
+
+- Header dùng logo hiện có và tên Lan Yến Pharmacy, cuộn ẩn nhận diện và ghim ô
+  tìm kiếm bo tròn. Banner thương hiệu nhỏ, khối tư vấn gọn; footer dùng những
+  thông điệp thương hiệu đã có trên Website.
+- Khung ưu đãi chứa dải chương trình ngang, ngày bắt đầu/kết thúc và đếm ngược
+  theo Asia/Ho_Chi_Minh (UTC+07). NgayKetThuc bao gồm trọn ngày, giống Web.
+  Đồng bộ lại danh sách khi đi qua mốc bắt đầu/kết thúc, khi trở lại ứng dụng
+  và khi kéo tải lại. Thẻ sản phẩm cùng chiều cao, có chọn đơn vị bán.
+- PhanLoai=true là sản phẩm cần tư vấn: ẩn giá ở thẻ và chi tiết, dùng nút
+  Nhắn tin; không nhầm với trường KeDon. Kênh nhắn tin vẫn chờ triển khai.
+- Chọn mua lưu vào giỏ hàng Backend khi có hàng và đủ điều kiện ưu đãi. Huy hiệu
+  đếm MaThuoc riêng biệt, không cộng SoLuong hoặc đếm trùng cùng thuốc khác đơn vị.
+  Trang giỏ đọc lại dữ liệu đã lưu, có tải lại và báo lỗi. Chưa có thanh toán,
+  chỉnh số lượng hoặc xóa giỏ trong phần Mobile này.
+- Nút tư vấn nhô lên giữa thanh dưới, luân phiên icon nhắn tin/hỗ trợ/AI.
+  Tên truy cập luôn là Tư vấn; ngừng đổi icon khi bật giảm chuyển động.
+
+| Phương thức | Endpoint | Request | Response |
+|---|---|---|---|
+| GET | /api/mobile/cart | Bearer access token, không query | CART_LISTED, authenticated=true, items theo contract cart_service hiện có |
+| POST | /api/mobile/cart/items | Bearer access token; JSON MaThuoc, MaDonGia | CART_ITEM_ADDED |
+
+Chỉ role khách hàng 0, đối chiếu trạng thái tài khoản và phiên JWT trên Backend.
+Không nhận owner từ client, không dùng session/cookie Web hay CSRF token Web.
+Adapter gọi cart_service.add_database(..., check_stock=True) để giữ nguyên kiểm tra
+đơn vị, tồn kho và quyền mua sản phẩm cần tư vấn. get_cart có tham số nội bộ
+owner_id để phục vụ chủ giỏ đã xác thực JWT; lời gọi Web cũ không truyền tham số
+vẫn dùng owner() như trước. Không thay endpoint Web, schema hoặc migration.
+Nguồn: routes/mobile_cart_routes.py, services/cart_service.py,
+services/mobile_auth_service.py, services/consultation_service.py.
+
+Lỗi giữ nguyên mã UNAUTHENTICATED/TOKEN_EXPIRED/FORBIDDEN/ACCOUNT_LOCKED,
+INVALID_REQUEST, OUT_OF_STOCK, UNIT_NOT_FOUND, UNIT_UNAVAILABLE,
+CONSULTATION_REQUIRED, DATABASE_UNAVAILABLE. CORS chỉ cho các origin cấu hình.
+Mobile refresh token một lần khi nhận TOKEN_EXPIRED trước khi xử lý yêu cầu;
+refresh đồng thời dùng chung một Future. Không tự retry POST khi lỗi mạng/server.
+Sau khi POST thành công, lỗi đọc lại giỏ không được coi là chưa thêm: giữ thông báo
+đã thêm và cho tải lại giỏ, tránh hướng dẫn người dùng thêm trùng.
+
+Kiểm thử bổ sung dùng fixture/repositories/Redis cô lập, không thêm sản phẩm vào
+giỏ tài khoản thật để thử. Chưa kiểm thử thao tác trên Android/iOS hoặc Chrome thật.

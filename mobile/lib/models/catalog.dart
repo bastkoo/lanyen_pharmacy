@@ -98,6 +98,7 @@ class CatalogPrice {
       activeOffer =
           data['KhuyenMai'] is Map &&
           data['KhuyenMai']['TrangThai'] == 'ACTIVE',
+      discountPercent = _offerPercent(data['KhuyenMai']),
       quota = data['SoLuongKhuyenMai'] is int
           ? data['SoLuongKhuyenMai'] as int
           : 0;
@@ -107,6 +108,7 @@ class CatalogPrice {
   final BigInt? sale;
   final bool available;
   final bool activeOffer;
+  final String? discountPercent;
   final int quota;
   bool get discounted =>
       sale != null && sale! < original && quota > 0 && available;
@@ -128,12 +130,28 @@ class CatalogProduct {
       name = catalogText(data['TenThuoc']),
       image = data['HinhAnh'] is String ? data['HinhAnh'] as String : '',
       description = data['MoTa'] is String ? data['MoTa'] as String : '',
+      packaging = _optionalText(data['QuyCachDongGoi']),
+      categoryName = _optionalText(data['TenLoaiThuoc']),
+      dosageForm = _optionalText(data['DangBaoChe']),
+      manufacturer = _optionalText(data['NhaSanXuat']),
+      origin = _optionalText(data['NuocSanXuat']),
+      usage = _optionalText(data['CachDung']),
+      contraindications = _optionalText(data['ChongChiDinh']),
+      storage = _optionalText(data['BaoQuan']),
+      registrationNumber = _optionalText(data['SoDangKy']),
+      drugCode = _optionalText(data['MaDuoc']),
+      barcode = _optionalText(data['MaVach']),
+      promotionId =
+          data['KhuyenMai'] is Map && data['KhuyenMai']['MaChuongTrinh'] is int
+          ? data['KhuyenMai']['MaChuongTrinh'] as int
+          : null,
       prescription = data['KeDon'] == true,
       consultation = data['PhanLoai'] == true,
       upcomingOffer =
           data['KhuyenMai'] is Map &&
           data['KhuyenMai']['TrangThai'] == 'UPCOMING',
       hasOffer = data['KhuyenMai'] is Map,
+      discountPercent = _offerPercent(data['KhuyenMai']),
       activeOffer =
           data['KhuyenMai'] is Map &&
           data['KhuyenMai']['TrangThai'] == 'ACTIVE',
@@ -145,9 +163,29 @@ class CatalogProduct {
           .toList(growable: false);
   final int id;
   final String name, image, description;
+  final String packaging,
+      categoryName,
+      dosageForm,
+      manufacturer,
+      origin,
+      usage,
+      contraindications,
+      storage,
+      registrationNumber,
+      drugCode,
+      barcode;
+  final int? promotionId;
+  String get displayName => packaging.isEmpty ? name : '$name ($packaging)';
   final bool prescription, activeOffer;
   final bool consultation, upcomingOffer, hasOffer;
+  final String? discountPercent;
   final List<CatalogPrice> prices;
+  String? get offerBadge {
+    if (!hasOffer && !prices.any((price) => price.activeOffer)) return null;
+    final percent = discountPercent ?? displayPrice?.discountPercent;
+    return percent == null ? 'Ưu đãi' : '-$percent%';
+  }
+
   CatalogPrice? get displayPrice {
     for (final price in prices) {
       if ((activeOffer || price.activeOffer) && price.discounted) return price;
@@ -161,4 +199,16 @@ class CatalogProduct {
   bool get discounted =>
       (activeOffer || (displayPrice?.activeOffer ?? false)) &&
       (displayPrice?.discounted ?? false);
+}
+
+String _optionalText(dynamic value) => value is String ? value.trim() : '';
+
+// Chỉ dùng tỷ lệ do Backend công bố; không suy ngược giảm tiền thành phần trăm.
+String? _offerPercent(dynamic offer) {
+  if (offer is! Map || offer['LoaiGiamGia'] != true) return null;
+  final value = num.tryParse('${offer['GiaTriGiam']}');
+  if (value == null || !value.isFinite || value <= 0 || value > 100) {
+    return null;
+  }
+  return value.toString().replaceFirst(RegExp(r'\.0$'), '');
 }
