@@ -1,13 +1,38 @@
 import 'package:flutter/foundation.dart';
 
+import 'dart:async';
+
 import '../../core/network/api.dart';
 import '../../core/network/api_exception.dart';
 import '../../models/catalog.dart';
+import '../../models/customer_cart.dart';
 
 // Tải từng khối độc lập; một khối lỗi không che toàn bộ trang chủ.
 class CustomerHomeController extends ChangeNotifier {
-  CustomerHomeController(this.api);
+  CustomerHomeController(this.api, {this.cartApi, DateTime Function()? now})
+    : now = now ?? DateTime.now {
+    clock = ValueNotifier(this.now());
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final previous = clock.value;
+      clock.value = this.now();
+      // Đồng bộ lại giá ở mốc bắt đầu/kết thúc, không giữ nút mua của ưu đãi cũ.
+      if (promotions.any(
+        (item) => item.stateAt(previous) != item.stateAt(clock.value),
+      )) {
+        loadPromotions();
+      }
+    });
+  }
   final CatalogApi api;
+  final CartApi? cartApi;
+  final DateTime Function() now;
+  late final ValueNotifier<DateTime> clock;
+  late final Timer _timer;
+  CustomerCart? cart;
+  bool cartLoading = false, adding = false;
+  String? cartError, purchaseMessage;
+  int? addingProductId;
+  Future<void>? _cartRequest;
   List<CatalogCategory> categories = [];
   List<CatalogPromotion> promotions = [];
   List<CatalogProduct> offers = [], results = [];
@@ -29,7 +54,61 @@ class CustomerHomeController extends ChangeNotifier {
   }
 
   Future<void> load() async =>
-      Future.wait([loadCategories(), loadPromotions()]);
+      Future.wait([loadCategories(), loadPromotions(), loadCart()]);
+
+  Future<void> loadCart() =>
+      _cartRequest ??= _readCart().whenComplete(() => _cartRequest = null);
+
+  Future<void> _readCart() async {
+    if (cartApi == null || _disposed) return;
+    cartLoading = true;
+    cartError = null;
+    _emit();
+    try {
+      final value = await cartApi!.read();
+      if (!_disposed) cart = value;
+    } on ApiException catch (error) {
+      cartError = error.message;
+    } finally {
+      cartLoading = false;
+      _emit();
+    }
+  }
+
+  Future<bool> addToCart(CatalogProduct product, CatalogPrice price) async {
+    if (cartApi == null || adding || product.consultation || !price.available) {
+      return false;
+    }
+    if (product.upcomingOffer || (product.hasOffer && price.quota <= 0)) {
+      return false;
+    }
+    adding = true;
+    addingProductId = product.id;
+    purchaseMessage = null;
+    _emit();
+    try {
+      await cartApi!.add(product.id, price.id);
+      // POST thành công là đã lưu; đọc lại lỗi không được mời thêm trùng.
+      purchaseMessage = 'Đã thêm sản phẩm vào giỏ hàng.';
+      if (_cartRequest != null) await _cartRequest;
+      await loadCart();
+      return true;
+    } on ApiException catch (error) {
+      purchaseMessage = switch (error.code) {
+        'CONSULTATION_REQUIRED' =>
+          'Sản phẩm cần dược sĩ tư vấn. Vui lòng chọn Nhắn tin.',
+        'OUT_OF_STOCK' => 'Sản phẩm vừa hết hàng. Vui lòng tải lại danh sách.',
+        'UNIT_NOT_FOUND' || 'UNIT_UNAVAILABLE' =>
+          'Đơn vị bán đã thay đổi. Vui lòng tải lại sản phẩm.',
+        _ => '${error.message} Hãy kiểm tra giỏ hàng trước khi thêm lại.',
+      };
+      return false;
+    } finally {
+      adding = false;
+      addingProductId = null;
+      _emit();
+    }
+  }
 
   Future<void> loadCategories() async {
     if (categoriesLoading) return;
@@ -167,6 +246,8 @@ class CustomerHomeController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _timer.cancel();
+    clock.dispose();
     super.dispose();
   }
 }

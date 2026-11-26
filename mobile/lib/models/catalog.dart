@@ -71,11 +71,27 @@ class CatalogPromotion {
   final bool active;
   String get dates =>
       '${start.split('-').reversed.join('/')} – ${end.split('-').reversed.join('/')}';
+  // Cùng mốc Asia/Ho_Chi_Minh của Web: kết thúc hết ngày NgayKetThuc.
+  DateTime get startsAt => DateTime.parse('${start}T00:00:00+07:00');
+  DateTime get endsAt =>
+      DateTime.parse('${end}T00:00:00+07:00').add(const Duration(days: 1));
+  String stateAt(DateTime now) => now.isBefore(startsAt)
+      ? 'UPCOMING'
+      : now.isBefore(endsAt)
+      ? 'ACTIVE'
+      : 'ENDED';
+  Duration remainingAt(DateTime now) {
+    final duration = (now.isBefore(startsAt) ? startsAt : endsAt).difference(
+      now,
+    );
+    return duration.isNegative ? Duration.zero : duration;
+  }
 }
 
 class CatalogPrice {
   CatalogPrice.fromJson(Map<String, dynamic> data)
-    : unit = catalogText(data['DonViTinh']),
+    : id = catalogId(data['MaDonGia']),
+      unit = catalogText(data['DonViTinh']),
       original = _money(data['GiaBan']),
       sale = data['GiaKhuyenMai'] == null ? null : _money(data['GiaKhuyenMai']),
       available = data['ConHang'] == true,
@@ -86,6 +102,7 @@ class CatalogPrice {
           ? data['SoLuongKhuyenMai'] as int
           : 0;
   final String unit;
+  final int id;
   final BigInt original;
   final BigInt? sale;
   final bool available;
@@ -112,6 +129,11 @@ class CatalogProduct {
       image = data['HinhAnh'] is String ? data['HinhAnh'] as String : '',
       description = data['MoTa'] is String ? data['MoTa'] as String : '',
       prescription = data['KeDon'] == true,
+      consultation = data['PhanLoai'] == true,
+      upcomingOffer =
+          data['KhuyenMai'] is Map &&
+          data['KhuyenMai']['TrangThai'] == 'UPCOMING',
+      hasOffer = data['KhuyenMai'] is Map,
       activeOffer =
           data['KhuyenMai'] is Map &&
           data['KhuyenMai']['TrangThai'] == 'ACTIVE',
@@ -124,6 +146,7 @@ class CatalogProduct {
   final int id;
   final String name, image, description;
   final bool prescription, activeOffer;
+  final bool consultation, upcomingOffer, hasOffer;
   final List<CatalogPrice> prices;
   CatalogPrice? get displayPrice {
     for (final price in prices) {

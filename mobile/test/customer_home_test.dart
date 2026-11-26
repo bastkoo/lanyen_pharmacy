@@ -30,6 +30,7 @@ Map<String, dynamic> productFixture(int id) => {
   'KhuyenMai': {'TrangThai': 'ACTIVE'},
   'DonViGia': [
     {
+      'MaDonGia': 100 + id,
       'DonViTinh': 'Hộp',
       'GiaBan': 120000,
       'GiaKhuyenMai': 99000,
@@ -272,7 +273,10 @@ void main() {
     expect(find.byKey(const ValueKey('customer-tab-2')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('customer-tab-0')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Sản phẩm kiểm thử 1'));
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Sản phẩm kiểm thử 1')),
+      alignment: .4,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sản phẩm kiểm thử 1'));
     await tester.pumpAndSettle();
@@ -280,7 +284,10 @@ void main() {
     expect(find.text('Thông tin mô tả từ API kiểm thử.'), findsOneWidget);
     await tester.tap(find.text('Đóng'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Tư vấn thuốc'));
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Tư vấn thuốc')),
+      alignment: .4,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Tư vấn thuốc'));
     await tester.pumpAndSettle();

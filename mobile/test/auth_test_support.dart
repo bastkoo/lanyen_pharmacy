@@ -29,6 +29,9 @@ class AuthStubTransport implements ApiTransport {
   int refreshCount = 0;
   final Map<String, Map<String, dynamic>> catalogData = {};
   bool catalogFails = false;
+  final List<Map<String, dynamic>> cartItems = [];
+  String? cartFailure;
+  int cartAdds = 0;
   Map<String, dynamic> get user => {
     'MaNguoiDung': 42,
     'HoTen': 'Nguyễn An',
@@ -62,6 +65,44 @@ class AuthStubTransport implements ApiTransport {
       return ApiResponse(failureStatus, jsonEncode({'code': failureCode}));
     }
     final path = uri.path;
+    if (path.startsWith('/api/mobile/cart')) {
+      if (expiredAccess) {
+        return const ApiResponse(401, '{"code":"TOKEN_EXPIRED"}');
+      }
+      if (!loggedIn) {
+        return const ApiResponse(401, '{"code":"UNAUTHENTICATED"}');
+      }
+      if (cartFailure != null) {
+        return ApiResponse(409, jsonEncode({'code': cartFailure}));
+      }
+      if (method == 'POST') {
+        cartAdds++;
+        final existing = cartItems
+            .where((item) => item['MaDonGia'] == body?['MaDonGia'])
+            .firstOrNull;
+        if (existing != null) {
+          existing['SoLuong'] = (existing['SoLuong'] as int) + 1;
+        } else {
+          cartItems.add({
+            'MaThuoc': body!['MaThuoc'],
+            'MaDonGia': body['MaDonGia'],
+            'SoLuong': 1,
+            'TenThuoc': 'Sản phẩm kiểm thử ${body['MaThuoc']}',
+            'DonViTinh': 'Hộp',
+            'ConHang': true,
+          });
+        }
+        return const ApiResponse(200, '{"code":"CART_ITEM_ADDED"}');
+      }
+      return ApiResponse(
+        200,
+        jsonEncode({
+          'code': 'CART_LISTED',
+          'authenticated': true,
+          'items': cartItems,
+        }),
+      );
+    }
     if (path.contains('/mobile/catalog/')) {
       if (catalogFails) {
         return const ApiResponse(503, '{"code":"SERVICE_UNAVAILABLE"}');

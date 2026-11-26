@@ -1,6 +1,7 @@
 import '../../models/auth_session.dart';
 import '../../models/session_user.dart';
 import '../../models/catalog.dart';
+import '../../models/customer_cart.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 
@@ -8,8 +9,9 @@ import 'api_exception.dart';
 // API XÁC THỰC MOBILE JWT — không sử dụng /api/auth của Website.
 // ============================================================
 class AuthApi {
-  const AuthApi(this.client);
+  AuthApi(this.client);
   final ApiClient client;
+  Future<void>? _refreshing;
 
   Future<void> _clearSession() async {
     try {
@@ -99,7 +101,10 @@ class AuthApi {
     }
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh() =>
+      _refreshing ??= _refreshTokens().whenComplete(() => _refreshing = null);
+
+  Future<void> _refreshTokens() async {
     final refresh = client.session.tokens?.refreshToken;
     if (refresh == null) throw const ApiException(ApiFailure.authentication);
     final data = await client.post('mobile/auth/refresh', {
@@ -193,6 +198,46 @@ class CatalogApi {
       }
       return CatalogProduct.fromJson(data['product'] as Map<String, dynamic>);
     } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+}
+
+// Chỉ retry khi Backend từ chối token trước xử lý; không retry lỗi mạng khi thêm giỏ.
+class CartApi {
+  const CartApi(this.auth);
+  final AuthApi auth;
+  Future<Map<String, dynamic>> _authorized(
+    Future<Map<String, dynamic>> Function() send,
+  ) async {
+    try {
+      return await send();
+    } on ApiException catch (error) {
+      if (error.status != 401 || error.code != 'TOKEN_EXPIRED') rethrow;
+      await auth.refresh();
+      return send();
+    }
+  }
+
+  Future<CustomerCart> read() async {
+    final data = await _authorized(
+      () => auth.client.get('mobile/cart', authorized: true),
+    );
+    try {
+      return CustomerCart.fromJson(data);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<void> add(int productId, int unitId) async {
+    final data = await _authorized(
+      () => auth.client.post('mobile/cart/items', {
+        'MaThuoc': productId,
+        'MaDonGia': unitId,
+      }, authorized: true),
+    );
+    if (data['code'] != 'CART_ITEM_ADDED') {
       throw const ApiException(ApiFailure.response);
     }
   }
