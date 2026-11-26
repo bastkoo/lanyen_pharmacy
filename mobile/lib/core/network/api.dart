@@ -236,6 +236,15 @@ class CatalogApi {
 class CartApi {
   const CartApi(this.auth);
   final AuthApi auth;
+  Future<void> merge(Map<String, dynamic> batch) async {
+    final data = await _authorized(
+      () => auth.client.post('mobile/cart/merge', batch, authorized: true),
+    );
+    if (data['code'] != 'CART_MERGED') {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
   Future<Map<String, dynamic>> _authorized(
     Future<Map<String, dynamic>> Function() send,
   ) async {

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../core/constants/app_roles.dart';
 import '../features/auth/auth_controller.dart';
-import '../features/auth/login_screen.dart';
 import '../features/customer/customer_shell.dart';
 import '../features/employee/employee_shell.dart';
 import '../features/manager/manager_shell.dart';
@@ -22,7 +21,7 @@ class AppRouter extends StatelessWidget {
     builder: (context, _) {
       final user = controller.user;
       if (controller.stage != AuthStage.authenticated || user == null) {
-        return LoginScreen(controller: controller);
+        return CustomerShell(controller: controller);
       }
       if (!canAccess(route, user.role)) {
         return Scaffold(

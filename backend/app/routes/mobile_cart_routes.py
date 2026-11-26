@@ -1,12 +1,24 @@
 """Giỏ hàng JWT dùng chung xử lý giỏ hiện có, độc lập cookie Website."""
 from flask import Blueprint, current_app, jsonify, request
+from marshmallow import Schema, fields, validate
 
 from app.controllers.cart_controller import CartAddSchema
 from app.controllers.mobile_auth_controller import payload
 from app.services import cart_service, mobile_auth_service
 from app.services.otp_service import AuthError
+from app.services import mobile_cart_merge_service
 
 mobile_cart_bp = Blueprint('mobile_cart', __name__, url_prefix='/api/mobile/cart')
+
+
+class GuestCartLineSchema(CartAddSchema):
+    SoLuong = fields.Integer(required=True, strict=True, validate=validate.Range(min=1, max=2147483647))
+
+
+class GuestCartMergeSchema(Schema):
+    merge_id = fields.String(required=True, validate=validate.Regexp(r'^[a-f0-9]{32}$'))
+    created_at = fields.Integer(required=True, strict=True, validate=validate.Range(min=1))
+    items = fields.List(fields.Nested(GuestCartLineSchema), required=True, validate=validate.Length(min=1, max=50))
 
 
 @mobile_cart_bp.before_request
@@ -39,6 +51,14 @@ def add(data):
     from flask import g
     cart_service.add_database(g.mobile_cart_owner, [(data['MaThuoc'], data['MaDonGia'], 1)], check_stock=True)
     return {'code': 'CART_ITEM_ADDED'}
+
+
+@mobile_cart_bp.post('/merge')
+@payload(GuestCartMergeSchema)
+@cart_service.operation
+def merge(data):
+    from flask import g
+    return mobile_cart_merge_service.merge(g.mobile_cart_owner, data)
 
 
 @mobile_cart_bp.errorhandler(AuthError)

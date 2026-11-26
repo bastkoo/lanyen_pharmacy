@@ -5,6 +5,8 @@ import '../../core/network/api.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/catalog.dart';
 import '../auth/auth_controller.dart';
+import '../auth/login_screen.dart';
+import '../auth/login_required_dialog.dart';
 import 'customer_home_controller.dart';
 import 'customer_home_screen.dart';
 import 'customer_navigation.dart';
@@ -21,6 +23,14 @@ class CustomerShellColors {
   static const background = AppColors.background;
   // Chữ trong thông báo Đơn của tôi chưa hoàn thiện.
   static const orderMessage = AppColors.textPrimary;
+  // Nền trang mở biểu mẫu đăng nhập từ hộp thoại thành viên.
+  static const loginBackground = AppColors.background;
+  // Nền thanh tiêu đề Đăng nhập.
+  static const loginHeaderBackground = AppColors.background;
+  // Chữ Đăng nhập trên thanh tiêu đề.
+  static const loginHeaderTitle = AppColors.textPrimary;
+  // Mũi tên quay lại trang đang xem trước khi đăng nhập.
+  static const loginBackIcon = AppColors.textPrimary;
 }
 
 // Khung khách hàng chỉ sở hữu state dùng chung và chuyển trang; không chứa UI của từng trang.
@@ -36,6 +46,10 @@ class _CustomerShellState extends State<CustomerShell>
     with WidgetsBindingObserver {
   late final CustomerHomeController home;
   int tab = 0;
+  bool get authenticated =>
+      widget.controller.stage == AuthStage.authenticated &&
+      widget.controller.user?.role == AppRole.customer;
+  int? get customerId => authenticated ? widget.controller.user!.id : null;
   @override
   void initState() {
     super.initState();
@@ -43,8 +57,27 @@ class _CustomerShellState extends State<CustomerShell>
     home = CustomerHomeController(
       CatalogApi(widget.controller.api.client),
       cartApi: CartApi(widget.controller.api),
+      guestCart: widget.controller.guestCart,
+      customerId: customerId,
     );
+    widget.controller.addListener(authChanged);
     home.load();
+  }
+
+  void authChanged() {
+    if (home.customerId != customerId) {
+      tab = 0;
+      home.changeCustomer(customerId);
+    }
+  }
+
+  Future<void> requestLogin() async {
+    if (!await showLoginRequired(context) || !mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => _LoginRoute(controller: widget.controller),
+      ),
+    );
   }
 
   @override
@@ -55,11 +88,16 @@ class _CustomerShellState extends State<CustomerShell>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.controller.removeListener(authChanged);
     home.dispose();
     super.dispose();
   }
 
   void selectTab(int value) {
+    if (!authenticated && (value == 1 || value == 2 || value == 4)) {
+      requestLogin();
+      return;
+    }
     FocusScope.of(context).unfocus();
     setState(() => tab = value);
     if (value == 3) home.loadCart();
@@ -67,22 +105,32 @@ class _CustomerShellState extends State<CustomerShell>
 
   Future<void> openPage(Widget page) {
     final user = widget.controller.user;
-    if (widget.controller.stage != AuthStage.authenticated ||
-        user?.role != AppRole.customer) {
+    if (user != null && user.role != AppRole.customer) {
       return Future.value();
     }
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => _CustomerRoute(
           controller: widget.controller,
-          userId: user!.id,
+          userId: authenticated ? user!.id : null,
           child: page,
         ),
       ),
     );
   }
 
-  Future<void> openMessages() => openPage(const CustomerMessagesScreen());
+  Future<void> openMessages() =>
+      authenticated ? openPage(const CustomerMessagesScreen()) : requestLogin();
+  void showHome() {
+    selectTab(0);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
+  void showCart() {
+    selectTab(3);
+    Navigator.of(context).popUntil((route) => route.isFirst);
+  }
+
   Future<void> openDetail(CatalogProduct product, {int? promotionId}) =>
       openPage(
         CustomerProductDetailScreen(
@@ -98,29 +146,38 @@ class _CustomerShellState extends State<CustomerShell>
           home: home,
           initialQuery: query,
           initialCategory: category,
+          onHome: showHome,
+          onCart: showCart,
           onProduct: (product) => openDetail(product),
           onConsult: openMessages,
         ),
       );
-  void showOrders() => showDialog<void>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text(
-        'Đơn của tôi',
-        style: TextStyle(color: CustomerShellColors.orderMessage),
-      ),
-      content: const Text(
-        'Chức năng này đang được hoàn thiện.',
-        style: TextStyle(color: CustomerShellColors.orderMessage),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Đã hiểu'),
+  void showOrders() {
+    if (!authenticated) {
+      requestLogin();
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Đơn của tôi',
+          style: TextStyle(color: CustomerShellColors.orderMessage),
         ),
-      ],
-    ),
-  );
+        content: const Text(
+          'Chức năng này đang được hoàn thiện.',
+          style: TextStyle(color: CustomerShellColors.orderMessage),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đã hiểu'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: home,
@@ -141,7 +198,7 @@ class _CustomerShellState extends State<CustomerShell>
             4 => CustomerAccountScreen(controller: widget.controller),
             _ => CustomerHomeScreen(
               home: home,
-              userName: widget.controller.user!.name,
+              userName: authenticated ? widget.controller.user!.name : '',
               onOrders: showOrders,
               onConsult: () => selectTab(2),
               onProduct: (product) =>
@@ -172,15 +229,16 @@ class _CustomerRoute extends StatelessWidget {
     required this.child,
   });
   final AuthController controller;
-  final int userId;
+  final int? userId;
   final Widget child;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
     builder: (context, _) {
-      if (controller.stage == AuthStage.authenticated &&
-          controller.user?.role == AppRole.customer &&
-          controller.user?.id == userId) {
+      if ((userId == null && controller.stage != AuthStage.authenticated) ||
+          (controller.stage == AuthStage.authenticated &&
+              controller.user?.role == AppRole.customer &&
+              controller.user?.id == userId)) {
         return child;
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -189,6 +247,40 @@ class _CustomerRoute extends StatelessWidget {
         }
       });
       return const SizedBox.shrink();
+    },
+  );
+}
+
+// Trang đăng nhập mở từ hộp thoại; thành công đóng các route phụ để router chọn đúng vai trò.
+class _LoginRoute extends StatelessWidget {
+  const _LoginRoute({required this.controller});
+  final AuthController controller;
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) {
+      if (controller.stage == AuthStage.authenticated) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (context.mounted) {
+            Navigator.of(context).popUntil((route) => route.isFirst);
+          }
+        });
+        return const SizedBox.shrink();
+      }
+      return Scaffold(
+        backgroundColor: CustomerShellColors.loginBackground,
+        appBar: AppBar(
+          backgroundColor: CustomerShellColors.loginHeaderBackground,
+          iconTheme: const IconThemeData(
+            color: CustomerShellColors.loginBackIcon,
+          ),
+          title: const Text(
+            'Đăng nhập',
+            style: TextStyle(color: CustomerShellColors.loginHeaderTitle),
+          ),
+        ),
+        body: LoginScreen(controller: controller),
+      );
     },
   );
 }

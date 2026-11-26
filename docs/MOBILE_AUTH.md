@@ -13,11 +13,15 @@ Base URL lấy từ `mobile/config/local.json`. Đổi dart-define cần chạy 
 
 Mở app → khôi phục token từ nơi lưu an toàn → GET mobile/auth/me.
 Nếu access token hết hạn, refresh một lần rồi đọc lại thông tin người dùng.
-Không có token thì nhập số điện thoại → OTP 6 số:
+Không có token vẫn vào trang chủ khách, xem sản phẩm và lưu giỏ cục bộ. Các mục
+Điểm thưởng, Tư vấn/Nhắn tin, Tài khoản, Đơn của tôi mở hộp thoại yêu cầu đăng nhập.
+Chọn Đăng nhập mới nhập số điện thoại → OTP 6 số:
 - Người đã đăng ký: nhận token và user, chuyển shell theo VaiTro 0/1/2.
 - Người mới: nhận registration_token, nhập họ tên rồi hoàn tất đăng ký.
 - Tài khoản khóa/vai trò lạ: không mở shell.
-Shell hiện chỉ xác nhận đăng nhập và có đăng xuất; chưa làm trang chủ nghiệp vụ.
+Customer có trang chủ/danh sách/chi tiết và giỏ; sau đăng nhập gộp giỏ khách vào
+database theo contract `MOBILE_API_CONTRACT.md`. Đăng xuất về trang chủ khách,
+không sao chép giỏ tài khoản vào giỏ khách.
 Không còn cổng chọn vai trò demo.
 
 Đang dùng OTP development sẵn có: mã sinh 6 số, TTL 300s, cooldown 60s, giới hạn

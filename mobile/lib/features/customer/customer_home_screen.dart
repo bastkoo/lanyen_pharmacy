@@ -756,7 +756,9 @@ class _Greeting extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
       final greeting = Text(
-        'Xin chào, $name',
+        name.isEmpty
+            ? 'Chào mừng bạn đến với Lan Yến Pharmacy'
+            : 'Xin chào, $name',
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
           fontWeight: FontWeight.w600,
           color: HomeColors.greetingText,

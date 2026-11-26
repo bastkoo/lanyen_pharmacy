@@ -159,7 +159,7 @@ class CustomerNavigationState extends State<CustomerNavigation> {
               customBorder: const CircleBorder(),
               onTap: () => widget.onSelect(2),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(17, 21, 17, 13),
+                padding: const EdgeInsets.all(17),
                 child: ExcludeSemantics(
                   child: AnimatedSwitcher(
                     duration: MediaQuery.disableAnimationsOf(context)

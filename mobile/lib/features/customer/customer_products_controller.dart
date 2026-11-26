@@ -21,6 +21,14 @@ class CustomerProductsController extends ChangeNotifier {
   bool loading = false, categoriesLoading = false;
   String? error, categoriesError;
   int page = 1, pages = 0, total = 0;
+  bool get hasFilters => categoryId != null || prescription != null;
+  String get title {
+    for (final category in categories) {
+      if (category.id == categoryId) return category.name;
+    }
+    return search.isEmpty ? 'Sản phẩm' : 'Kết quả tìm kiếm';
+  }
+
   int _version = 0;
   bool _disposed = false;
   void _emit() {
@@ -104,6 +112,12 @@ class CustomerProductsController extends ChangeNotifier {
 
   Future<void> filterPrescription(bool? value) {
     prescription = value;
+    return load();
+  }
+
+  Future<void> clearFilters() {
+    categoryId = null;
+    prescription = null;
     return load();
   }
 

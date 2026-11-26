@@ -195,7 +195,8 @@ Phần này thay trạng thái giỏ hàng chờ triển khai ở mục trước
   và khi kéo tải lại. Thẻ sản phẩm cùng chiều cao, có chọn đơn vị bán.
 - PhanLoai=true là sản phẩm cần tư vấn: ẩn giá ở thẻ và chi tiết, dùng nút
   Nhắn tin; không nhầm với trường KeDon. Kênh nhắn tin vẫn chờ triển khai.
-- Chọn mua lưu vào giỏ hàng Backend khi có hàng và đủ điều kiện ưu đãi. Huy hiệu
+- Chọn mua lưu vào giỏ cục bộ khi chưa đăng nhập, vào Backend khi đã đăng nhập
+  và có hàng, đủ điều kiện ưu đãi. Huy hiệu
   đếm MaThuoc riêng biệt, không cộng SoLuong hoặc đếm trùng cùng thuốc khác đơn vị.
   Trang giỏ đọc lại dữ liệu đã lưu, có tải lại và báo lỗi. Chưa có thanh toán,
   chỉnh số lượng hoặc xóa giỏ trong phần Mobile này.
@@ -226,3 +227,37 @@ Sau khi POST thành công, lỗi đọc lại giỏ không được coi là chư
 
 Kiểm thử bổ sung dùng fixture/repositories/Redis cô lập, không thêm sản phẩm vào
 giỏ tài khoản thật để thử. Chưa kiểm thử thao tác trên Android/iOS hoặc Chrome thật.
+
+### Tìm kiếm Mobile và danh sách sản phẩm
+
+`GET /api/mobile/catalog/products?search=...` tìm không phân biệt hoa/thường trong
+tên, mã thuốc/mã vạch/số đăng ký, tên danh mục, mô tả, quy cách đóng gói, dạng bào
+chế, nhà sản xuất và nước sản xuất. Các bộ lọc `category_id`, `ke_don` vẫn kết hợp
+với từ khóa; ký tự `%`, `_` được tìm như ký tự thường. Không thay tìm kiếm Web.
+Danh sách hiển thị hai sản phẩm mỗi hàng (một khi phóng lớn chữ); tiêu đề theo
+danh mục đang chọn. Nút nhà về tab Trang chủ; nút giỏ về tab Giỏ hàng với số thuốc
+riêng biệt đã lưu qua JWT, không cộng tổng số lượng hoặc đếm trùng đơn vị.
+
+### Trang chủ công khai và gộp giỏ khách
+
+- Khi mở app, khách vào trang chủ, xem/tìm sản phẩm và thêm giỏ không cần JWT.
+  Điểm thưởng, Nhắn tin/Tư vấn, Tài khoản, Đơn của tôi mở hộp thoại đăng nhập dùng
+  chung tại `features/auth/login_required_dialog.dart`. Đăng xuất về trang chủ khách.
+- `GuestCartStorage` dùng plugin lưu trữ đã có: localStorage trên Flutter Web,
+  kho cục bộ trên native, khóa tách theo API base URL. Chỉ giỏ khách được lưu ở đây,
+  JWT Web vẫn giữ trong RAM. Lưu mã sản phẩm, đơn vị, lượng và nhãn hiển thị cũ;
+  không dùng giá/quyền/tồn kho cục bộ để quyết định giao dịch.
+- Sau khi xác thực Customer, đóng băng một batch tối đa 50 mục với `merge_id`,
+  `created_at` và owner đã xác thực, rồi gọi `POST /api/mobile/cart/merge` bằng JWT.
+  Body: `{merge_id: 32 ký tự hex, created_at: Unix seconds, items: [{MaThuoc,
+  MaDonGia, SoLuong}]}`. Không gửi owner trong request. Backend dùng nghiệp vụ giỏ
+  hiện có, cộng theo sản phẩm + đơn vị; kiểm tra đơn vị, stock và quyền tư vấn.
+- Response `CART_MERGED`: xóa batch cục bộ, đọc lại giỏ database. Lỗi giữ batch
+  để tải lại; không chuyển batch đã gắn tài khoản sang tài khoản khác. Giỏ database
+  không được sao chép vào giỏ khách khi đăng xuất.
+- Redis giữ biên nhận theo owner + merge_id, đối chiếu fingerprint payload. Request
+  nhận trong 7 ngày kể từ created_at; biên nhận tồn tại 7 ngày + 1 giờ. Retry đã
+  hoàn tất trả thành công và không cộng lại. Trạng thái pending không được phát lại
+  lệnh ghi khi chưa rõ commit; báo `CART_MERGE_PENDING` và giữ dữ liệu để đối chiếu.
+  Batch hết hạn trả `CART_MERGE_EXPIRED`; lỗi kho biên nhận trả `CART_SYNC_UNAVAILABLE`.
+  Không thay schema, không thay endpoint/session/cookie giỏ Web.

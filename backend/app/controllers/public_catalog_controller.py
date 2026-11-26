@@ -29,6 +29,14 @@ def list_products():
     return jsonify(code='PRODUCTS_LISTED', **product_service.list_public_products(filters))
 
 
+def list_mobile_products():
+    filters = query(PublicProductQuerySchema)
+    if 'ke_don' in filters:
+        filters['ke_don'] = filters['ke_don'] == 'true'
+    return jsonify(code='PRODUCTS_LISTED',
+                   **product_service.list_public_products(filters, extended_search=True))
+
+
 def list_promotions():
     return jsonify(code='PROMOTIONS_LISTED', **public_promotion_service.list_programs(**query(PublicPromotionQuerySchema)))
 

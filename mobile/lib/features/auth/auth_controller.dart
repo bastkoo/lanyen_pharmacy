@@ -6,14 +6,20 @@ import '../../core/network/api.dart';
 import '../../core/network/api_exception.dart';
 import '../../models/auth_session.dart';
 import '../../models/session_user.dart';
+import '../../core/storage/guest_cart_storage.dart';
 
 enum AuthStage { checking, sessionError, phone, otp, profile, authenticated }
 
 // State đăng nhập chỉ tin user đã được Backend xác thực, không chọn vai trò cục bộ.
 class AuthController extends ChangeNotifier {
-  AuthController({required this.api, DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  AuthController({
+    required this.api,
+    DateTime Function()? now,
+    GuestCartStorage? guestCart,
+  }) : guestCart = guestCart ?? GuestCartStorage.local(api.client.baseUrl),
+       _now = now ?? DateTime.now;
   final AuthApi api;
+  final GuestCartStorage guestCart;
   final DateTime Function() _now;
   AuthStage stage = AuthStage.checking;
   SessionUser? user;

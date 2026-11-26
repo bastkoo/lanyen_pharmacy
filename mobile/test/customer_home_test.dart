@@ -449,7 +449,7 @@ void main() {
       'vitamin',
     );
     expect(find.byKey(const ValueKey('products-search')), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byKey(const ValueKey('products-home')));
     await tester.pumpAndSettle();
     await Scrollable.ensureVisible(
       tester.element(find.text('Sản phẩm kiểm thử 1')),

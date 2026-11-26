@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:lan_yen_pharmacy/core/network/api.dart';
 import 'package:lan_yen_pharmacy/core/network/api_client.dart';
 import 'package:lan_yen_pharmacy/core/storage/session_storage.dart';
+import 'package:lan_yen_pharmacy/core/storage/guest_cart_storage.dart';
 import 'package:lan_yen_pharmacy/features/auth/auth_controller.dart';
 
 // Fixtures chỉ nằm trong test, không tồn tại đường bỏ qua xác thực trong app.
@@ -30,6 +31,8 @@ class AuthStubTransport implements ApiTransport {
   final Map<String, Map<String, dynamic>> catalogData = {};
   bool catalogFails = false;
   final List<Map<String, dynamic>> cartItems = [];
+  final Set<String> mergedGuestBatches = {};
+  bool loseMergeResponse = false;
   String? cartFailure;
   int cartAdds = 0;
   Map<String, dynamic> get user => {
@@ -74,6 +77,30 @@ class AuthStubTransport implements ApiTransport {
       }
       if (cartFailure != null) {
         return ApiResponse(409, jsonEncode({'code': cartFailure}));
+      }
+      if (path.endsWith('/merge') && method == 'POST') {
+        if (mergedGuestBatches.add(body!['merge_id'] as String)) {
+          for (final line in body['items'] as List) {
+            final existing = cartItems
+                .where((item) => item['MaDonGia'] == line['MaDonGia'])
+                .firstOrNull;
+            if (existing != null) {
+              existing['SoLuong'] =
+                  (existing['SoLuong'] as int) + (line['SoLuong'] as int);
+            } else {
+              cartItems.add({
+                ...Map<String, dynamic>.from(line as Map),
+                'TenThuoc': 'Sản phẩm kiểm thử ${line['MaThuoc']}',
+                'DonViTinh': 'Hộp',
+                'ConHang': true,
+              });
+            }
+          }
+        }
+        if (loseMergeResponse) {
+          return const ApiResponse(503, '{"code":"DATABASE_UNAVAILABLE"}');
+        }
+        return const ApiResponse(200, '{"code":"CART_MERGED"}');
       }
       if (method == 'POST') {
         cartAdds++;
@@ -193,6 +220,7 @@ AuthController testController(
   TokenStore? store,
   DateTime Function()? now,
 }) => AuthController(
+  guestCart: GuestCartStorage(MemoryTokenStore()),
   api: AuthApi(
     ApiClient(
       baseUrl: 'http://127.0.0.1:8123/api',

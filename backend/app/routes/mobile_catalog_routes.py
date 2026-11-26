@@ -7,7 +7,7 @@ from app.services.product_service import ProductError
 
 mobile_catalog_bp = Blueprint('mobile_catalog', __name__, url_prefix='/api/mobile/catalog')
 mobile_catalog_bp.add_url_rule('/categories', view_func=controller.list_categories, methods=['GET'])
-mobile_catalog_bp.add_url_rule('/products', view_func=controller.list_products, methods=['GET'])
+mobile_catalog_bp.add_url_rule('/products', view_func=controller.list_mobile_products, methods=['GET'])
 mobile_catalog_bp.add_url_rule('/products/<int:product_id>', view_func=controller.product_detail, methods=['GET'])
 mobile_catalog_bp.add_url_rule('/promotions', view_func=controller.list_promotions, methods=['GET'])
 mobile_catalog_bp.add_url_rule('/promotions/<int:promotion_id>/products', view_func=controller.promotion_products, methods=['GET'])

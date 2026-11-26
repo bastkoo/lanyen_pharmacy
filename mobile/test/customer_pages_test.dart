@@ -47,6 +47,7 @@ void main() {
       );
       addTearDown(controller.dispose);
       await controller.initialize();
+      expect(controller.title, 'Danh mục 2');
       await controller.filterPrescription(true);
       final request = transport.requests.lastWhere(
         (value) => value.uri.path == '/api/mobile/catalog/products',
@@ -60,11 +61,23 @@ void main() {
       );
       expect(controller.items.single.usage, 'Cách dùng từ API kiểm thử');
       expect(request.headers.containsKey('Authorization'), isFalse);
+      await controller.filterCategory(3);
+      expect(controller.title, 'Danh mục 3');
+      await controller.clearFilters();
+      expect(controller.title, 'Kết quả tìm kiếm');
+      expect(controller.hasFilters, isFalse);
+      expect(controller.search, 'vitamin');
+      final cleared = transport.requests
+          .lastWhere((r) => r.uri.path == '/api/mobile/catalog/products')
+          .uri
+          .queryParameters;
+      expect(cleared.containsKey('category_id'), isFalse);
+      expect(cleared.containsKey('ke_don'), isFalse);
     },
   );
 
   testWidgets(
-    'Danh sách ba cột, bộ lọc, chi tiết đầy đủ và trở về giữ lựa chọn',
+    'Danh sách hai cột, bộ lọc, chi tiết đầy đủ và trở về giữ lựa chọn',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 1100);
@@ -102,15 +115,15 @@ void main() {
       final second = find.text('Sản phẩm kiểm thử 2 (Hộp 10 vỉ)');
       final third = find.text('Sản phẩm kiểm thử 3 (Hộp 10 vỉ)');
       expect(tester.getTopLeft(first).dy, tester.getTopLeft(second).dy);
-      expect(tester.getTopLeft(second).dy, tester.getTopLeft(third).dy);
+      expect(
+        tester.getTopLeft(third).dy,
+        greaterThan(tester.getTopLeft(first).dy),
+      );
       expect(
         tester.getTopLeft(first).dx,
         lessThan(tester.getTopLeft(second).dx),
       );
-      expect(
-        tester.getTopLeft(second).dx,
-        lessThan(tester.getTopLeft(third).dx),
-      );
+      expect(tester.getTopLeft(first).dx, tester.getTopLeft(third).dx);
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Thuốc kê đơn').last);
@@ -152,8 +165,78 @@ void main() {
       await tester.pumpAndSettle();
       await auth.logout();
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('phone-input')), findsOneWidget);
+      expect(find.byKey(const ValueKey('home-search')), findsOneWidget);
       expect(find.text('Chi tiết sản phẩm'), findsNothing);
     },
   );
+
+  testWidgets('Đổi danh mục cập nhật Appbar, nút nhà và giỏ về đúng tab', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 1100);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final transport = catalogFixture();
+    transport.cartItems.addAll([
+      {'MaThuoc': 1, 'MaDonGia': 101, 'SoLuong': 8, 'TenThuoc': 'Thuốc A'},
+      {'MaThuoc': 1, 'MaDonGia': 111, 'SoLuong': 3, 'TenThuoc': 'Thuốc A'},
+      {'MaThuoc': 2, 'MaDonGia': 102, 'SoLuong': 5, 'TenThuoc': 'Thuốc B'},
+    ]);
+    final auth = testController(transport);
+    addTearDown(auth.dispose);
+    await loginFixture(auth);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: AppRouter(controller: auth),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Danh mục 1'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Danh mục 1'));
+    await tester.pumpAndSettle();
+    final header = find.byType(AppBar);
+    expect(
+      find.descendant(of: header, matching: find.text('Danh mục 1')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byType(DropdownButtonFormField<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Danh mục 2').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: header, matching: find.text('Danh mục 2')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: header, matching: find.text('Danh mục 1')),
+      findsNothing,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('products-cart')),
+        matching: find.text('2'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('products-home')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('home-search')), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('home-search')), 'mô tả');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: header, matching: find.text('Kết quả tìm kiếm')),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('products-cart')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('customer-cart')), findsOneWidget);
+    expect(find.text('2 sản phẩm'), findsOneWidget);
+    expect(find.byKey(const ValueKey('products-search')), findsNothing);
+    expect(transport.requests.last.uri.path, '/api/mobile/cart');
+    expect(tester.takeException(), isNull);
+  });
 }

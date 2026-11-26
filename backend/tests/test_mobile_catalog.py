@@ -1,4 +1,4 @@
-﻿"""Adapter công khai Mobile dùng chung service; không chạm dữ liệu thật."""
+"""Adapter công khai Mobile dùng chung service; không chạm dữ liệu thật."""
 import unittest
 from unittest.mock import patch
 
@@ -59,6 +59,40 @@ class MobileCatalogTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json, {'code': 'PRODUCT_NOT_FOUND'})
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+    def test_mobile_search_is_broad_without_changing_web_search(self):
+        data = {'items': [], 'page': 1, 'pages': 0, 'total': 0}
+        with patch('app.services.product_service.list_public_products', return_value=data) as service:
+            mobile = self.client.get('/api/mobile/catalog/products?search=vitamin&ke_don=false')
+            self.assertEqual(mobile.status_code, 200)
+            self.assertEqual(service.call_args.args[0]['search'], 'vitamin')
+            self.assertIs(service.call_args.args[0]['ke_don'], False)
+            self.assertEqual(service.call_args.kwargs, {'extended_search': True})
+            service.reset_mock()
+            web = self.client.get('/api/products?search=vitamin')
+            self.assertEqual(web.status_code, 200)
+            self.assertEqual(service.call_args.kwargs, {})
+
+    def test_extended_search_uses_description_category_and_escaped_parameters(self):
+        from unittest.mock import MagicMock
+        from sqlalchemy.dialects import postgresql
+        from app.repositories import thuoc_repository as repository
+        for extended in (False, True):
+            count, rows = MagicMock(), MagicMock()
+            count.scalar_one.return_value = 0
+            rows.scalars.return_value.all.return_value = []
+            with self.app.app_context(), patch('sqlalchemy.engine.Engine.connect', side_effect=AssertionError('Real DB forbidden')), \
+                    patch.object(repository.db.session, 'execute', side_effect=[count, rows]) as execute:
+                repository.list_products(search='vit%_amin', category_id=2, ke_don=True, extended_search=extended)
+                statement = execute.call_args_list[-1].args[0]
+                compiled = statement.whereclause.compile(dialect=postgresql.dialect())
+                sql = str(compiled)
+                self.assertEqual('MoTa' in sql, extended)
+                self.assertEqual('TenLoaiThuoc' in sql, extended)
+                self.assertIn('TenThuoc', sql)
+                self.assertIn('KeDon', sql)
+                self.assertIn('MaLoaiThuoc', sql)
+                self.assertIn('vit/%/_amin', compiled.params.values())
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ import 'package:lan_yen_pharmacy/app/app.dart';
 import 'package:lan_yen_pharmacy/app/app_router.dart';
 import 'package:lan_yen_pharmacy/core/theme/app_theme.dart';
 import 'package:lan_yen_pharmacy/features/auth/auth_controller.dart';
+import 'package:lan_yen_pharmacy/features/auth/login_screen.dart';
 
 import 'auth_test_support.dart';
 
@@ -21,7 +22,13 @@ Widget harness(
       padding: const EdgeInsets.only(top: 44, bottom: 34),
       viewInsets: EdgeInsets.only(bottom: keyboard ? 300 : 0),
     ),
-    child: AppRouter(controller: controller, route: route),
+    // Các test này tập trung biểu mẫu đăng nhập; test giỏ khách kiểm tra cổng vào thật.
+    child: ListenableBuilder(
+      listenable: controller,
+      builder: (_, _) => controller.stage == AuthStage.authenticated
+          ? AppRouter(controller: controller, route: route)
+          : LoginScreen(controller: controller),
+    ),
   ),
 );
 
@@ -167,12 +174,17 @@ void main() {
 
   for (final role in [0, 1, 2]) {
     testWidgets(
-      'OTP tài khoản có sẵn điều hướng shell $role, logout trở lại nhập số',
+      'Từ trang chủ khách đăng nhập shell $role, logout trở lại trang chủ khách',
       (tester) async {
         final transport = AuthStubTransport(role: role);
         final controller = testController(transport);
         addTearDown(controller.dispose);
         await tester.pumpWidget(PharmacyApp(controller: controller));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('home-search')), findsOneWidget);
+        await tester.tap(find.byKey(const ValueKey('customer-tab-4')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('login-required-submit')));
         await tester.pumpAndSettle();
         expect(find.text('Nhận mã xác thực'), findsOneWidget);
         expect(find.textContaining('Xem thử'), findsNothing);
@@ -189,7 +201,7 @@ void main() {
         await tester.ensureVisible(find.text('Đăng xuất'));
         await tester.tap(find.text('Đăng xuất'));
         await tester.pumpAndSettle();
-        expect(find.byKey(const ValueKey('phone-input')), findsOneWidget);
+        expect(find.byKey(const ValueKey('home-search')), findsOneWidget);
         expect(find.text('Xin chào, Nguyễn An'), findsNothing);
       },
     );

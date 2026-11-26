@@ -2,6 +2,7 @@ from sqlalchemy import case, delete, func, or_, select
 
 from app.extensions import db
 from app.models.thuoc import Thuoc
+from app.models.loai_thuoc import LoaiThuoc
 from app.models.chi_tiet_don_hang import ChiTietDonHang
 from app.models.chi_tiet_khuyen_mai import ChiTietKhuyenMai
 from app.models.don_vi_gia_thuoc import DonViGiaThuoc
@@ -40,11 +41,21 @@ def search_ai_context(terms, today):
 
 
 def list_products(search='', category_id=None, phan_loai=None, page=1, per_page=20,
-                  sort_by='MaThuoc', sort_order='asc', ke_don=None):
+                  sort_by='MaThuoc', sort_order='asc', ke_don=None, extended_search=False):
     query = select(Thuoc)
     if search:
-        query = query.where(or_(*(column.icontains(search, autoescape=True) for column in
-                                 (Thuoc.TenThuoc, Thuoc.MaDuoc, Thuoc.MaVach, Thuoc.SoDangKy))))
+        columns = [Thuoc.TenThuoc, Thuoc.MaDuoc, Thuoc.MaVach, Thuoc.SoDangKy]
+        if extended_search:
+            columns.extend([Thuoc.MoTa, Thuoc.QuyCachDongGoi, Thuoc.DangBaoChe,
+                            Thuoc.NhaSanXuat, Thuoc.NuocSanXuat])
+        matches = [column.icontains(search, autoescape=True) for column in columns]
+        if extended_search:
+            # EXISTS tránh nhân bản sản phẩm và giữ chính xác count/phân trang.
+            matches.append(select(LoaiThuoc.MaLoaiThuoc).where(
+                LoaiThuoc.MaLoaiThuoc == Thuoc.MaLoaiThuoc,
+                LoaiThuoc.TenLoaiThuoc.icontains(search, autoescape=True)
+            ).correlate(Thuoc).exists())
+        query = query.where(or_(*matches))
     if category_id is not None:
         query = query.where(Thuoc.MaLoaiThuoc == category_id)
     if phan_loai is not None:

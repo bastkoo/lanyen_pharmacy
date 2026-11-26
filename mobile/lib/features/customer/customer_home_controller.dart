@@ -6,11 +6,17 @@ import '../../core/network/api.dart';
 import '../../core/network/api_exception.dart';
 import '../../models/catalog.dart';
 import '../../models/customer_cart.dart';
+import '../../core/storage/guest_cart_storage.dart';
 
 // Tải từng khối độc lập; một khối lỗi không che toàn bộ trang chủ.
 class CustomerHomeController extends ChangeNotifier {
-  CustomerHomeController(this.api, {this.cartApi, DateTime Function()? now})
-    : now = now ?? DateTime.now {
+  CustomerHomeController(
+    this.api, {
+    this.cartApi,
+    this.guestCart,
+    this.customerId,
+    DateTime Function()? now,
+  }) : now = now ?? DateTime.now {
     clock = ValueNotifier(this.now());
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       final previous = clock.value;
@@ -25,6 +31,22 @@ class CustomerHomeController extends ChangeNotifier {
   }
   final CatalogApi api;
   final CartApi? cartApi;
+  final GuestCartStorage? guestCart;
+  int? customerId;
+  int _cartVersion = 0;
+  Future<void>? _cartWrite;
+  // Thay chủ giỏ sẽ bỏ ngay dữ liệu tài khoản trước, không ghi giỏ tài khoản vào kho khách.
+  Future<void> changeCustomer(int? id) async {
+    customerId = id;
+    _cartVersion++;
+    cart = null;
+    cartError = null;
+    _emit();
+    if (_cartWrite != null) await _cartWrite;
+    if (_cartRequest != null) await _cartRequest;
+    if (!_disposed) await loadCart();
+  }
+
   final DateTime Function() now;
   late final ValueNotifier<DateTime> clock;
   late final Timer _timer;
@@ -60,15 +82,95 @@ class CustomerHomeController extends ChangeNotifier {
       _cartRequest ??= _readCart().whenComplete(() => _cartRequest = null);
 
   Future<void> _readCart() async {
-    if (cartApi == null || _disposed) return;
+    if (_disposed) return;
+    final version = _cartVersion;
+    final owner = customerId;
     cartLoading = true;
     cartError = null;
     _emit();
     try {
-      final value = await cartApi!.read();
-      if (!_disposed) cart = value;
+      CustomerCart value;
+      if (guestCart != null && owner == null) {
+        final data = await guestCart!.read();
+        value = CustomerCart(
+          List.unmodifiable(
+            (data['items'] as List).map(
+              (item) =>
+                  CartLine.fromJson(Map<String, dynamic>.from(item as Map)),
+            ),
+          ),
+        );
+      } else {
+        if (cartApi == null) return;
+        if (guestCart != null) {
+          final data = await guestCart!.read();
+          if (version != _cartVersion || _disposed) return;
+          while (data['pending'] != null ||
+              (data['items'] as List).isNotEmpty) {
+            if (version != _cartVersion || _disposed) return;
+            var pending = data['pending'] as Map<String, dynamic>?;
+            if (pending == null && (data['items'] as List).isNotEmpty) {
+              pending = {
+                'owner': owner,
+                'merge_id': data['batch_id'] ?? GuestCartStorage.newId(),
+                'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                'items': data['items'],
+              };
+              data['pending'] = pending;
+              data.remove('batch_id');
+              data['items'] = <dynamic>[];
+              await guestCart!.save(data);
+            }
+            if (pending != null) {
+              // Ghi kho có await: phiên có thể đã đổi trong lúc lưu batch.
+              if (_disposed || version != _cartVersion) return;
+              if (pending['owner'] != owner) {
+                throw const ApiException(
+                  ApiFailure.forbidden,
+                  code: 'CART_MERGE_OWNER_CHANGED',
+                );
+              }
+              await cartApi!.merge({
+                'merge_id': pending['merge_id'],
+                'created_at': pending['created_at'],
+                'items': (pending['items'] as List)
+                    .map(
+                      (item) => {
+                        'MaThuoc': item['MaThuoc'],
+                        'MaDonGia': item['MaDonGia'],
+                        'SoLuong': item['SoLuong'],
+                      },
+                    )
+                    .toList(),
+              });
+              // Chỉ xóa bản chờ sau xác nhận. Giữ nguyên merge_id nếu mất mạng/ghi kho thất bại.
+              data.remove('pending');
+              await guestCart!.save(data);
+            }
+          }
+        }
+        value = await cartApi!.read();
+      }
+      if (!_disposed && version == _cartVersion) cart = value;
     } on ApiException catch (error) {
-      cartError = error.message;
+      if (version == _cartVersion) {
+        cartError = switch (error.code) {
+          'CART_MERGE_PENDING' => 'Chưa xác định được kết quả đồng bộ. Giỏ khách vẫn được giữ; vui lòng liên hệ nhà thuốc trước khi thêm lại.',
+          'CART_MERGE_EXPIRED' => 'Giỏ chờ đồng bộ đã quá hạn. Dữ liệu vẫn được giữ; vui lòng liên hệ nhà thuốc để đối chiếu.',
+          'CART_MERGE_OWNER_CHANGED' => 'Giỏ khách đang chờ đồng bộ với tài khoản trước. Vui lòng đăng nhập lại tài khoản đó.',
+          'OUT_OF_STOCK' => 'Có sản phẩm không còn đủ hàng. Giỏ khách vẫn được giữ để kiểm tra lại.',
+          'UNIT_NOT_FOUND' || 'UNIT_UNAVAILABLE' =>
+            'Đơn vị bán đã thay đổi. Giỏ khách vẫn được giữ để kiểm tra lại.',
+          'CONSULTATION_REQUIRED' =>
+            'Có sản phẩm cần dược sĩ tư vấn. Giỏ khách vẫn được giữ.',
+          _ =>
+            'Chưa thể tải hoặc đồng bộ giỏ hàng. Giỏ khách vẫn được giữ. ${error.message}',
+        };
+      }
+    } on Exception {
+      if (version == _cartVersion) {
+        cartError = 'Chưa thể đọc hoặc lưu giỏ trên thiết bị. Dữ liệu chưa được xóa. Vui lòng thử lại.';
+      }
     } finally {
       cartLoading = false;
       _emit();
@@ -76,7 +178,11 @@ class CustomerHomeController extends ChangeNotifier {
   }
 
   Future<bool> addToCart(CatalogProduct product, CatalogPrice price) async {
-    if (cartApi == null || adding || product.consultation || !price.available) {
+    if ((cartApi == null && guestCart == null) ||
+        adding ||
+        cartLoading ||
+        product.consultation ||
+        !price.available) {
       return false;
     }
     if (product.upcomingOffer || (product.hasOffer && price.quota <= 0)) {
@@ -86,8 +192,44 @@ class CustomerHomeController extends ChangeNotifier {
     addingProductId = product.id;
     purchaseMessage = null;
     _emit();
+    final version = _cartVersion;
+    final completer = Completer<void>();
+    _cartWrite = completer.future;
     try {
-      await cartApi!.add(product.id, price.id);
+      if (guestCart != null && customerId == null) {
+        final data = await guestCart!.read();
+        data['batch_id'] ??= GuestCartStorage.newId();
+        final entries = (data['items'] as List).cast<Map<String, dynamic>>();
+        final index = entries.indexWhere(
+          (item) =>
+              item['MaDonGia'] == price.id && item['MaThuoc'] == product.id,
+        );
+        if (index >= 0) {
+          entries[index]['SoLuong'] = (entries[index]['SoLuong'] as int) + 1;
+        } else {
+          if (entries.length >= 50) {
+            purchaseMessage = 'Giỏ khách tối đa 50 đơn vị sản phẩm. Vui lòng đăng nhập để tiếp tục.';
+            return false;
+          }
+          entries.add({
+            'MaThuoc': product.id,
+            'MaDonGia': price.id,
+            'SoLuong': 1,
+            'TenThuoc': product.name,
+            'DonViTinh': price.unit,
+            'ConHang': price.available,
+          });
+        }
+        data['items'] = entries;
+        await guestCart!.save(data);
+      } else {
+        if (cartError != null) {
+          purchaseMessage = 'Vui lòng tải và đồng bộ giỏ hàng thành công trước khi thêm sản phẩm.';
+          return false;
+        }
+        await cartApi!.add(product.id, price.id);
+      }
+      if (_disposed || version != _cartVersion) return true;
       // POST thành công là đã lưu; đọc lại lỗi không được mời thêm trùng.
       purchaseMessage = 'Đã thêm sản phẩm vào giỏ hàng.';
       if (_cartRequest != null) await _cartRequest;
@@ -103,7 +245,12 @@ class CustomerHomeController extends ChangeNotifier {
         _ => '${error.message} Hãy kiểm tra giỏ hàng trước khi thêm lại.',
       };
       return false;
+    } on Exception {
+      purchaseMessage = 'Không thể lưu giỏ trên thiết bị. Sản phẩm chưa được xác nhận đã thêm.';
+      return false;
     } finally {
+      completer.complete();
+      _cartWrite = null;
       adding = false;
       addingProductId = null;
       _emit();

@@ -61,10 +61,13 @@ def list_products(filters):
 
 
 @database_operation
-def list_public_products(filters):
+def list_public_products(filters, *, extended_search=False):
     if 'category_id' in filters:
         require_category(filters['category_id'])
-    items, total = products.list_products(**filters, sort_by='TenThuoc')
+    options = dict(filters, sort_by='TenThuoc')
+    if extended_search:
+        options['extended_search'] = True
+    items, total = products.list_products(**options)
     page, per_page = filters['page'], filters['per_page']
     return {'items': serialize_public_products(items), 'page': page,
             'per_page': per_page, 'total': total, 'pages': (total + per_page - 1) // per_page}
