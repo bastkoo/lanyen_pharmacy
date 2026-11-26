@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_radius.dart';
 import '../../core/theme/app_spacing.dart';
 import 'auth_controller.dart';
 
@@ -42,6 +43,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (auth.challenge != _lastChallenge) {
       _lastChallenge = auth.challenge;
       _otp.clear();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && auth.stage == AuthStage.otp) _otpFocus.requestFocus();
+      });
     }
     if (auth.stage != _lastStage) {
       _lastStage = auth.stage;
@@ -104,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
               vertical: AppSpacing.xl,
             ),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
+              constraints: const BoxConstraints(maxWidth: 420),
               child: AutofillGroup(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -223,27 +227,23 @@ class _LoginScreenState extends State<LoginScreen> {
 class _BrandHeader extends StatelessWidget {
   const _BrandHeader();
   @override
-  Widget build(BuildContext context) => Wrap(
-    spacing: AppSpacing.md,
-    runSpacing: AppSpacing.sm,
-    crossAxisAlignment: WrapCrossAlignment.center,
+  Widget build(BuildContext context) => Column(
     children: [
       ExcludeSemantics(
-        child: Image.asset('assets/images/logo.png', width: 60, height: 60),
+        child: Image.asset('assets/images/logo.png', width: 80, height: 80),
       ),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Lan Yến',
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(color: LoginColors.brand),
-          ),
-          Text(
-            'Chăm sóc từ điều giản dị',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+      const SizedBox(height: AppSpacing.md),
+      Text(
+        'Lan Yến Pharmacy',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.headlineSmall
+            ?.copyWith(color: LoginColors.brand),
+      ),
+      const SizedBox(height: AppSpacing.xs),
+      Text(
+        'Chăm sóc từ điều giản dị',
+        textAlign: TextAlign.center,
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     ],
   );
@@ -256,32 +256,26 @@ class _StepHeading extends StatelessWidget {
   final String phone;
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      Text(
-        switch (stage) {
-          AuthStage.phone => 'BẮT ĐẦU / ĐĂNG NHẬP',
-          AuthStage.otp => 'XÁC THỰC / 6 CHỮ SỐ',
-          _ => 'HOÀN THIỆN / TÀI KHOẢN',
-        },
-        style: Theme.of(context).textTheme.bodySmall
-            ?.copyWith(color: LoginColors.brand),
-      ),
-      const SizedBox(height: AppSpacing.sm),
       Semantics(
         header: true,
-        child: Text(switch (stage) {
-          AuthStage.phone => 'Chào bạn,\nLan Yến ở đây.',
-          AuthStage.otp => 'Nhập mã xác thực',
-          _ => 'Cho Lan Yến biết\ntên của bạn',
-        }, style: Theme.of(context).textTheme.headlineLarge),
+        child: Text(
+          switch (stage) {
+            AuthStage.phone => 'Đăng nhập',
+            AuthStage.otp => 'Xác thực số điện thoại',
+            _ => 'Hoàn tất tài khoản',
+          },
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
       ),
       const SizedBox(height: AppSpacing.md),
       Text(switch (stage) {
         AuthStage.phone => 'Nhập số điện thoại để đăng nhập hoặc tạo tài khoản. Không cần mật khẩu.',
         AuthStage.otp => 'Nhập mã gồm 6 chữ số dành cho $phone.',
         _ => 'Số điện thoại đã được xác thực. Hãy bổ sung họ tên để hoàn tất tài khoản mới.',
-      }),
+      }, textAlign: TextAlign.center),
     ],
   );
 }
@@ -332,28 +326,14 @@ class _OtpStep extends StatelessWidget {
   final VoidCallback onSubmit;
   @override
   Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
+    crossAxisAlignment: CrossAxisAlignment.center,
     children: [
-      TextFormField(
+      _OtpCodeInput(
         key: const ValueKey('otp-input'),
         controller: controller,
-        focusNode: focusNode,
+        firstFocus: focusNode,
         enabled: enabled,
-        keyboardType: TextInputType.number,
-        textInputAction: TextInputAction.done,
-        autofillHints: const [AutofillHints.oneTimeCode],
-        inputFormatters: [
-          FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(6),
-        ],
-        decoration: const InputDecoration(
-          labelText: 'Mã xác thực 6 số',
-          hintText: '000000',
-        ),
-        style: Theme.of(context).textTheme.titleLarge
-            ?.copyWith(letterSpacing: 5),
-        validator: AuthController.validateOtp,
-        onFieldSubmitted: (_) => onSubmit(),
+        onSubmit: onSubmit,
       ),
       const SizedBox(height: AppSpacing.sm),
       Text(
@@ -361,8 +341,258 @@ class _OtpStep extends StatelessWidget {
             ? 'Mã còn hiệu lực trong ${seconds ~/ 60}:${(seconds % 60).toString().padLeft(2, '0')}.'
             : 'Mã đã hết hạn. Vui lòng gửi lại mã.',
         style: Theme.of(context).textTheme.bodySmall,
+        textAlign: TextAlign.center,
       ),
     ],
+  );
+}
+
+// Sáu ô OTP giữ một giá trị tổng hợp duy nhất để gửi tới Backend.
+class _OtpCodeInput extends StatefulWidget {
+  const _OtpCodeInput({
+    super.key,
+    required this.controller,
+    required this.firstFocus,
+    required this.enabled,
+    required this.onSubmit,
+  });
+  final TextEditingController controller;
+  final FocusNode firstFocus;
+  final bool enabled;
+  final VoidCallback onSubmit;
+
+  @override
+  State<_OtpCodeInput> createState() => _OtpCodeInputState();
+}
+
+class _OtpCodeInputState extends State<_OtpCodeInput> {
+  final _fieldKey = GlobalKey<FormFieldState<String>>();
+  final _digits = List.generate(6, (_) => TextEditingController());
+  late final List<FocusNode> _nodes;
+  late final List<VoidCallback> _focusListeners;
+  bool _publishing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nodes = [widget.firstFocus, ...List.generate(5, (_) => FocusNode())];
+    _focusListeners = List.generate(
+      6,
+      (index) => () {
+        if (_nodes[index].hasFocus) _selectDigit(index);
+      },
+    );
+    for (var index = 0; index < 6; index++) {
+      _nodes[index].addListener(_focusListeners[index]);
+    }
+    widget.controller.addListener(_syncFromController);
+    _syncFromController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OtpCodeInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_syncFromController);
+      widget.controller.addListener(_syncFromController);
+      _syncFromController();
+    }
+  }
+
+  // Mã mới hoặc đổi số điện thoại phải xóa đồng thời cả sáu ô.
+  void _syncFromController() {
+    if (_publishing) return;
+    final code = widget.controller.text;
+    for (var index = 0; index < 6; index++) {
+      final value = index < code.length ? code[index] : '';
+      if (_digits[index].text != value) _digits[index].text = value;
+    }
+    _fieldKey.currentState?.didChange(code);
+  }
+
+  void _selectDigit(int index) {
+    _digits[index].selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: _digits[index].text.length,
+    );
+  }
+
+  void _focus(int index) {
+    _nodes[index].requestFocus();
+    _selectDigit(index);
+  }
+
+  void _publish() {
+    final code = _digits.map((digit) => digit.text).join();
+    _publishing = true;
+    widget.controller.value = TextEditingValue(
+      text: code,
+      selection: TextSelection.collapsed(offset: code.length),
+    );
+    _publishing = false;
+    final field = _fieldKey.currentState;
+    field?.didChange(code);
+    if (field?.hasError ?? false) field!.validate();
+  }
+
+  // Dán đủ sáu số sẽ thay toàn bộ mã, kể cả khi đang đứng ở ô giữa.
+  void _changed(int index, String value) {
+    if (value.isEmpty) {
+      _digits[index].clear();
+      _publish();
+      if (index > 0) _focus(index - 1);
+      return;
+    }
+    final start = value.length == 6 ? 0 : index;
+    if (value.length > 1) {
+      for (var i = start; i < 6; i++) {
+        _digits[i].clear();
+      }
+    }
+    final length = value.length.clamp(0, 6 - start);
+    for (var i = 0; i < length; i++) {
+      _digits[start + i].text = value[i];
+    }
+    _publish();
+    _focus((start + length).clamp(0, 5));
+  }
+
+  KeyEventResult _key(int index, KeyEvent event) {
+    if (!widget.enabled ||
+        (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.backspace &&
+        _digits[index].text.isEmpty &&
+        index > 0) {
+      _digits[index - 1].clear();
+      _publish();
+      _focus(index - 1);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft && index > 0) {
+      _focus(index - 1);
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight && index < 5) {
+      _focus(index + 1);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_syncFromController);
+    for (var index = 0; index < 6; index++) {
+      _nodes[index].removeListener(_focusListeners[index]);
+      if (index > 0) _nodes[index].dispose();
+      _digits[index].dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => FormField<String>(
+    key: _fieldKey,
+    initialValue: widget.controller.text,
+    enabled: widget.enabled,
+    validator: AuthController.validateOtp,
+    builder: (field) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text('Mã xác thực gồm 6 số', textAlign: TextAlign.center),
+        const SizedBox(height: AppSpacing.md),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final largeText = MediaQuery.textScalerOf(context).scale(22) > 32;
+            final columns = constraints.maxWidth >= 328 && !largeText ? 6 : 3;
+            final width =
+                ((constraints.maxWidth - (columns - 1) * AppSpacing.sm) /
+                        columns)
+                    .clamp(AppSpacing.touchTarget, columns == 6 ? 56.0 : 72.0)
+                    .floorToDouble();
+            return Center(
+              child: SizedBox(
+                width: columns * width + (columns - 1) * AppSpacing.sm,
+                child: FocusTraversalGroup(
+                  child: Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.md,
+                    children: [
+                      for (var index = 0; index < 6; index++)
+                        SizedBox(
+                          width: width,
+                          child: Focus(
+                            canRequestFocus: false,
+                            skipTraversal: true,
+                            onKeyEvent: (_, event) => _key(index, event),
+                            child: Semantics(
+                              label:
+                                  'Chữ số ${index + 1} của mã xác thực, tổng cộng 6 số',
+                              child: TextField(
+                                key: ValueKey('otp-digit-$index'),
+                                controller: _digits[index],
+                                focusNode: _nodes[index],
+                                enabled: widget.enabled,
+                                textAlign: TextAlign.center,
+                                keyboardType: TextInputType.number,
+                                textInputAction: index == 5
+                                    ? TextInputAction.done
+                                    : TextInputAction.next,
+                                autofillHints: index == 0
+                                    ? const [AutofillHints.oneTimeCode]
+                                    : null,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                ],
+                                decoration: InputDecoration(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: AppSpacing.md,
+                                  ),
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.md,
+                                    ),
+                                  ),
+                                ),
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(fontSize: 22, height: 1.2),
+                                onTap: () => _selectDigit(index),
+                                onChanged: (value) => _changed(index, value),
+                                onSubmitted: (_) {
+                                  if (index == 5) {
+                                    widget.onSubmit();
+                                  } else {
+                                    _focus(index + 1);
+                                  }
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        if (field.errorText != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              field.errorText!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: LoginColors.error),
+            ),
+          ),
+        ],
+      ],
+    ),
   );
 }
 
