@@ -86,6 +86,47 @@ class MobileCartTests(unittest.TestCase):
         return {'merge_id': 'a' * 32, 'created_at': int(time.time()),
                 'items': [{'MaThuoc': 7, 'MaDonGia': 8, 'SoLuong': 3}]}
 
+    def test_guest_quote_ignores_web_cookie_is_read_only_and_uses_points_rule(self):
+        with self.client.session_transaction() as cookie:
+            cookie['user_id'] = 999
+        self.mock('app.services.cart_service.owner', side_effect=AssertionError('Web session forbidden'))
+        self.mock('app.services.cart_service.carts.list_items', side_effect=AssertionError('Guest cannot read account cart'))
+        self.mock('app.services.cart_service.db.session.commit', side_effect=AssertionError('Quote cannot write'))
+        product = NS(TenThuoc='Vitamin', PhanLoai=False, QuyCachDongGoi='Hộp 10 vỉ', HinhAnh='')
+        unit = NS(MaThuoc=7, MaDonGia=8, DonViTinh='Hộp', GiaBan=2000, SoLuongQuyDoi=1)
+        self.mock('app.services.cart_service.carts.catalog_details', return_value={(7, 8): (product, unit)})
+        self.mock('app.services.cart_service.units.public_units', return_value=[unit])
+        self.mock('app.services.cart_service.usable_stock', return_value={7: 10})
+        self.mock('app.services.cart_service.promotion_items.active_for_products', return_value=[])
+        response = self.client.post('/api/mobile/cart/quote', json={'items': self.batch()['items']}, headers={'Origin': 'http://127.0.0.1:5510'})
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json['authenticated'])
+        self.assertEqual(response.json['total'], '6000')
+        self.assertEqual(response.json['estimated_points'], '6')
+        self.assertNotIn('Set-Cookie', response.headers)
+        product.PhanLoai = True
+        response = self.client.post('/api/mobile/cart/quote', json={'items': self.batch()['items']})
+        self.assertIsNone(response.json['items'][0]['GiaBan'])
+        self.assertIsNone(response.json['items'][0]['ThanhTien'])
+
+    def test_account_quote_uses_saved_quantities_and_jwt_owner(self):
+        read = self.mock('app.services.cart_service.get_cart', return_value={'code': 'CART_LISTED'})
+        response = self.client.post('/api/mobile/cart/quote', headers=self.headers, json={'items': self.batch()['items']})
+        self.assertEqual(response.status_code, 200)
+        read.assert_called_once_with(selected_ids={8}, owner_id=42, mobile=True)
+
+    def test_update_delete_require_jwt_and_cannot_accept_an_owner(self):
+        update = self.mock('app.services.cart_service.update_item', return_value={'code': 'CART_ITEM_UPDATED'})
+        remove = self.mock('app.services.cart_service.remove_item', return_value={'code': 'CART_ITEM_REMOVED'})
+        data = {'MaDonGia': 8, 'DonViMoi': 9, 'SoLuong': 2}
+        self.assertEqual(self.client.post('/api/mobile/cart/items/update', json=data).status_code, 401)
+        self.assertEqual(self.client.post('/api/mobile/cart/items/update', headers=self.headers, json={**data, 'MaNguoiDung': 999}).status_code, 400)
+        self.assertEqual(self.client.post('/api/mobile/cart/items/update', headers=self.headers, json={**data, 'SoLuong': 0}).status_code, 400)
+        self.assertEqual(self.client.post('/api/mobile/cart/items/update', headers=self.headers, json=data).status_code, 200)
+        update.assert_called_once_with(8, 9, 2, owner_id=42)
+        self.assertEqual(self.client.post('/api/mobile/cart/items/remove', headers=self.headers, json={'MaDonGia': 8}).status_code, 200)
+        remove.assert_called_once_with(8, owner_id=42)
+
     def test_merge_is_authenticated_and_repeated_receipt_does_not_add_twice(self):
         add = self.mock('app.services.cart_service.add_database')
         data = self.batch()

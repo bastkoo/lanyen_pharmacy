@@ -166,7 +166,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('customer-tab-3')));
     await tester.pumpAndSettle();
     expect(find.text('1 sản phẩm'), findsOneWidget);
-    expect(find.text('1 Hộp'), findsOneWidget);
+    expect(find.byKey(const ValueKey('cart-minus-101')), findsOneWidget);
+    expect(find.byKey(const ValueKey('cart-unit-101')), findsOneWidget);
   });
 
   testWidgets(

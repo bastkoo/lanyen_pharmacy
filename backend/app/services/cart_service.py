@@ -111,9 +111,9 @@ def add_item(product_id, unit_id):
 
 
 @operation
-def get_cart(selected_ids=None, lock_promotions=False, entries=None, *, owner_id=None):
+def get_cart(selected_ids=None, lock_promotions=False, entries=None, *, owner_id=None, guest=False, mobile=False):
     # Mobile truyền chủ giỏ đã xác thực JWT; lời gọi Web cũ giữ nguyên owner().
-    user_id = owner() if owner_id is None else owner_id
+    user_id = None if guest else (owner() if owner_id is None else owner_id)
     if entries is None:
         entries = ([(item.MaThuoc, item.MaDonGia, item.SoLuong) for item in carts.list_items(user_id)]
                    if user_id is not None else guest_items())
@@ -144,14 +144,30 @@ def get_cart(selected_ids=None, lock_promotions=False, entries=None, *, owner_id
                       'ThanhTien': quantity * unit.GiaBan if available else None})
         if pricing and pricing['KhuyenMai']:
             items[-1].update(pricing, GiaGoc=unit.GiaBan)
-    return {'code': 'CART_LISTED', 'items': items, 'authenticated': user_id is not None,
+        if mobile:
+            items[-1]['PhanLoai'] = bool(product and product.PhanLoai)
+            if items[-1]['PhanLoai']:
+                items[-1].update(GiaBan=None, GiaGoc=None, ThanhTien=None, KhuyenMai=None)
+                for option in items[-1]['DonViGia']:
+                    option['GiaBan'] = None
+    result = {'code': 'CART_LISTED', 'items': items, 'authenticated': user_id is not None,
             'total_quantity': sum(item['SoLuong'] for item in items),
             'total': sum(item['ThanhTien'] or 0 for item in items)}
+    if mobile:
+        from app.services.points_service import earned_points
+        missing_price = any(item['ThanhTien'] is None for item in items)
+        result['estimated_points'] = None if missing_price else str(earned_points(result['total']))
+        result['total'] = None if missing_price else str(result['total'])
+        for item in items:
+            for name in ('GiaBan', 'GiaGoc', 'ThanhTien'):
+                if item.get(name) is not None:
+                    item[name] = str(item[name])
+    return result
 
 
 @operation
-def remove_item(unit_id):
-    user_id = owner()
+def remove_item(unit_id, *, owner_id=None):
+    user_id = owner() if owner_id is None else owner_id
     if user_id is not None:
         if carts.lock_user(user_id) is None:
             raise AuthError('UNAUTHENTICATED', 401)
@@ -165,9 +181,9 @@ def remove_item(unit_id):
 
 
 @operation
-def update_item(unit_id, destination_id, quantity):
+def update_item(unit_id, destination_id, quantity, *, owner_id=None):
     check_quantity(quantity)
-    user_id = owner()
+    user_id = owner() if owner_id is None else owner_id
     if user_id is not None:
         if carts.lock_user(user_id) is None:
             raise AuthError('UNAUTHENTICATED', 401)

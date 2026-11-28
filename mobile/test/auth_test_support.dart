@@ -69,6 +69,68 @@ class AuthStubTransport implements ApiTransport {
     }
     final path = uri.path;
     if (path.startsWith('/api/mobile/cart')) {
+      if (path.endsWith('/quote')) {
+        final authorized = headers.containsKey('Authorization');
+        if (authorized && !loggedIn)
+          return const ApiResponse(401, '{"code":"UNAUTHENTICATED"}');
+        if (cartFailure != null)
+          return ApiResponse(409, jsonEncode({'code': cartFailure}));
+        final entries = (body!['items'] as List).cast<Map<String, dynamic>>();
+        final ids = entries.map((i) => i['MaDonGia']).toSet();
+        final source = authorized
+            ? cartItems.where((i) => ids.contains(i['MaDonGia'])).toList()
+            : entries;
+        final lines = <Map<String, dynamic>>[];
+        var total = 0;
+        for (final entry in source) {
+          final product =
+              catalogData['products/${entry['MaThuoc']}']?['product']
+                  as Map<String, dynamic>?;
+          final units = (product?['DonViGia'] as List? ?? []);
+          final unit = units
+              .where((i) => i['MaDonGia'] == entry['MaDonGia'])
+              .firstOrNull;
+          final original =
+              (unit?['GiaBan'] ?? entry['GiaBan'] ?? 120000) as int;
+          final sale = unit?['GiaKhuyenMai'] as int?;
+          final count = entry['SoLuong'] as int;
+          final quota = unit?['SoLuongKhuyenMai'] as int? ?? 0;
+          final discounted = sale != null && sale < original && quota > 0;
+          final applied = count < quota ? count : quota;
+          final sum = discounted
+              ? sale * applied + original * (count - applied)
+              : original * count;
+          total += sum;
+          lines.add({
+            ...entry,
+            'TenThuoc':
+                product?['TenThuoc'] ??
+                entry['TenThuoc'] ??
+                'Sản phẩm kiểm thử ${entry['MaThuoc']}',
+            'DonViTinh': unit?['DonViTinh'] ?? entry['DonViTinh'] ?? 'Hộp',
+            'ConHang': unit?['ConHang'] ?? entry['ConHang'] ?? true,
+            'HinhAnh': '',
+            'QuyCachDongGoi': product?['QuyCachDongGoi'] ?? '',
+            'PhanLoai': product?['PhanLoai'] ?? false,
+            'GiaBan': discounted ? sale : original,
+            'GiaGoc': original,
+            'ThanhTien': sum,
+            'DonViGia': units,
+            'SoLuongKhuyenMai': applied,
+            if (discounted) 'KhuyenMai': {'TenChuongTrinh': 'Ưu đãi kiểm thử'},
+          });
+        }
+        return ApiResponse(
+          200,
+          jsonEncode({
+            'code': 'CART_LISTED',
+            'authenticated': authorized,
+            'items': lines,
+            'total': total,
+            'estimated_points': total ~/ 1000,
+          }),
+        );
+      }
       if (expiredAccess) {
         return const ApiResponse(401, '{"code":"TOKEN_EXPIRED"}');
       }
@@ -77,6 +139,32 @@ class AuthStubTransport implements ApiTransport {
       }
       if (cartFailure != null) {
         return ApiResponse(409, jsonEncode({'code': cartFailure}));
+      }
+      if (path.endsWith('/items/remove')) {
+        cartItems.removeWhere((i) => i['MaDonGia'] == body!['MaDonGia']);
+        return const ApiResponse(200, '{"code":"CART_ITEM_REMOVED"}');
+      }
+      if (path.endsWith('/items/update')) {
+        final source = cartItems
+            .where((i) => i['MaDonGia'] == body!['MaDonGia'])
+            .firstOrNull;
+        if (source == null)
+          return const ApiResponse(404, '{"code":"CART_ITEM_NOT_FOUND"}');
+        final duplicate = cartItems
+            .where(
+              (i) =>
+                  !identical(i, source) && i['MaDonGia'] == body!['DonViMoi'],
+            )
+            .firstOrNull;
+        if (duplicate != null) {
+          duplicate['SoLuong'] =
+              (duplicate['SoLuong'] as int) + (body!['SoLuong'] as int);
+          cartItems.remove(source);
+        } else {
+          source['MaDonGia'] = body!['DonViMoi'];
+          source['SoLuong'] = body['SoLuong'];
+        }
+        return const ApiResponse(200, '{"code":"CART_ITEM_UPDATED"}');
       }
       if (path.endsWith('/merge') && method == 'POST') {
         if (mergedGuestBatches.add(body!['merge_id'] as String)) {

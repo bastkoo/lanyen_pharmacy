@@ -236,6 +236,47 @@ class CatalogApi {
 class CartApi {
   const CartApi(this.auth);
   final AuthApi auth;
+  Future<CustomerCart> quote(
+    List<CartLine> items, {
+    required bool authorized,
+  }) async {
+    Future<Map<String, dynamic>> send() => auth.client.post(
+      'mobile/cart/quote',
+      {'items': items.map((item) => item.toEntry()).toList()},
+      authorized: authorized,
+    );
+    final data = authorized ? await _authorized(send) : await send();
+    try {
+      return CustomerCart.fromJson(data);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<void> update(int unitId, int destinationId, int quantity) async {
+    final data = await _authorized(
+      () => auth.client.post('mobile/cart/items/update', {
+        'MaDonGia': unitId,
+        'DonViMoi': destinationId,
+        'SoLuong': quantity,
+      }, authorized: true),
+    );
+    if (data['code'] != 'CART_ITEM_UPDATED') {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<void> remove(int unitId) async {
+    final data = await _authorized(
+      () => auth.client.post('mobile/cart/items/remove', {
+        'MaDonGia': unitId,
+      }, authorized: true),
+    );
+    if (data['code'] != 'CART_ITEM_REMOVED') {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
   Future<void> merge(Map<String, dynamic> batch) async {
     final data = await _authorized(
       () => auth.client.post('mobile/cart/merge', batch, authorized: true),

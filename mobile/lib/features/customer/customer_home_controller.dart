@@ -257,6 +257,85 @@ class CustomerHomeController extends ChangeNotifier {
     }
   }
 
+  // Chỉnh giỏ theo chủ hiện tại: giỏ khách chỉ ghi thiết bị; tài khoản dùng JWT.
+  Future<bool> editCart(
+    CartLine line,
+    int quantity, {
+    int? destinationId,
+  }) async {
+    if (_disposed || adding || cartLoading || quantity < 0) return false;
+    final version = _cartVersion;
+    final target = destinationId ?? line.unitId;
+    adding = true;
+    purchaseMessage = null;
+    final completion = Completer<void>();
+    _cartWrite = completion.future;
+    _emit();
+    try {
+      if (guestCart != null && customerId == null) {
+        final data = await guestCart!.read();
+        final entries = (data['items'] as List).cast<Map<String, dynamic>>();
+        final index = entries.indexWhere(
+          (item) =>
+              item['MaDonGia'] == line.unitId &&
+              item['MaThuoc'] == line.productId,
+        );
+        if (index < 0) return false;
+        final source = Map<String, dynamic>.from(entries.removeAt(index));
+        if (quantity > 0) {
+          final duplicate = entries
+              .where(
+                (item) =>
+                    item['MaDonGia'] == target &&
+                    item['MaThuoc'] == line.productId,
+              )
+              .firstOrNull;
+          if (duplicate != null) {
+            duplicate['SoLuong'] = (duplicate['SoLuong'] as int) + quantity;
+          } else {
+            source['SoLuong'] = quantity;
+            source['MaDonGia'] = target;
+            final unit = line.units
+                .where((i) => i['MaDonGia'] == target)
+                .firstOrNull;
+            if (unit != null) source['DonViTinh'] = unit['DonViTinh'];
+            entries.add(source);
+          }
+        }
+        data['items'] = entries;
+        await guestCart!.save(data);
+      } else {
+        if (cartApi == null) return false;
+        if (quantity == 0) {
+          await cartApi!.remove(line.unitId);
+        } else {
+          await cartApi!.update(line.unitId, target, quantity);
+        }
+      }
+      if (version != _cartVersion || _disposed) return true;
+      purchaseMessage = quantity == 0
+          ? 'Đã xóa sản phẩm khỏi giỏ hàng.'
+          : 'Đã cập nhật giỏ hàng.';
+      if (_cartRequest != null) await _cartRequest;
+      await loadCart();
+      return true;
+    } on ApiException catch (failure) {
+      purchaseMessage = failure.code == 'OUT_OF_STOCK'
+          ? 'Số lượng vượt tồn kho hiện tại.'
+          : '${failure.message} Vui lòng tải lại giỏ để kiểm tra trước khi thử lại.';
+      return false;
+    } on Exception {
+      purchaseMessage =
+          'Chưa thể lưu thay đổi vào giỏ trên thiết bị. Vui lòng thử lại.';
+      return false;
+    } finally {
+      completion.complete();
+      _cartWrite = null;
+      adding = false;
+      _emit();
+    }
+  }
+
   Future<void> loadCategories() async {
     if (categoriesLoading) return;
     categoriesLoading = true;

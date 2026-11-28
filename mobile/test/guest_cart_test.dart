@@ -225,10 +225,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('products-cart')));
       await tester.pumpAndSettle();
       expect(find.text('1 sản phẩm'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('customer-tab-4')));
+      await tester.tap(find.byKey(const ValueKey('cart-buy')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('login-required-submit')));
-      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('login-required-dialog')), findsNothing);
       expect(find.byKey(const ValueKey('phone-input')), findsOneWidget);
       await auth.requestOtp('0901234567');
       await auth.verifyOtp('123456');

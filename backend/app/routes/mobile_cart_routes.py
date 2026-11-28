@@ -21,12 +21,27 @@ class GuestCartMergeSchema(Schema):
     items = fields.List(fields.Nested(GuestCartLineSchema), required=True, validate=validate.Length(min=1, max=50))
 
 
+class CartQuoteSchema(Schema):
+    items = fields.List(fields.Nested(GuestCartLineSchema), required=True, validate=validate.Length(max=50))
+
+
+class CartRemoveSchema(Schema):
+    MaDonGia = fields.Integer(required=True, strict=True, validate=validate.Range(min=1, max=2147483647))
+
+
+class CartEditSchema(CartRemoveSchema):
+    DonViMoi = fields.Integer(required=True, strict=True, validate=validate.Range(min=1, max=2147483647))
+    SoLuong = fields.Integer(required=True, strict=True, validate=validate.Range(min=1, max=2147483647))
+
+
 @mobile_cart_bp.before_request
 def authenticate_customer():
     request.max_content_length = 16 * 1024
     if request.method == 'OPTIONS':
         return None
     header = request.headers.get('Authorization', '')
+    if request.endpoint == 'mobile_cart.quote' and request.method == 'POST' and not header:
+        return None
     if not header.startswith('Bearer ') or not header[7:].strip():
         raise AuthError('UNAUTHENTICATED', 401)
     user = mobile_auth_service.active_user(mobile_auth_service.decode(header[7:].strip(), 'access'))
@@ -41,7 +56,31 @@ def read():
     from flask import g
     if request.args:
         raise AuthError('INVALID_REQUEST', 400)
-    return jsonify(cart_service.get_cart(owner_id=g.mobile_cart_owner))
+    return jsonify(cart_service.get_cart(owner_id=g.mobile_cart_owner, mobile=True))
+
+
+@mobile_cart_bp.post('/quote')
+@payload(CartQuoteSchema)
+def quote(data):
+    from flask import g
+    owner_id = getattr(g, 'mobile_cart_owner', None)
+    if owner_id is None:
+        return cart_service.get_cart(entries=[(i['MaThuoc'], i['MaDonGia'], i['SoLuong']) for i in data['items']], guest=True, mobile=True)
+    return cart_service.get_cart(selected_ids={i['MaDonGia'] for i in data['items']}, owner_id=owner_id, mobile=True)
+
+
+@mobile_cart_bp.post('/items/update')
+@payload(CartEditSchema)
+def update(data):
+    from flask import g
+    return cart_service.update_item(data['MaDonGia'], data['DonViMoi'], data['SoLuong'], owner_id=g.mobile_cart_owner)
+
+
+@mobile_cart_bp.post('/items/remove')
+@payload(CartRemoveSchema)
+def remove(data):
+    from flask import g
+    return cart_service.remove_item(data['MaDonGia'], owner_id=g.mobile_cart_owner)
 
 
 @mobile_cart_bp.post('/items')

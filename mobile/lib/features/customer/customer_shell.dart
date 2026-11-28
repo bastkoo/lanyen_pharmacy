@@ -31,6 +31,8 @@ class CustomerShellColors {
   static const loginHeaderTitle = AppColors.textPrimary;
   // Mũi tên quay lại trang đang xem trước khi đăng nhập.
   static const loginBackIcon = AppColors.textPrimary;
+  // Chữ thông báo bước đặt hàng sẽ bổ sung sau.
+  static const checkoutMessage = AppColors.textPrimary;
 }
 
 // Khung khách hàng chỉ sở hữu state dùng chung và chuyển trang; không chứa UI của từng trang.
@@ -73,9 +75,39 @@ class _CustomerShellState extends State<CustomerShell>
 
   Future<void> requestLogin() async {
     if (!await showLoginRequired(context) || !mounted) return;
+    await openLogin();
+  }
+
+  Future<void> openLogin() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => _LoginRoute(controller: widget.controller),
+      ),
+    );
+  }
+
+  void checkout() {
+    if (!authenticated) {
+      openLogin();
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text(
+          'Mua hàng',
+          style: TextStyle(color: CustomerShellColors.checkoutMessage),
+        ),
+        content: const Text(
+          'Bước xác nhận đặt hàng sẽ được bổ sung sau.',
+          style: TextStyle(color: CustomerShellColors.checkoutMessage),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đã hiểu'),
+          ),
+        ],
       ),
     );
   }
@@ -94,6 +126,7 @@ class _CustomerShellState extends State<CustomerShell>
   }
 
   void selectTab(int value) {
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     if (!authenticated && (value == 1 || value == 2 || value == 4)) {
       requestLogin();
       return;
@@ -195,7 +228,11 @@ class _CustomerShellState extends State<CustomerShell>
           child: switch (tab) {
             1 => const CustomerRewardsScreen(),
             2 => const CustomerMessagesScreen(),
-            3 => CustomerCartScreen(home: home),
+            3 => CustomerCartScreen(
+              home: home,
+              onContinue: () => selectTab(0),
+              onCheckout: checkout,
+            ),
             4 => CustomerAccountScreen(controller: widget.controller),
             _ => CustomerHomeScreen(
               home: home,
@@ -208,7 +245,8 @@ class _CustomerShellState extends State<CustomerShell>
             ),
           },
         ),
-        bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+        bottomNavigationBar:
+            tab == 3 || MediaQuery.viewInsetsOf(context).bottom > 0
             ? null
             : CustomerNavigation(
                 selected: tab,

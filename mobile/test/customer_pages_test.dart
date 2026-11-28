@@ -357,7 +357,12 @@ void main() {
     expect(find.byKey(const ValueKey('customer-cart')), findsOneWidget);
     expect(find.text('2 sản phẩm'), findsOneWidget);
     expect(find.byKey(const ValueKey('products-search')), findsNothing);
-    expect(transport.requests.last.uri.path, '/api/mobile/cart');
+    expect(
+      transport.requests.where(
+        (r) => r.uri.path == '/api/mobile/cart' && r.method == 'GET',
+      ),
+      isNotEmpty,
+    );
     expect(tester.takeException(), isNull);
   });
 }
