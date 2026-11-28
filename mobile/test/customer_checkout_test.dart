@@ -37,6 +37,7 @@ class CheckoutStub extends AuthStubTransport {
       loseRecovery = false,
       changedPrice = false,
       invalidResponse = false;
+  bool noProductDiscount = false;
   int posts = 0, quotes = 0;
   Completer<void>? checkoutHold;
   Map<String, dynamic> order = {
@@ -69,9 +70,11 @@ class CheckoutStub extends AuthStubTransport {
       return result({
         'code': 'CHECKOUT_QUOTED',
         'original': '36000',
-        'subtotal': '32000',
-        'total': usePoints ? '31750' : '32000',
-        'product_discount': '4000',
+        'subtotal': noProductDiscount ? '36000' : '32000',
+        'total': noProductDiscount
+            ? (usePoints ? '35750' : '36000')
+            : (usePoints ? '31750' : '32000'),
+        'product_discount': noProductDiscount ? '0' : '4000',
         'balance': '25',
         'redeemed': usePoints ? '25' : '0',
         'points_discount': usePoints ? '250' : '0',
@@ -362,6 +365,11 @@ void main() {
         );
         await tester.pumpAndSettle();
         expect(find.textContaining('Hộp 3 vỉ'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('checkout-product-image-8')),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Thành tiền:'), findsNothing);
         expect(find.textContaining('2 Vỉ được ưu đãi'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.tap(find.byKey(const ValueKey('checkout-submit')));
@@ -372,6 +380,224 @@ void main() {
       },
     );
   }
+  for (final (noDiscount, usePoints, savings) in [
+    (false, true, '4.250đ'),
+    (true, false, null),
+    (true, true, '250đ'),
+  ]) {
+    testWidgets('Tổng tiền căn hai cột, tiết kiệm $savings và xu $usePoints', (
+      tester,
+    ) async {
+      final transport = CheckoutStub()..noProductDiscount = noDiscount;
+      final auth = testController(transport);
+      addTearDown(auth.dispose);
+      await loginFixture(auth);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: CustomerCheckoutScreen(
+            api: CheckoutApi(auth.api),
+            units: const [8],
+            user: auth.user!,
+            storage: CheckoutStorage(MemoryTokenStore(), 42),
+            onCreated: () {},
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final scroll = find
+          .descendant(
+            of: find.byKey(const ValueKey('checkout-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      if (usePoints) {
+        await tester.scrollUntilVisible(
+          find.byType(Switch),
+          250,
+          scrollable: scroll,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(Switch));
+        await tester.pumpAndSettle();
+      }
+      await tester.scrollUntilVisible(
+        find.text('Điểm thưởng'),
+        250,
+        scrollable: scroll,
+      );
+      await tester.pumpAndSettle();
+      for (final label in [
+        'Tổng tiền',
+        'Giảm giá trực tiếp',
+        'Giảm giá điểm thưởng',
+        'Thành tiền',
+        'Điểm thưởng',
+      ]) {
+        expect(find.byKey(ValueKey('checkout-total-$label')), findsOneWidget);
+      }
+      final saved = find.byKey(const ValueKey('checkout-total-Tiết kiệm được'));
+      if (savings == null) {
+        expect(saved, findsNothing);
+      } else {
+        expect(
+          find.descendant(of: saved, matching: find.text(savings)),
+          findsOneWidget,
+        );
+      }
+      expect(find.text('Trước khuyến mãi'), findsNothing);
+      expect(find.text('Sau khuyến mãi'), findsNothing);
+      final points = find.byKey(
+        const ValueKey('checkout-total-Giảm giá điểm thưởng'),
+      );
+      expect(
+        find.descendant(
+          of: points,
+          matching: find.text(usePoints ? '−250đ' : '0đ'),
+        ),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      expect(transport.posts, 0);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
+  for (final scale in [1.0, 2.0]) {
+    testWidgets(
+      'Chọn địa chỉ từ bảng dưới và mở quản lý địa chỉ, chữ x$scale',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 740);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final transport = CheckoutStub();
+        transport.addresses.add({
+          'MaDiaChi': '10',
+          'TinhThanh': 'Huế',
+          'PhuongXa': 'Thuận Hóa',
+          'DiaChiCuThe': 'Địa chỉ nhận hàng thứ hai',
+          'DiaChiGiao': false,
+        });
+        final auth = testController(transport);
+        addTearDown(auth.dispose);
+        await loginFixture(auth);
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+            home: CustomerCheckoutScreen(
+              api: CheckoutApi(auth.api),
+              units: const [8],
+              user: auth.user!,
+              storage: CheckoutStorage(MemoryTokenStore(), 42),
+              onCreated: () {},
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final delivery = tester.getTopLeft(
+          find.byKey(const ValueKey('checkout-receipt-delivery')),
+        );
+        final pickup = tester.getTopLeft(
+          find.byKey(const ValueKey('checkout-receipt-pickup')),
+        );
+        expect(delivery.dy, pickup.dy);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('checkout-receipt-pickup')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('checkout-receipt-pickup')));
+        await tester.pumpAndSettle();
+        expect(find.text('Nhà thuốc Lan Yến'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('checkout-choose-address')),
+          findsNothing,
+        );
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('checkout-receipt-delivery')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('checkout-receipt-delivery')),
+        );
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('checkout-choose-address')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('checkout-choose-address')));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('checkout-address-sheet')),
+          findsOneWidget,
+        );
+        await tester.scrollUntilVisible(
+          find.byKey(const ValueKey('checkout-address-option-10')),
+          160,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const ValueKey('checkout-address-sheet')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('checkout-address-option-10')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('checkout-address-sheet')),
+          findsNothing,
+        );
+        expect(
+          find.text('Địa chỉ nhận hàng thứ hai, Thuận Hóa, Huế'),
+          findsOneWidget,
+        );
+        await tester.tap(find.byKey(const ValueKey('checkout-choose-address')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const ValueKey('checkout-sheet-add-address')),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('customer-address-management')),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Tính năng quản lý địa chỉ đang được hoàn thiện.'),
+          findsOneWidget,
+        );
+        await tester.pageBack();
+        await tester.pumpAndSettle();
+        expect(
+          find.text('Địa chỉ nhận hàng thứ hai, Thuận Hóa, Huế'),
+          findsOneWidget,
+        );
+        expect(
+          transport.requests.where(
+            (r) => r.method == 'POST' && r.uri.path.endsWith('/addresses'),
+          ),
+          isEmpty,
+        );
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byKey(const ValueKey('checkout-submit')));
+        await tester.pumpAndSettle();
+        final order = transport.requests.singleWhere(
+          (r) => r.method == 'POST' && r.uri.path.endsWith('/orders'),
+        );
+        expect(order.body!['MaDiaChi'], '10');
+        expect(order.body!['HinhThucNhanHang'], 'delivery');
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
+
   testWidgets(
     'QR mở URI đã chuẩn bị; xác nhận Backend mới đổi trạng thái trả tiền',
     (tester) async {
@@ -426,12 +652,12 @@ void main() {
     await loginFixture(auth);
     final key = GlobalKey();
     await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        debugShowCheckedModeBanner: false,
-        home: RepaintBoundary(
-          key: key,
-          child: CustomerCheckoutScreen(
+      RepaintBoundary(
+        key: key,
+        child: MaterialApp(
+          theme: AppTheme.light,
+          debugShowCheckedModeBanner: false,
+          home: CustomerCheckoutScreen(
             api: CheckoutApi(auth.api),
             units: const [8],
             user: auth.user!,
@@ -444,14 +670,56 @@ void main() {
     await tester.pumpAndSettle();
     final boundary =
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    await tester.runAsync(() async {
+    Future<void> capture(String filename) async => tester.runAsync(() async {
       final image = await boundary.toImage();
       final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
       await Directory('build/review').create(recursive: true);
-      await File('build/review/checkout.png')
+      await File('build/review/$filename.png')
           .writeAsBytes(bytes!.buffer.asUint8List());
       image.dispose();
     });
+    await capture('checkout');
+    await tester.tap(find.byKey(const ValueKey('checkout-choose-address')));
+    await tester.pumpAndSettle();
+    await capture('checkout-addresses');
+    await tester.tap(find.byTooltip('Đóng'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Sản phẩm đã chọn (1)'),
+      220,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('checkout-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await capture('checkout-products');
+    await tester.scrollUntilVisible(
+      find.text('Phương thức thanh toán'),
+      220,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('checkout-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await capture('checkout-payment');
+    await tester.scrollUntilVisible(
+      find.text('Thông tin thanh toán'),
+      220,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const ValueKey('checkout-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await tester.pumpAndSettle();
+    await capture('checkout-summary');
     await tester.pumpWidget(const SizedBox());
   });
 }
