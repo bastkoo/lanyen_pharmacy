@@ -98,6 +98,32 @@ class CustomerCartColors {
   static const refresh = AppColors.primaryDark;
   // Chữ snackbar; null giữ Theme hiện tại.
   static const Color? snackbarText = null;
+  // Lời nhắc ở giữa màn hình khi giỏ hàng trống.
+  static const emptyMessage = AppColors.textSecondary;
+  // Chữ nút Tiếp tục mua sắm ở trạng thái giỏ trống.
+  static const emptyAction = AppColors.primaryDark;
+  // Nền hộp thoại xác nhận xóa sản phẩm.
+  static const confirmBackground = AppColors.surface;
+  // Tiêu đề Xóa sản phẩm trong hộp thoại.
+  static const confirmTitle = AppColors.textPrimary;
+  // Câu hỏi có tên sản phẩm trong hộp thoại xác nhận.
+  static const confirmDescription = AppColors.textSecondary;
+  // Biểu tượng thùng rác trong hộp thoại xác nhận.
+  static const confirmIcon = AppColors.error;
+  // Nền tròn nhạt sau icon thùng rác.
+  static const confirmIconBackground = AppColors.errorBackground;
+  // Biểu tượng đóng hộp thoại xác nhận xóa.
+  static const confirmCloseIcon = AppColors.textPrimary;
+  // Nền nút Giữ lại sản phẩm.
+  static const confirmCancelBackground = AppColors.background;
+  // Chữ nút Giữ lại sản phẩm.
+  static const confirmCancelText = AppColors.primaryDark;
+  // Nền nút xác nhận Xóa sản phẩm.
+  static const confirmDeleteBackground = AppColors.error;
+  // Chữ nút xác nhận Xóa sản phẩm.
+  static const confirmDeleteText = AppColors.surface;
+  // Lớp phủ sau hộp thoại; null giữ màu Theme hiện tại.
+  static const Color? confirmBarrier = null;
 }
 
 // Trang giỏ giữ lựa chọn và báo giá, dùng chung dữ liệu lưu giỏ với shell.
@@ -116,6 +142,12 @@ class CustomerCartScreen extends StatefulWidget {
 
 class _CustomerCartScreenState extends State<CustomerCartScreen> {
   late final CustomerCartController controller;
+  bool confirmingRemoval = false;
+  bool get empty =>
+      !widget.home.cartLoading &&
+      widget.home.cartError == null &&
+      widget.home.cart != null &&
+      widget.home.cart!.items.isEmpty;
   @override
   void initState() {
     super.initState();
@@ -129,6 +161,20 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
   }
 
   Future<void> edit(CartLine line, int quantity, {int? unitId}) async {
+    if (quantity == 0) {
+      if (confirmingRemoval || controller.busy) return;
+      final owner = widget.home.customerId;
+      confirmingRemoval = true;
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierColor: CustomerCartColors.confirmBarrier,
+        builder: (_) => _ConfirmCartRemoval(name: line.name),
+      );
+      confirmingRemoval = false;
+      if (!mounted || confirmed != true || owner != widget.home.customerId) {
+        return;
+      }
+    }
     final ok = await widget.home.editCart(
       line,
       quantity,
@@ -167,70 +213,204 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
           style: TextStyle(color: CustomerCartColors.headerTitle),
         ),
       ),
-      bottomNavigationBar: _CartSummary(
-        controller: controller,
-        onCheckout: widget.onCheckout,
-      ),
-      body: RefreshIndicator(
-        color: CustomerCartColors.refresh,
-        onRefresh: () async {
-          await widget.home.loadCart();
-          await controller.refresh();
-        },
-        child: ListView(
-          key: const ValueKey('customer-cart'),
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            _CartSelection(
-              controller: controller,
-              onContinue: widget.onContinue,
+      bottomNavigationBar: empty
+          ? null
+          : _CartSummary(controller: controller, onCheckout: widget.onCheckout),
+      body: empty
+          ? _EmptyCart(onContinue: widget.onContinue)
+          : RefreshIndicator(
+              color: CustomerCartColors.refresh,
+              onRefresh: () async {
+                await widget.home.loadCart();
+                await controller.refresh();
+              },
+              child: ListView(
+                key: const ValueKey('customer-cart'),
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  _CartSelection(
+                    controller: controller,
+                    onContinue: widget.onContinue,
+                  ),
+                  if (widget.home.cartLoading && widget.home.cart == null)
+                    const CustomerStatus(loading: true)
+                  else if (widget.home.cartError != null)
+                    CustomerStatus(
+                      message: widget.home.cartError!,
+                      onRetry: widget.home.loadCart,
+                    )
+                  else if (controller.lines.isEmpty)
+                    const CustomerStatus(message: 'Giỏ hàng chưa có sản phẩm.')
+                  else ...[
+                    Text(
+                      '${widget.home.cart?.productCount ?? 0} sản phẩm',
+                      style: const TextStyle(
+                        color: CustomerCartColors.selectionLabel,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    if (controller.loading)
+                      const LinearProgressIndicator(
+                        color: CustomerCartColors.refresh,
+                      ),
+                    if (controller.error != null)
+                      CustomerStatus(
+                        message: controller.error!,
+                        onRetry: controller.refresh,
+                      ),
+                    for (final line in controller.lines)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _SwipeCartLine(
+                          key: ValueKey('cart-line-${line.unitId}'),
+                          unitId: line.unitId,
+                          disabled: controller.busy,
+                          onDelete: () => edit(line, 0),
+                          child: _CartProductCard(
+                            line: line,
+                            selected: controller.selected.contains(line.unitId),
+                            busy: controller.busy,
+                            onToggle: () => controller.toggle(line.unitId),
+                            onQuantity: (q) => edit(line, q),
+                            onUnit: (id) =>
+                                edit(line, line.quantity, unitId: id),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
             ),
-            if (widget.home.cartLoading && widget.home.cart == null)
-              const CustomerStatus(loading: true)
-            else if (widget.home.cartError != null)
-              CustomerStatus(
-                message: widget.home.cartError!,
-                onRetry: widget.home.loadCart,
-              )
-            else if (controller.lines.isEmpty)
-              const CustomerStatus(message: 'Giỏ hàng chưa có sản phẩm.')
-            else ...[
-              Text(
-                '${widget.home.cart?.productCount ?? 0} sản phẩm',
-                style: const TextStyle(
-                  color: CustomerCartColors.selectionLabel,
+    ),
+  );
+}
+
+// Giỏ trống chỉ hiện lời nhắc và đường dẫn tiếp tục mua sắm ở giữa màn hình.
+class _EmptyCart extends StatelessWidget {
+  const _EmptyCart({required this.onContinue});
+  final VoidCallback onContinue;
+  @override
+  Widget build(BuildContext context) => Center(
+    key: const ValueKey('cart-empty'),
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Giỏ hàng hiện tại đang trống',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: CustomerCartColors.emptyMessage,
+              fontSize: 16,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            key: const ValueKey('cart-empty-continue'),
+            onPressed: onContinue,
+            style: TextButton.styleFrom(
+              foregroundColor: CustomerCartColors.emptyAction,
+            ),
+            child: const Text('Tiếp tục mua sắm'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// Hộp xác nhận cùng kiểu bo góc với thông báo đăng nhập, chỉ xóa sau khi xác nhận.
+class _ConfirmCartRemoval extends StatelessWidget {
+  const _ConfirmCartRemoval({required this.name});
+  final String name;
+  @override
+  Widget build(BuildContext context) => Dialog(
+    key: const ValueKey('cart-delete-dialog'),
+    backgroundColor: CustomerCartColors.confirmBackground,
+    insetPadding: const EdgeInsets.all(20),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                tooltip: 'Đóng',
+                onPressed: () => Navigator.pop(context, false),
+                icon: const Icon(
+                  Icons.close,
+                  color: CustomerCartColors.confirmCloseIcon,
                 ),
               ),
-              const SizedBox(height: 12),
-              if (controller.loading)
-                const LinearProgressIndicator(
-                  color: CustomerCartColors.refresh,
-                ),
-              if (controller.error != null)
-                CustomerStatus(
-                  message: controller.error!,
-                  onRetry: controller.refresh,
-                ),
-              for (final line in controller.lines)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _SwipeCartLine(
-                    key: ValueKey('cart-line-${line.unitId}'),
-                    unitId: line.unitId,
-                    disabled: controller.busy,
-                    onDelete: () => edit(line, 0),
-                    child: _CartProductCard(
-                      line: line,
-                      selected: controller.selected.contains(line.unitId),
-                      busy: controller.busy,
-                      onToggle: () => controller.toggle(line.unitId),
-                      onQuantity: (q) => edit(line, q),
-                      onUnit: (id) => edit(line, line.quantity, unitId: id),
-                    ),
+            ),
+            Container(
+              width: 72,
+              height: 72,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: CustomerCartColors.confirmIconBackground,
+              ),
+              child: const Icon(
+                Icons.delete_outline,
+                size: 36,
+                color: CustomerCartColors.confirmIcon,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Xóa sản phẩm?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: CustomerCartColors.confirmTitle,
+                fontSize: 22,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Bạn có muốn xóa “$name” khỏi giỏ hàng không?',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: CustomerCartColors.confirmDescription,
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                TextButton(
+                  key: const ValueKey('cart-delete-cancel'),
+                  onPressed: () => Navigator.pop(context, false),
+                  style: TextButton.styleFrom(
+                    backgroundColor: CustomerCartColors.confirmCancelBackground,
+                    foregroundColor: CustomerCartColors.confirmCancelText,
+                    minimumSize: const Size(120, 48),
                   ),
+                  child: const Text('Giữ lại'),
                 ),
-            ],
+                FilledButton(
+                  key: const ValueKey('cart-delete-confirm'),
+                  onPressed: () => Navigator.pop(context, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: CustomerCartColors.confirmDeleteBackground,
+                    foregroundColor: CustomerCartColors.confirmDeleteText,
+                    minimumSize: const Size(120, 48),
+                  ),
+                  child: const Text('Xóa sản phẩm'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -898,13 +1078,14 @@ class _CartSummary extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (summary?.total != null)
+                    if (summary?.total != null &&
+                        summary!.savings > BigInt.zero)
                       Text.rich(
                         TextSpan(
                           text: 'Tiết kiệm được ',
                           children: [
                             TextSpan(
-                              text: formatVnd(summary!.savings),
+                              text: formatVnd(summary.savings),
                               style: const TextStyle(
                                 color: CustomerCartColors.savingAmount,
                               ),
@@ -916,7 +1097,9 @@ class _CartSummary extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
-                    const SizedBox(height: 6),
+                    if (summary?.total != null &&
+                        summary!.savings > BigInt.zero)
+                      const SizedBox(height: 6),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

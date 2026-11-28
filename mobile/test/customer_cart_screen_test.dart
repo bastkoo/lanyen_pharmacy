@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lan_yen_pharmacy/core/network/api.dart';
 import 'package:lan_yen_pharmacy/core/theme/app_theme.dart';
+import 'package:lan_yen_pharmacy/app/app_router.dart';
 import 'package:lan_yen_pharmacy/features/customer/customer_cart_controller.dart';
 import 'package:lan_yen_pharmacy/features/customer/customer_cart_screen.dart';
 import 'package:lan_yen_pharmacy/features/customer/customer_home_controller.dart';
@@ -333,19 +334,176 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(delete);
         await tester.pumpAndSettle();
+        expect(
+          find.byKey(const ValueKey('cart-delete-dialog')),
+          findsOneWidget,
+        );
+        expect(home.cart!.items.length, 2);
+        await tester.tap(find.byKey(const ValueKey('cart-delete-cancel')));
+        await tester.pumpAndSettle();
+        expect(home.cart!.items.length, 2);
+        await tester.tap(delete);
+        await tester.pumpAndSettle();
+        final confirm = find.byKey(const ValueKey('cart-delete-confirm'));
+        await tester.ensureVisible(confirm);
+        await tester.pumpAndSettle();
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
         expect(home.cart!.items.length, 1);
+        expect(tester.getRect(summary).bottom, before.bottom);
         final minus = find.byKey(const ValueKey('cart-minus-102'));
         await tester.ensureVisible(minus);
         await tester.pumpAndSettle();
         await tester.tap(minus);
         await tester.pumpAndSettle();
+        expect(home.cart!.items.length, 1);
+        expect(
+          find.byKey(const ValueKey('cart-delete-dialog')),
+          findsOneWidget,
+        );
+        await tester.ensureVisible(confirm);
+        await tester.pumpAndSettle();
+        await tester.tap(confirm);
+        await tester.pumpAndSettle();
         expect(home.cart!.items, isEmpty);
-        expect(find.text('Giỏ hàng chưa có sản phẩm.'), findsOneWidget);
-        expect(tester.getRect(summary).bottom, before.bottom);
+        expect(find.text('Giỏ hàng hiện tại đang trống'), findsOneWidget);
+        expect(summary, findsNothing);
+        expect(find.byType(Checkbox), findsNothing);
         expect(tester.takeException(), isNull);
       },
     );
   }
+
+  testWidgets(
+    'Giỏ trống chỉ có lời nhắc; Tiếp tục mua sắm mở danh sách sản phẩm công khai',
+    (tester) async {
+      final auth = testController(catalogFixture());
+      addTearDown(auth.dispose);
+      await auth.restoreSession();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: AppRouter(controller: auth),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('customer-tab-3')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('cart-empty')), findsOneWidget);
+      expect(find.byKey(const ValueKey('cart-summary')), findsNothing);
+      expect(find.byKey(const ValueKey('cart-buy')), findsNothing);
+      expect(find.byType(Checkbox), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('cart-empty-continue')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('products-search')), findsOneWidget);
+      expect(find.text('Sản phẩm'), findsOneWidget);
+      expect(find.byKey(const ValueKey('login-required-dialog')), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Giỏ JWT giảm về 0 phải xác nhận; hủy không gửi API xóa', (
+    tester,
+  ) async {
+    final transport = catalogFixture();
+    final auth = testController(transport);
+    addTearDown(auth.dispose);
+    await loginFixture(auth);
+    transport.cartItems.add({
+      'MaThuoc': 1,
+      'MaDonGia': 101,
+      'SoLuong': 1,
+      'TenThuoc': 'A',
+    });
+    final home = CustomerHomeController(
+      CatalogApi(auth.api.client),
+      cartApi: CartApi(auth.api),
+      guestCart: auth.guestCart,
+      customerId: auth.user!.id,
+    );
+    await home.loadCart();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: _HomeOwner(
+          home: home,
+          child: CustomerCartScreen(
+            home: home,
+            onContinue: () {},
+            onCheckout: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final minus = find.byKey(const ValueKey('cart-minus-101'));
+    await tester.tap(minus);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('cart-delete-cancel')));
+    await tester.pumpAndSettle();
+    expect(transport.cartItems.length, 1);
+    expect(
+      transport.requests.where((r) => r.uri.path.endsWith('/items/remove')),
+      isEmpty,
+    );
+    await tester.tap(minus);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('cart-delete-confirm')));
+    await tester.pumpAndSettle();
+    expect(transport.cartItems, isEmpty);
+    expect(
+      transport.requests
+          .where((r) => r.uri.path.endsWith('/items/remove'))
+          .length,
+      1,
+    );
+    expect(find.byKey(const ValueKey('cart-empty')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Không giảm giá thì ẩn tiết kiệm 0đ, vẫn hiện thành tiền và xu', (
+    tester,
+  ) async {
+    final transport = catalogFixture();
+    final data = productFixture(1);
+    data.remove('KhuyenMai');
+    (data['DonViGia'] as List).first.remove('GiaKhuyenMai');
+    transport.catalogData['products/1'] = {
+      'code': 'PRODUCT_FOUND',
+      'product': data,
+    };
+    final auth = testController(transport);
+    addTearDown(auth.dispose);
+    final home = CustomerHomeController(
+      CatalogApi(auth.api.client),
+      cartApi: CartApi(auth.api),
+      guestCart: auth.guestCart,
+    );
+    final product = CatalogProduct.fromJson(data);
+    await home.addToCart(product, product.displayPrice!);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: _HomeOwner(
+          home: home,
+          child: CustomerCartScreen(
+            home: home,
+            onContinue: () {},
+            onCheckout: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Tiết kiệm được'), findsNothing);
+    expect(find.byKey(const ValueKey('cart-original-total')), findsNothing);
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('cart-total'))).data,
+      '120.000đ',
+    );
+    expect(find.text('Dự kiến +120 xu'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Ảnh giỏ hàng dùng font thật và biểu tượng xu Website', (
     tester,
@@ -403,14 +561,22 @@ void main() {
     expect(find.text('Giảm 15% · Chương trình khuyến mãi'), findsOneWidget);
     final boundary =
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
-    await tester.runAsync(() async {
+    Future<void> capture(String name) async => tester.runAsync(() async {
       final image = await boundary.toImage();
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      final file = File('build/home-preview/cart.png');
+      final file = File('build/home-preview/$name.png');
       await file.parent.create(recursive: true);
       await file.writeAsBytes(data!.buffer.asUint8List());
       image.dispose();
     });
+    await capture('cart');
+    await tester.tap(find.byKey(const ValueKey('cart-minus-101')));
+    await tester.pumpAndSettle();
+    await capture('cart-delete-confirm');
+    await tester.tap(find.byKey(const ValueKey('cart-delete-confirm')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('cart-empty')), findsOneWidget);
+    await capture('cart-empty');
     expect(tester.takeException(), isNull);
   });
 }

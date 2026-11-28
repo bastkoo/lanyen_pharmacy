@@ -230,7 +230,7 @@ class _CustomerShellState extends State<CustomerShell>
             2 => const CustomerMessagesScreen(),
             3 => CustomerCartScreen(
               home: home,
-              onContinue: () => selectTab(0),
+              onContinue: () => openProducts('', null),
               onCheckout: checkout,
             ),
             4 => CustomerAccountScreen(controller: widget.controller),
