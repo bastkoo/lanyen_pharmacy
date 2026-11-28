@@ -33,6 +33,7 @@ class AuthStubTransport implements ApiTransport {
   final List<Map<String, dynamic>> cartItems = [];
   final Set<String> mergedGuestBatches = {};
   bool loseMergeResponse = false;
+  String? cartMergeFailure;
   String? cartFailure;
   int cartAdds = 0;
   Map<String, dynamic>? rewardsData;
@@ -232,6 +233,9 @@ class AuthStubTransport implements ApiTransport {
         return const ApiResponse(200, '{"code":"CART_ITEM_UPDATED"}');
       }
       if (path.endsWith('/merge') && method == 'POST') {
+        if (cartMergeFailure != null) {
+          return ApiResponse(409, jsonEncode({'code': cartMergeFailure}));
+        }
         if (mergedGuestBatches.add(body!['merge_id'] as String)) {
           for (final line in body['items'] as List) {
             final existing = cartItems

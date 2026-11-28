@@ -24,7 +24,9 @@ class GuestCartStorage {
   }
 
   Future<void> save(Map<String, dynamic> value) =>
-      store.write(jsonEncode(value));
+      (value['items'] as List).isEmpty && value['pending'] == null
+      ? store.clear()
+      : store.write(jsonEncode(value));
   static String newId() {
     final random = Random.secure();
     return List.generate(

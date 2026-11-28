@@ -5,6 +5,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import patch
 
 import fakeredis
+from sqlalchemy.exc import SQLAlchemyError
 from app import create_app
 from app.services import mobile_auth_service
 from app.services.otp_service import AuthError
@@ -23,6 +24,8 @@ class MobileCartTests(unittest.TestCase):
         self.user = NS(MaNguoiDung=42, HoTen='An', VaiTro=0, TrangThai=False,
                        SDT='+84901234567', Email=None, AnhDaiDien=None)
         self.mock('sqlalchemy.engine.Engine.connect', side_effect=AssertionError('Real DB forbidden'))
+        self.mock('app.services.cart_service.db.session.flush')
+        self.commit = self.mock('app.services.cart_service.db.session.commit')
         self.mock('app.services.auth_service.users.find_by_id', return_value=self.user)
         with self.app.app_context():
             self.tokens = mobile_auth_service.authenticated(self.user)
@@ -164,7 +167,8 @@ class MobileCartTests(unittest.TestCase):
         for _ in range(2):
             response = self.client.post('/api/mobile/cart/merge', headers=self.headers, json=data)
             self.assertEqual(response.json, {'code': 'CART_MERGED'})
-        add.assert_called_once_with(42, [(7, 8, 3)], check_stock=True)
+        add.assert_called_once_with(42, [(7, 8, 3)], check_stock=True, commit=False)
+        self.commit.assert_called_once()
         self.assertNotIn('Set-Cookie', response.headers)
         self.assertEqual(response.headers['Access-Control-Allow-Origin'], 'http://127.0.0.1:5510')
 
@@ -200,6 +204,39 @@ class MobileCartTests(unittest.TestCase):
         self.assertIsNone(self.app.extensions['otp_redis'].get('mobile:cart-merge:42:' + data['merge_id']))
         add.side_effect = None
         self.assertEqual(self.client.post('/api/mobile/cart/merge', headers=self.headers, json=data).status_code, 200)
+
+    def test_database_failure_before_commit_can_retry_same_batch(self):
+        add = self.mock('app.services.cart_service.add_database')
+        flush = self.mock('app.services.cart_service.db.session.flush',
+                          side_effect=SQLAlchemyError('isolated pre-commit failure'))
+        rollback = self.mock('app.services.cart_service.db.session.rollback')
+        data = self.batch()
+        key = 'mobile:cart-merge:42:' + data['merge_id']
+        result = self.client.post('/api/mobile/cart/merge', headers=self.headers, json=data)
+        self.assertEqual(result.json['code'], 'DATABASE_UNAVAILABLE')
+        self.assertTrue(rollback.called)
+        self.commit.assert_not_called()
+        self.assertIsNone(self.app.extensions['otp_redis'].get(key))
+        flush.side_effect = None
+        result = self.client.post('/api/mobile/cart/merge', headers=self.headers, json=data)
+        self.assertEqual(result.json['code'], 'CART_MERGED')
+        self.commit.assert_called_once()
+        self.assertEqual(add.call_count, 2)
+        self.assertEqual(self.client.post('/api/mobile/cart/merge', headers=self.headers,
+                                          json=data).json['code'], 'CART_MERGED')
+        self.assertEqual(add.call_count, 2)
+
+    def test_uncertain_commit_keeps_pending_and_never_replays_write(self):
+        add = self.mock('app.services.cart_service.add_database')
+        self.mock('app.services.cart_service.db.session.rollback')
+        self.commit.side_effect = SQLAlchemyError('isolated uncertain commit')
+        data = self.batch()
+        result = self.client.post('/api/mobile/cart/merge', headers=self.headers, json=data)
+        self.assertEqual(result.json['code'], 'DATABASE_UNAVAILABLE')
+        self.commit.side_effect = None
+        result = self.client.post('/api/mobile/cart/merge', headers=self.headers, json=data)
+        self.assertEqual(result.json['code'], 'CART_MERGE_PENDING')
+        add.assert_called_once()
 
     def test_failure_to_save_receipt_after_commit_does_not_allow_double_add(self):
         from redis import RedisError

@@ -239,15 +239,17 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
                     onContinue: widget.onContinue,
                   ),
                   if (widget.home.cartLoading && widget.home.cart == null)
-                    const CustomerStatus(loading: true)
-                  else if (widget.home.cartError != null)
+                    const CustomerStatus(loading: true),
+                  if (widget.home.cartError != null)
                     CustomerStatus(
                       message: widget.home.cartError!,
                       onRetry: widget.home.loadCart,
-                    )
-                  else if (controller.lines.isEmpty)
+                    ),
+                  if (controller.lines.isEmpty &&
+                      widget.home.cartError == null &&
+                      !widget.home.cartLoading)
                     const CustomerStatus(message: 'Giỏ hàng chưa có sản phẩm.')
-                  else ...[
+                  else if (controller.lines.isNotEmpty) ...[
                     Text(
                       '${widget.home.cart?.productCount ?? 0} sản phẩm',
                       style: const TextStyle(

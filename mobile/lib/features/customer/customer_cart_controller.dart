@@ -17,7 +17,8 @@ class CustomerCartController extends ChangeNotifier {
   String? error;
   bool loading = false, _disposed = false;
   int _version = 0;
-  bool get busy => home.adding || home.cartLoading || loading;
+  bool get busy =>
+      home.adding || home.cartLoading || home.cartError != null || loading;
   bool get allSelected =>
       (home.cart?.items.isNotEmpty ?? false) &&
       selected.length == home.cart!.items.length;

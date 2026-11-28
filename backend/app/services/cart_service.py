@@ -58,7 +58,7 @@ def require_unit(product_id, unit_id, check_stock=False, for_update=False):
     return unit
 
 
-def add_database(user_id, entries, check_stock=False):
+def add_database(user_id, entries, check_stock=False, *, commit=True):
     if carts.lock_user(user_id) is None:
         raise AuthError('UNAUTHENTICATED', 401)
     from app.services.consultation_service import require_authorization
@@ -76,7 +76,9 @@ def add_database(user_id, entries, check_stock=False):
                 existing.remove(duplicate)
         else:
             existing.append(carts.create(user_id, product_id, unit_id, quantity))
-    db.session.commit()
+    # Web giữ commit mặc định; Mobile merge quản lý ranh giới flush/commit để retry an toàn.
+    if commit:
+        db.session.commit()
 
 
 @operation

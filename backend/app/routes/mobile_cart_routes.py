@@ -102,6 +102,8 @@ def merge(data):
 
 @mobile_cart_bp.errorhandler(AuthError)
 def cart_error(error):
+    if error.status == 409:
+        current_app.logger.warning('Mobile cart request rejected: %s', error.code)
     return jsonify(code=error.code), error.status
 
 

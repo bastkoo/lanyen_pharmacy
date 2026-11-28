@@ -93,6 +93,10 @@ class _CustomerShellState extends State<CustomerShell>
     }
     await cartSessionUpdate;
     if (!mounted || !authenticated) return;
+    if (home.cartLoading || home.cartError != null || home.cart == null) {
+      showCart();
+      return;
+    }
     await openPage(
       CustomerCheckoutScreen(
         api: CheckoutApi(widget.controller.api),

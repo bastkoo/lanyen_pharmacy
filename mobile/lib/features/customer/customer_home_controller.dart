@@ -85,6 +85,7 @@ class CustomerHomeController extends ChangeNotifier {
     if (_disposed) return;
     final version = _cartVersion;
     final owner = customerId;
+    var readingAccountCart = false;
     cartLoading = true;
     cartError = null;
     _emit();
@@ -112,7 +113,8 @@ class CustomerHomeController extends ChangeNotifier {
             if (pending == null && (data['items'] as List).isNotEmpty) {
               pending = {
                 'owner': owner,
-                'merge_id': data['batch_id'] ?? GuestCartStorage.newId(),
+                // Mã chỉ thuộc payload đã đóng băng, không dùng lại mã giỏ khách cũ.
+                'merge_id': GuestCartStorage.newId(),
                 'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
                 'items': data['items'],
               };
@@ -149,6 +151,8 @@ class CustomerHomeController extends ChangeNotifier {
             }
           }
         }
+        if (_disposed || version != _cartVersion) return;
+        readingAccountCart = true;
         value = await cartApi!.read();
       }
       if (!_disposed && version == _cartVersion) cart = value;
@@ -166,14 +170,38 @@ class CustomerHomeController extends ChangeNotifier {
           _ =>
             'Chưa thể tải hoặc đồng bộ giỏ hàng. Giỏ khách vẫn được giữ. ${error.message}',
         };
+        if (owner != null && !readingAccountCart) {
+          await _readAccountCartAfterSyncFailure(version);
+        }
       }
     } on Exception {
       if (version == _cartVersion) {
         cartError = 'Chưa thể đọc hoặc lưu giỏ trên thiết bị. Dữ liệu chưa được xóa. Vui lòng thử lại.';
+        if (owner != null && !readingAccountCart) {
+          await _readAccountCartAfterSyncFailure(version);
+        }
       }
     } finally {
       cartLoading = false;
       _emit();
+    }
+  }
+
+  // Lỗi giỏ khách không che giỏ đã lưu của tài khoản; vẫn giữ cảnh báo đồng bộ.
+  Future<void> _readAccountCartAfterSyncFailure(int version) async {
+    if (_disposed || version != _cartVersion || cartApi == null) return;
+    try {
+      final value = await cartApi!.read();
+      if (!_disposed && version == _cartVersion) cart = value;
+    } on ApiException catch (failure) {
+      if (!_disposed && version == _cartVersion) {
+        cartError =
+            '$cartError Chưa tải được giỏ tài khoản. ${failure.message}';
+      }
+    } on Exception {
+      if (!_disposed && version == _cartVersion) {
+        cartError = '$cartError Chưa tải được giỏ tài khoản. Vui lòng thử lại.';
+      }
     }
   }
 
@@ -198,7 +226,6 @@ class CustomerHomeController extends ChangeNotifier {
     try {
       if (guestCart != null && customerId == null) {
         final data = await guestCart!.read();
-        data['batch_id'] ??= GuestCartStorage.newId();
         final entries = (data['items'] as List).cast<Map<String, dynamic>>();
         final index = entries.indexWhere(
           (item) =>
@@ -264,6 +291,7 @@ class CustomerHomeController extends ChangeNotifier {
     int? destinationId,
   }) async {
     if (_disposed || adding || cartLoading || quantity < 0) return false;
+    if (customerId != null && cartError != null) return false;
     final version = _cartVersion;
     final target = destinationId ?? line.unitId;
     adding = true;

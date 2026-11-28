@@ -275,6 +275,10 @@ riêng biệt đã lưu qua JWT, không cộng tổng số lượng hoặc đế
   hoàn tất trả thành công và không cộng lại. Trạng thái pending không được phát lại
   lệnh ghi khi chưa rõ commit; báo `CART_MERGE_PENDING` và giữ dữ liệu để đối chiếu.
   Batch hết hạn trả `CART_MERGE_EXPIRED`; lỗi kho biên nhận trả `CART_SYNC_UNAVAILABLE`.
+  Lỗi truy vấn/flush trước commit được rollback rồi xóa biên nhận chờ để cùng batch
+  có thể thử lại. Lỗi tại commit vẫn giữ biên nhận vì chưa chắc kết quả ghi.
+  Khi đồng bộ lỗi, Mobile vẫn đọc giỏ CSDL để hiển thị cùng cảnh báo, giữ bản chờ
+  cục bộ và chặn chuyển từ đăng nhập sang thanh toán cho đến khi đồng bộ thành công.
   Không thay schema, không thay endpoint/session/cookie giỏ Web.
 
 ### Điểm thưởng và điểm danh hằng ngày (Mobile)

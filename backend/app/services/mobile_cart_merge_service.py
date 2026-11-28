@@ -3,7 +3,9 @@ import hashlib
 import json
 import time
 
+from flask import current_app
 from redis import RedisError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.services import cart_service, otp_service
 from app.services.otp_service import AuthError
@@ -27,6 +29,10 @@ def merge(owner_id, data):
                 previous = previous.decode()
             if previous == done:
                 return {'code': 'CART_MERGED'}
+            # Không log owner, payload hoặc mã batch; chỉ ghi nguyên nhân để đối chiếu lỗi 409.
+            reason = ('previous_request_pending' if previous == pending
+                      else 'receipt_payload_mismatch')
+            current_app.logger.warning('Mobile cart merge blocked: %s', reason)
             raise AuthError('CART_MERGE_PENDING', 409)
     except RedisError:
         raise AuthError('CART_SYNC_UNAVAILABLE', 503) from None
@@ -34,15 +40,22 @@ def merge(owner_id, data):
         # Một transaction cho cả giỏ, cộng theo sản phẩm + đơn vị như Web.
         cart_service.add_database(owner_id, [
             (item['MaThuoc'], item['MaDonGia'], item['SoLuong']) for item in data['items']
-        ], check_stock=True)
-    except AuthError:
-        # Lỗi nghiệp vụ xảy ra trước commit: rollback rồi mới cho phép thử lại.
+        ], check_stock=True, commit=False)
+        cart_service.db.session.flush()
+    except (AuthError, SQLAlchemyError) as error:
+        # Chưa gọi commit: rollback thành công chứng minh batch chưa được lưu.
         cart_service.db.session.rollback()
         try:
             cache.delete(key)
         except RedisError:
             raise AuthError('CART_MERGE_PENDING', 409) from None
+        if isinstance(error, SQLAlchemyError):
+            # Chỉ ghi loại exception, không ghi SQL/connection string/tham số.
+            current_app.logger.warning('Mobile cart merge rolled back before commit: %s',
+                                       type(error).__name__)
         raise
+    # Mất kết nối lúc commit có thể đã ghi thành công: không xóa biên nhận pending.
+    cart_service.db.session.commit()
     try:
         cache.set(key, done, ex=MAX_AGE + 3600)
     except RedisError:
