@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 // BẢNG MÀU DÙNG CHUNG — Green 1.0 và màu chức năng đã có của Website.
 abstract final class AppColors {
+  // Màu nền cố định cho Appbar ngoài trang chủ.
+  static const appBarBackground = primaryDark;
+  // Chữ và biểu tượng trên Appbar ngoài trang chủ.
+  static const appBarForeground = surface;
+  // Không phủ màu khác khi cuộn Appbar.
+  static const appBarSurfaceTint = Color(0x00000000);
   // Màu thương hiệu cho hành động chính.
   static const primary = Color(0xFF16865B);
   // Màu xanh đậm cho chữ, focus và trạng thái nhấn.

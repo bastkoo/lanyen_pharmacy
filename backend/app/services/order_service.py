@@ -51,10 +51,18 @@ def serialize(order, legacy_payment=True):
 
 
 @operation
-def create(user, data, reorder_id=None, *, counter=None, entries=None, offer_id=None):
+def create(user, data, reorder_id=None, *, counter=None, entries=None, offer_id=None, mobile_request=None):
     # Serialize checkout with cart mutations and other orders for this account.
     if carts.lock_user(user.MaNguoiDung) is None:
         raise AuthError('UNAUTHENTICATED', 401)
+    if mobile_request is not None:
+        previous = orders.find_mobile_request(user.MaNguoiDung, mobile_request['id'])
+        if previous is not None:
+            if previous.DuLieuHoanTra['mobile_request']['hash'] != mobile_request['hash']:
+                raise AuthError('CHECKOUT_REQUEST_CONFLICT', 409)
+            result = serialize(previous, legacy_payment=False)
+            db.session.commit()
+            return result
     environment = gateway_config()['SEPAY_ENV'] if data['PhuongThucThanhToan'] == 1 else None
     records = ([] if reorder_id is not None or counter is not None or offer_id is not None else
                [item for item in carts.list_items(user.MaNguoiDung) if item.MaDonGia in data['MaDonGia']])
@@ -67,7 +75,9 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None, offer_id=
         quote = quote_offer(user, offer_id, lock_promotions=True)
     else:
         quote = (reorder_quote(user.MaNguoiDung, reorder_id, data['MaChiTiet'], lock=True)
-                 if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True, **({'entries': entries} if counter is not None else {})))
+                 if reorder_id is not None else get_cart(set(data['MaDonGia']), lock_promotions=True,
+                     **({'entries': entries} if counter is not None else {}),
+                     **({'owner_id': user.MaNguoiDung} if mobile_request is not None else {})))
     if not quote['items'] or any(item['GiaBan'] is None or not item['ConHang'] for item in quote['items']):
         raise AuthError('OUT_OF_STOCK', 409)
     if counter is None:
@@ -142,7 +152,8 @@ def create(user, data, reorder_id=None, *, counter=None, entries=None, offer_id=
         DoiDiem=redeemed > 0,
         DuLieuHoanTra={'version': 1, 'batches': allocations, 'points': redeemed, 'lines': return_lines,
             'promotions': [dict(MaChuongTrinh=promotion_id, MaThuoc=product_id, SoLuong=quantity)
-                           for (promotion_id, product_id), quantity in sorted(promotion_required.items())]},
+                           for (promotion_id, product_id), quantity in sorted(promotion_required.items())],
+            **({'mobile_request': mobile_request} if mobile_request is not None else {})},
         TrangThaiDonHang=(3 if counter else 1) if data['PhuongThucThanhToan'] == 0 else 0,
         PhuongThucThanhToan=data['PhuongThucThanhToan'], TrangThaiThanhToan=1 if counter and data['PhuongThucThanhToan'] == 0 else 0,
         MoiTruongThanhToan=environment,

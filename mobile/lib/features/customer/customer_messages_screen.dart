@@ -7,6 +7,8 @@ class CustomerMessagesColors {
   // Nền trang tư vấn/nhắn tin.
   static const background = AppColors.background;
   // Tên trang Tư vấn thuốc ở thanh trên.
+  static const headerTitle = AppColors.appBarForeground;
+  // Chữ Dược sĩ đồng hành cùng bạn trong khối giới thiệu.
   static const title = AppColors.textPrimary;
   // Biểu tượng dược sĩ hỗ trợ ở khối giới thiệu.
   static const pharmacistIcon = AppColors.primaryDark;
@@ -25,7 +27,7 @@ class CustomerMessagesScreen extends StatelessWidget {
     appBar: AppBar(
       title: const Text(
         'Tư vấn thuốc',
-        style: TextStyle(color: CustomerMessagesColors.title),
+        style: TextStyle(color: CustomerMessagesColors.headerTitle),
       ),
     ),
     body: const _ConsultationIntroduction(),

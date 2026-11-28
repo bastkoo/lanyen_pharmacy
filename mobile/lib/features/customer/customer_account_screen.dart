@@ -6,10 +6,12 @@ import 'customer_components.dart';
 
 class CustomerAccountColors {
   CustomerAccountColors._();
-  // Nền toàn trang và thanh tiêu đề phía trên.
+  // Nền toàn trang Tài khoản, bên dưới Appbar.
   static const pageBackground = AppColors.background;
+  // Nền xanh cố định của Appbar Tài khoản.
+  static const headerBackground = AppColors.appBarBackground;
   // Chữ tiêu đề trang và mũi tên quay lại ở AppBar.
-  static const appBarForeground = AppColors.textPrimary;
+  static const appBarForeground = AppColors.appBarForeground;
   // Chữ tiêu đề của trang tài khoản.
   static const accountTitle = AppColors.textPrimary;
 
@@ -105,7 +107,7 @@ class CustomerAccountScreen extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: CustomerAccountColors.pageBackground,
     appBar: AppBar(
-      backgroundColor: CustomerAccountColors.pageBackground,
+      backgroundColor: CustomerAccountColors.headerBackground,
       foregroundColor: CustomerAccountColors.appBarForeground,
       title: const Text('Tài khoản'),
     ),

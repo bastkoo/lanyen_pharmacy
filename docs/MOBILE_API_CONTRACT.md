@@ -299,3 +299,39 @@ riêng biệt đã lưu qua JWT, không cộng tổng số lượng hoặc đế
   hoặc qua nửa đêm theo chênh lệch server_time/next_refresh_at; không dựa vào đồng
   hồ điện thoại để cấp xu. Sau POST tải lại số dư/lịch sử; nếu mất phản hồi chỉ GET
   để đối chiếu, không tự phát lại POST. Chỉ refresh/retry khi TOKEN_EXPIRED trước xử lý.
+
+## Checkout Mobile JWT và SePay
+
+- Tất cả endpoint nghiệp vụ dưới `/api/mobile/checkout` yêu cầu Bearer JWT Customer;
+  chủ giỏ, địa chỉ, đơn và xu lấy từ JWT, không dùng cookie/session của Website.
+- `POST /quote`: `{MaDonGia: [id đơn vị đã chọn], DoiDiem: boolean}`. Trả
+  `CHECKOUT_QUOTED` với `items`, `original`, `subtotal`, `product_discount`, `balance`,
+  `redeemed`, `points_discount`, `total`, `estimated_points`. Tiền/xu là chuỗi số nguyên.
+  Giá và lượng thực sự nhận ưu đãi lấy từ định giá hiện có; xu dùng cùng quy tắc Web.
+- `GET /addresses`, `POST /addresses`, `POST /addresses/<id>/update`: dùng các trường
+  `TinhThanh`, `PhuongXa`, `DiaChiCuThe` và kiểm tra chủ địa chỉ hiện có của Web.
+- `POST /orders`: contract OrderCreate hiện có cộng `request_id` UUID; chỉ gửi mã đơn vị
+  đã chọn, hình thức nhận, mã địa chỉ, ghi chú, phương thức thanh toán, cờ dùng xu và
+  tổng tiền đã xem. Backend khóa tài khoản, tính lại giá/tồn/ưu đãi/xu và ghi cùng
+  transaction. Chênh giá trả `QUOTE_CHANGED`; không lấy giá từ thiết bị.
+- Khóa yêu cầu và fingerprint lưu trong JSONB `DuLieuHoanTra.mobile_request` hiện có,
+  không thêm bảng/cột. Cùng tài khoản + UUID + payload trả đơn cũ; payload khác trả
+  `CHECKOUT_REQUEST_CONFLICT`. `GET /requests/<uuid>` phục hồi sau mất phản hồi.
+  Thiết bị chỉ lưu UUID theo tài khoản; không tự POST lại khi chưa biết kết quả.
+- `GET /orders?page=1` phân trang 10 đơn của chính khách; `GET /orders/<id>` lấy trạng
+  thái từ Backend. Các API Website và IPN SePay hiện có giữ nguyên contract.
+- `POST /orders/<id>/payment` với `{}` cấp vé ký, hạn 5 phút, cho đơn QR còn được
+  thanh toán. Client tạo URL từ API_BASE_URL tin cậy và path cố định trả về; vé ở
+  fragment, JWT không xuất hiện trong URL. GET `/payment` đọc/xóa fragment rồi POST
+  vé tới `/payment/open`; Backend kiểm tra lại quyền/chủ đơn/trạng thái/môi trường,
+  xuất form POST đã ký tới SePay với CSP, no-store và no-referrer.
+- `/payment/return` chỉ hướng dẫn quay về app; không xác nhận thanh toán bằng query.
+  App dùng url_launcher mở cổng thanh toán, đọc trạng thái mỗi 5 giây khi đang mở
+  app và tải lại khi resume; chỉ IPN được xác thực mới ghi nhận thanh toán.
+  Flutter Web dùng Link của url_launcher để tạo liên kết trực tiếp mở tab thanh toán,
+  tránh phụ thuộc window.open vốn không phát hiện được popup bị trình duyệt chặn.
+  Giao diện dùng nhãn Thanh toán QR. Thanh toán thật dùng cấu hình production và IPN
+  công khai tương ứng; đơn thuộc môi trường cũ không được chuyển sang thu tiền thật.
+- Lưu ý giao hàng giữ nội dung Web: miễn phí trung tâm Huế, dự kiến 2–3 giờ;
+  ngoài trung tâm/tỉnh khác 3–4 ngày, phí do người đặt chi trả. Backend hiện không
+  tính phí giao ngoài vùng trong tổng tiền hàng; màn hình nêu phí xác nhận riêng.

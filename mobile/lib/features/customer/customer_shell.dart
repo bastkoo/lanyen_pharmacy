@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants/app_roles.dart';
 import '../../core/network/api.dart';
+import '../../core/storage/checkout_storage.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/catalog.dart';
 import '../auth/auth_controller.dart';
@@ -16,23 +17,21 @@ import 'customer_messages_screen.dart';
 import 'customer_cart_screen.dart';
 import 'customer_products_screen.dart';
 import 'customer_product_detail_screen.dart';
+import 'customer_checkout_screen.dart';
+import 'customer_order_screen.dart';
 
 class CustomerShellColors {
   CustomerShellColors._();
   // Nền sau các trang và phía trên nút tư vấn nổi của khung khách hàng.
   static const background = AppColors.background;
-  // Chữ trong thông báo Đơn của tôi chưa hoàn thiện.
-  static const orderMessage = AppColors.textPrimary;
   // Nền trang mở biểu mẫu đăng nhập từ hộp thoại thành viên.
   static const loginBackground = AppColors.background;
   // Nền thanh tiêu đề Đăng nhập.
-  static const loginHeaderBackground = AppColors.background;
+  static const loginHeaderBackground = AppColors.appBarBackground;
   // Chữ Đăng nhập trên thanh tiêu đề.
-  static const loginHeaderTitle = AppColors.textPrimary;
+  static const loginHeaderTitle = AppColors.appBarForeground;
   // Mũi tên quay lại trang đang xem trước khi đăng nhập.
-  static const loginBackIcon = AppColors.textPrimary;
-  // Chữ thông báo bước đặt hàng sẽ bổ sung sau.
-  static const checkoutMessage = AppColors.textPrimary;
+  static const loginBackIcon = AppColors.appBarForeground;
 }
 
 // Khung khách hàng chỉ sở hữu state dùng chung và chuyển trang; không chứa UI của từng trang.
@@ -48,6 +47,7 @@ class _CustomerShellState extends State<CustomerShell>
     with WidgetsBindingObserver {
   late final CustomerHomeController home;
   int tab = 0;
+  Future<void>? cartSessionUpdate;
   bool get authenticated =>
       widget.controller.stage == AuthStage.authenticated &&
       widget.controller.user?.role == AppRole.customer;
@@ -69,7 +69,7 @@ class _CustomerShellState extends State<CustomerShell>
   void authChanged() {
     if (home.customerId != customerId) {
       tab = 0;
-      home.changeCustomer(customerId);
+      cartSessionUpdate = home.changeCustomer(customerId);
     }
   }
 
@@ -86,28 +86,20 @@ class _CustomerShellState extends State<CustomerShell>
     );
   }
 
-  void checkout() {
+  Future<void> checkout(List<int> units) async {
     if (!authenticated) {
-      openLogin();
-      return;
+      await openLogin();
+      if (!mounted || !authenticated) return;
     }
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Mua hàng',
-          style: TextStyle(color: CustomerShellColors.checkoutMessage),
-        ),
-        content: const Text(
-          'Bước xác nhận đặt hàng sẽ được bổ sung sau.',
-          style: TextStyle(color: CustomerShellColors.checkoutMessage),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đã hiểu'),
-          ),
-        ],
+    await cartSessionUpdate;
+    if (!mounted || !authenticated) return;
+    await openPage(
+      CustomerCheckoutScreen(
+        api: CheckoutApi(widget.controller.api),
+        units: units,
+        user: widget.controller.user!,
+        storage: CheckoutStorage(widget.controller.checkoutStore, customerId!),
+        onCreated: home.loadCart,
       ),
     );
   }
@@ -191,23 +183,12 @@ class _CustomerShellState extends State<CustomerShell>
       requestLogin();
       return;
     }
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text(
-          'Đơn của tôi',
-          style: TextStyle(color: CustomerShellColors.orderMessage),
-        ),
-        content: const Text(
-          'Chức năng này đang được hoàn thiện.',
-          style: TextStyle(color: CustomerShellColors.orderMessage),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Đã hiểu'),
-          ),
-        ],
+    final api = CheckoutApi(widget.controller.api);
+    openPage(
+      CustomerOrdersScreen(
+        api: api,
+        onOrder: (order) =>
+            openPage(CustomerOrderScreen(api: api, initial: order)),
       ),
     );
   }

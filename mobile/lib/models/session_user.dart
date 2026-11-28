@@ -2,10 +2,16 @@ import '../core/constants/app_roles.dart';
 
 // Chỉ đọc các trường cần cho nền tảng từ UserSchema thực tế của Flask.
 class SessionUser {
-  const SessionUser({required this.id, required this.name, required this.role});
+  const SessionUser({
+    required this.id,
+    required this.name,
+    required this.role,
+    this.phone = '',
+  });
   final int id;
   final String name;
   final AppRole role;
+  final String phone;
 
   factory SessionUser.fromJson(Map<String, dynamic> json) {
     final role = AppRole.fromValue(json['VaiTro']);
@@ -20,6 +26,7 @@ class SessionUser {
       id: json['MaNguoiDung'] as int,
       name: json['HoTen'] as String,
       role: role,
+      phone: json['SDT'] is String ? json['SDT'] as String : '',
     );
   }
 }

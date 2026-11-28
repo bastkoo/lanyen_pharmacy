@@ -32,8 +32,10 @@ abstract final class AppTheme {
       textTheme: AppTypography.textTheme,
       focusColor: AppColors.primaryLight,
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.textPrimary,
+        backgroundColor: AppColors.appBarBackground,
+        foregroundColor: AppColors.appBarForeground,
+        surfaceTintColor: AppColors.appBarSurfaceTint,
+        scrolledUnderElevation: 0,
         elevation: 0,
       ),
       filledButtonTheme: FilledButtonThemeData(

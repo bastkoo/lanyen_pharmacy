@@ -239,7 +239,7 @@ void main() {
                 child: CustomerCartScreen(
                   home: home,
                   onContinue: () {},
-                  onCheckout: () {},
+                  onCheckout: (_) {},
                 ),
               ),
             ),
@@ -430,7 +430,7 @@ void main() {
           child: CustomerCartScreen(
             home: home,
             onContinue: () {},
-            onCheckout: () {},
+            onCheckout: (_) {},
           ),
         ),
       ),
@@ -489,7 +489,7 @@ void main() {
           child: CustomerCartScreen(
             home: home,
             onContinue: () {},
-            onCheckout: () {},
+            onCheckout: (_) {},
           ),
         ),
       ),
@@ -550,7 +550,7 @@ void main() {
             child: CustomerCartScreen(
               home: home,
               onContinue: () {},
-              onCheckout: () {},
+              onCheckout: (_) {},
             ),
           ),
         ),

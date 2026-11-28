@@ -7,6 +7,8 @@ import '../../core/network/api_exception.dart';
 import '../../models/auth_session.dart';
 import '../../models/session_user.dart';
 import '../../core/storage/guest_cart_storage.dart';
+import '../../core/storage/checkout_storage.dart';
+import '../../core/storage/session_storage.dart';
 
 enum AuthStage { checking, sessionError, phone, otp, profile, authenticated }
 
@@ -16,10 +18,13 @@ class AuthController extends ChangeNotifier {
     required this.api,
     DateTime Function()? now,
     GuestCartStorage? guestCart,
+    TokenStore? checkoutStore,
   }) : guestCart = guestCart ?? GuestCartStorage.local(api.client.baseUrl),
+       checkoutStore = checkoutStore ?? CheckoutTokenStore(api.client.baseUrl),
        _now = now ?? DateTime.now;
   final AuthApi api;
   final GuestCartStorage guestCart;
+  final TokenStore checkoutStore;
   final DateTime Function() _now;
   AuthStage stage = AuthStage.checking;
   SessionUser? user;

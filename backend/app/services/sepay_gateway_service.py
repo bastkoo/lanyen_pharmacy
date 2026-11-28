@@ -113,7 +113,7 @@ def require_pending(order):
 
 
 @operation
-def initialize(user_id, order_id, *, employee=False, frontend_origin=None):
+def initialize(user_id, order_id, *, employee=False, frontend_origin=None, mobile=False):
     config = gateway_config()
     if not 0 < order_id <= MAX_ID:
         raise AuthError('ORDER_NOT_FOUND', 404)
@@ -131,6 +131,9 @@ def initialize(user_id, order_id, *, employee=False, frontend_origin=None):
     for name in ('success_url', 'error_url', 'cancel_url'):
         if config.get('SEPAY_' + name.upper()):
             parsed = urlsplit(config['SEPAY_' + name.upper()])
+            if mobile:
+                # Callback Mobile chỉ hướng dẫn quay lại app, không xác nhận đã trả tiền.
+                parsed = parsed._replace(path='/api/mobile/checkout/payment/return', query='', fragment='')
             query = [(key, value) for key, value in parse_qsl(parsed.query) if key != 'order']
             query.append(('order', str(order.MaDonHang)))
             # Production keeps the configured callback unchanged. Only local

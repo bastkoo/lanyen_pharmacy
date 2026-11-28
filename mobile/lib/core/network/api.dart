@@ -3,6 +3,7 @@ import '../../models/session_user.dart';
 import '../../models/catalog.dart';
 import '../../models/customer_cart.dart';
 import '../../models/rewards.dart';
+import '../../models/checkout.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 
@@ -273,6 +274,140 @@ class RewardsApi {
     } on FormatException {
       throw const ApiException(ApiFailure.response);
     }
+  }
+}
+
+// Tất cả endpoint đặt hàng/địa chỉ/thanh toán Mobile nằm tại đây.
+class CheckoutApi {
+  const CheckoutApi(this.auth);
+  final AuthApi auth;
+  Map<String, dynamic> _record(dynamic data) {
+    if (data is! Map<String, dynamic>) throw const FormatException();
+    return data;
+  }
+
+  Future<Map<String, dynamic>> _authorized(
+    Future<Map<String, dynamic>> Function() send,
+  ) async {
+    try {
+      return await send();
+    } on ApiException catch (failure) {
+      if (failure.status != 401 || failure.code != 'TOKEN_EXPIRED') rethrow;
+      await auth.refresh();
+      return send();
+    }
+  }
+
+  Future<List<DeliveryAddress>> addresses() async {
+    final data = await _authorized(
+      () => auth.client.get('mobile/checkout/addresses', authorized: true),
+    );
+    try {
+      return checkoutAddresses(data['items']);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<DeliveryAddress> saveAddress(
+    Map<String, dynamic> values, {
+    String? id,
+  }) async {
+    final path = id == null
+        ? 'mobile/checkout/addresses'
+        : 'mobile/checkout/addresses/$id/update';
+    final data = await _authorized(
+      () => auth.client.post(path, values, authorized: true),
+    );
+    try {
+      return DeliveryAddress.fromJson(_record(data['address']));
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<CheckoutQuote> quote(List<int> units, bool usePoints) async {
+    final data = await _authorized(
+      () => auth.client.post('mobile/checkout/quote', {
+        'MaDonGia': units,
+        'DoiDiem': usePoints,
+      }, authorized: true),
+    );
+    try {
+      return CheckoutQuote.fromJson(data);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<PlacedOrder> create(Map<String, dynamic> values) async {
+    final data = await _authorized(
+      () =>
+          auth.client.post('mobile/checkout/orders', values, authorized: true),
+    );
+    try {
+      return PlacedOrder.fromJson(_record(data['order']));
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<PlacedOrder> recover(String requestId) async {
+    final data = await _authorized(
+      () => auth.client.get(
+        'mobile/checkout/requests/$requestId',
+        authorized: true,
+      ),
+    );
+    try {
+      return PlacedOrder.fromJson(_record(data['order']));
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<PlacedOrder> order(String id) async {
+    final data = await _authorized(
+      () => auth.client.get('mobile/checkout/orders/$id', authorized: true),
+    );
+    try {
+      return PlacedOrder.fromJson(_record(data['order']));
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<List<PlacedOrder>> orders({int page = 1}) async {
+    final data = await _authorized(
+      () => auth.client.get(
+        'mobile/checkout/orders',
+        authorized: true,
+        queryParameters: {'page': '$page'},
+      ),
+    );
+    try {
+      return checkoutOrders(data['items']);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<Uri> payment(String id) async {
+    final data = await _authorized(
+      () => auth.client.post(
+        'mobile/checkout/orders/$id/payment',
+        {},
+        authorized: true,
+      ),
+    );
+    if (data['code'] != 'PAYMENT_LINK_CREATED' ||
+        data['path'] != 'mobile/checkout/payment' ||
+        data['ticket'] is! String) {
+      throw const ApiException(ApiFailure.response);
+    }
+    return Uri.parse(
+      '${auth.client.baseUrl.replaceFirst(RegExp(r'/$'), '')}/mobile/checkout/payment',
+    ).replace(fragment: data['ticket'] as String);
   }
 }
 

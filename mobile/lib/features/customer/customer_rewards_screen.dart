@@ -11,9 +11,9 @@ class CustomerRewardsColors {
   // Nền toàn trang Điểm thưởng.
   static const background = AppColors.background;
   // Nền Appbar Điểm thưởng.
-  static const headerBackground = AppColors.background;
+  static const headerBackground = AppColors.appBarBackground;
   // Tên trang trên Appbar.
-  static const headerTitle = AppColors.textPrimary;
+  static const headerTitle = AppColors.appBarForeground;
   // Nền thẻ tổng xu hiện có.
   static const balanceBackground = AppColors.primaryDark;
   // Nhãn Xu hiện có trên thẻ tổng xu.

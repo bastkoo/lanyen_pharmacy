@@ -374,6 +374,7 @@ AuthController testController(
   DateTime Function()? now,
 }) => AuthController(
   guestCart: GuestCartStorage(MemoryTokenStore()),
+  checkoutStore: MemoryTokenStore(),
   api: AuthApi(
     ApiClient(
       baseUrl: 'http://127.0.0.1:8123/api',

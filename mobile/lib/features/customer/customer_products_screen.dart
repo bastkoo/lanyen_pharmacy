@@ -12,13 +12,13 @@ class CustomerProductsColors {
   // Nền toàn trang kết quả tìm kiếm/danh mục.
   static const background = AppColors.background;
   // Nền thanh tiêu đề có nút Trang chủ và Giỏ hàng.
-  static const appBarBackground = AppColors.background;
+  static const appBarBackground = AppColors.appBarBackground;
   // Tên danh mục hiện tại ở giữa thanh tiêu đề.
-  static const appBarForeground = AppColors.textPrimary;
+  static const appBarForeground = AppColors.appBarForeground;
   // Biểu tượng ngôi nhà bên trái thanh tiêu đề.
-  static const homeIcon = AppColors.primaryDark;
+  static const homeIcon = AppColors.appBarForeground;
   // Biểu tượng giỏ hàng bên phải thanh tiêu đề.
-  static const cartIcon = AppColors.primaryDark;
+  static const cartIcon = AppColors.appBarForeground;
   // Nền huy hiệu đếm sản phẩm trên biểu tượng giỏ hàng.
   static const cartBadgeBackground = AppColors.error;
   // Chữ số hoặc dấu cảnh báo trong huy hiệu giỏ hàng.

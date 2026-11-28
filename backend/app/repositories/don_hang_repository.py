@@ -15,6 +15,13 @@ def find(order_id, lock=False):
     return db.session.execute(query).scalar_one_or_none()
 
 
+def find_mobile_request(user_id, request_id):
+    return db.session.execute(select(DonHang).where(
+        DonHang.MaNguoiMua == user_id,
+        DonHang.DuLieuHoanTra['mobile_request']['id'].astext == request_id,
+    )).scalar_one_or_none()
+
+
 def create(values, items):
     order = DonHang(**values)
     db.session.add(order)

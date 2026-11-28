@@ -13,11 +13,11 @@ class CustomerCartColors {
   // Nền toàn trang giỏ hàng.
   static const page = AppColors.background;
   // Nền thanh tiêu đề Giỏ hàng.
-  static const headerBackground = AppColors.background;
+  static const headerBackground = AppColors.appBarBackground;
   // Chữ Giỏ hàng trên thanh tiêu đề.
-  static const headerTitle = AppColors.textPrimary;
+  static const headerTitle = AppColors.appBarForeground;
   // Mũi tên quay lại mua sắm.
-  static const backIcon = AppColors.primaryDark;
+  static const backIcon = AppColors.appBarForeground;
   // Nền thẻ sản phẩm.
   static const card = AppColors.surface;
   // Tên sản phẩm trong thẻ.
@@ -135,7 +135,8 @@ class CustomerCartScreen extends StatefulWidget {
     required this.onCheckout,
   });
   final CustomerHomeController home;
-  final VoidCallback onContinue, onCheckout;
+  final VoidCallback onContinue;
+  final ValueChanged<List<int>> onCheckout;
   @override
   State<CustomerCartScreen> createState() => _CustomerCartScreenState();
 }
@@ -215,7 +216,11 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
       ),
       bottomNavigationBar: empty
           ? null
-          : _CartSummary(controller: controller, onCheckout: widget.onCheckout),
+          : _CartSummary(
+              controller: controller,
+              onCheckout: () =>
+                  widget.onCheckout(controller.selected.toList()..sort()),
+            ),
       body: empty
           ? _EmptyCart(onContinue: widget.onContinue)
           : RefreshIndicator(

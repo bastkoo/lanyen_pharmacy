@@ -232,7 +232,7 @@ void main() {
       await auth.requestOtp('0901234567');
       await auth.verifyOtp('123456');
       await tester.pumpAndSettle();
-      expect(find.text('Xin chào, Nguyễn An'), findsOneWidget);
+      expect(find.byKey(const ValueKey('customer-checkout')), findsOneWidget);
       expect(transport.cartItems.single['SoLuong'], 1);
       expect((await auth.guestCart.read())['pending'], isNull);
       expect(tester.takeException(), isNull);

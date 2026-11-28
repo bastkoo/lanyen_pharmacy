@@ -23,13 +23,13 @@ class CustomerDetailColors {
   // Biểu tượng mục lưu ý và điều kiện cần dược sĩ tư vấn.
   static const advice = AppColors.primaryDark;
   // Nền Appbar trang chi tiết.
-  static const headerBackground = AppColors.background;
+  static const headerBackground = AppColors.appBarBackground;
   // Chữ Chi tiết sản phẩm trên Appbar.
-  static const headerTitle = AppColors.textPrimary;
+  static const headerTitle = AppColors.appBarForeground;
   // Mũi tên quay lại trên Appbar.
-  static const headerBackIcon = AppColors.textPrimary;
+  static const headerBackIcon = AppColors.appBarForeground;
   // Biểu tượng giỏ hàng góc trên bên phải.
-  static const cartIcon = AppColors.primaryDark;
+  static const cartIcon = AppColors.appBarForeground;
   // Nền huy hiệu số sản phẩm của giỏ hàng.
   static const cartBadgeBackground = AppColors.error;
   // Số sản phẩm/dấu cảnh báo trong huy hiệu giỏ hàng.
