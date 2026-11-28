@@ -226,7 +226,7 @@ class _CustomerShellState extends State<CustomerShell>
         body: SafeArea(
           bottom: false,
           child: switch (tab) {
-            1 => const CustomerRewardsScreen(),
+            1 => CustomerRewardsScreen(api: RewardsApi(widget.controller.api)),
             2 => const CustomerMessagesScreen(),
             3 => CustomerCartScreen(
               home: home,

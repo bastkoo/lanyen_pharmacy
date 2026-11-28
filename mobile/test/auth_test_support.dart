@@ -35,6 +35,9 @@ class AuthStubTransport implements ApiTransport {
   bool loseMergeResponse = false;
   String? cartFailure;
   int cartAdds = 0;
+  Map<String, dynamic>? rewardsData;
+  bool rewardsFails = false, loseCheckInResponse = false;
+  int checkInRequests = 0;
   Map<String, dynamic> get user => {
     'MaNguoiDung': 42,
     'HoTen': 'Nguyễn An',
@@ -68,6 +71,61 @@ class AuthStubTransport implements ApiTransport {
       return ApiResponse(failureStatus, jsonEncode({'code': failureCode}));
     }
     final path = uri.path;
+    if (path.startsWith('/api/mobile/rewards')) {
+      if (expiredAccess) {
+        return const ApiResponse(401, '{"code":"TOKEN_EXPIRED"}');
+      }
+      if (!loggedIn) {
+        return const ApiResponse(401, '{"code":"UNAUTHENTICATED"}');
+      }
+      if (role != 0) return const ApiResponse(403, '{"code":"FORBIDDEN"}');
+      if (rewardsFails || rewardsData == null) {
+        return const ApiResponse(503, '{"code":"DATABASE_UNAVAILABLE"}');
+      }
+      final data = rewardsData!;
+      if (path.endsWith('/check-in')) {
+        checkInRequests++;
+        final day = (data['days'] as List).firstWhere(
+          (d) => d['date'] == data['today'],
+        );
+        final amount = day['status'] == 'claimed' ? 0 : day['reward'] as int;
+        if (amount > 0) {
+          day['status'] = 'claimed';
+          data['balance'] =
+              (BigInt.parse('${data['balance']}') + BigInt.from(amount))
+                  .toString();
+          (data['items'] as List).insert(0, {
+            'MaDiemThuong': 1000 + checkInRequests,
+            'SoDiem': '$amount',
+            'LoaiGiaoDich': true,
+            'LyDo': 'Điểm danh hằng ngày',
+            'ThoiGianTichDiem': data['server_time'],
+          });
+          data['total'] = (data['total'] as int) + 1;
+          data['pages'] = ((data['total'] as int) + 19) ~/ 20;
+        }
+        if (loseCheckInResponse) {
+          return const ApiResponse(503, '{"code":"DATABASE_UNAVAILABLE"}');
+        }
+        return ApiResponse(
+          200,
+          jsonEncode({
+            'code': amount == 0
+                ? 'CHECK_IN_ALREADY_RECORDED'
+                : 'CHECK_IN_RECORDED',
+            'awarded': '$amount',
+            'date': data['today'],
+          }),
+        );
+      }
+      return ApiResponse(
+        200,
+        jsonEncode({
+          ...data,
+          'page': int.parse(uri.queryParameters['page'] ?? '1'),
+        }),
+      );
+    }
     if (path.startsWith('/api/mobile/cart')) {
       if (path.endsWith('/quote')) {
         final authorized = headers.containsKey('Authorization');

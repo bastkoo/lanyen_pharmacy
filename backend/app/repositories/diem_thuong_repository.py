@@ -3,6 +3,25 @@ from sqlalchemy import BigInteger, case, cast, func, select
 from app.extensions import db
 from app.models.diem_thuong import DiemThuong
 
+# Dấu nhận diện nghiệp vụ ổn định, không dùng chung lý do tích xu mua hàng.
+CHECK_IN_REASON = 'Điểm danh hằng ngày'
+
+
+def check_ins_between(user_id, start, end):
+    return list(db.session.execute(select(DiemThuong.ThoiGianTichDiem).where(
+        DiemThuong.MaNguoiDung == user_id,
+        DiemThuong.LoaiGiaoDich.is_(True),
+        DiemThuong.LyDo == CHECK_IN_REASON,
+        DiemThuong.ThoiGianTichDiem >= start,
+        DiemThuong.ThoiGianTichDiem < end,
+    )).scalars().all())
+
+
+def create_check_in(user_id, quantity, timestamp):
+    # Người gọi phải giữ khóa tài khoản đến khi commit/rollback xong.
+    db.session.add(DiemThuong(MaNguoiDung=user_id, SoDiem=quantity,
+        LoaiGiaoDich=True, ThoiGianTichDiem=timestamp, LyDo=CHECK_IN_REASON))
+
 
 def balance(user_id):
     amount = cast(DiemThuong.SoDiem, BigInteger)

@@ -2,6 +2,7 @@ import '../../models/auth_session.dart';
 import '../../models/session_user.dart';
 import '../../models/catalog.dart';
 import '../../models/customer_cart.dart';
+import '../../models/rewards.dart';
 import 'api_client.dart';
 import 'api_exception.dart';
 
@@ -226,6 +227,49 @@ class CatalogApi {
         throw const FormatException();
       }
       return CatalogProduct.fromJson(data['product'] as Map<String, dynamic>);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+}
+
+// Điểm thưởng JWT; chỉ phát lại khi token bị từ chối trước xử lý.
+class RewardsApi {
+  const RewardsApi(this.auth);
+  final AuthApi auth;
+  Future<Map<String, dynamic>> _authorized(
+    Future<Map<String, dynamic>> Function() send,
+  ) async {
+    try {
+      return await send();
+    } on ApiException catch (failure) {
+      if (failure.status != 401 || failure.code != 'TOKEN_EXPIRED') rethrow;
+      await auth.refresh();
+      return send();
+    }
+  }
+
+  Future<RewardsData> read({int page = 1}) async {
+    final data = await _authorized(
+      () => auth.client.get(
+        'mobile/rewards',
+        authorized: true,
+        queryParameters: {'page': '$page'},
+      ),
+    );
+    try {
+      return RewardsData.fromJson(data);
+    } on FormatException {
+      throw const ApiException(ApiFailure.response);
+    }
+  }
+
+  Future<CheckInResult> checkIn() async {
+    final data = await _authorized(
+      () => auth.client.post('mobile/rewards/check-in', {}, authorized: true),
+    );
+    try {
+      return CheckInResult.fromJson(data);
     } on FormatException {
       throw const ApiException(ApiFailure.response);
     }

@@ -44,6 +44,8 @@ def create_app(test_config=None):
     app.register_blueprint(mobile_auth_bp)
     from app.routes.mobile_cart_routes import mobile_cart_bp
     app.register_blueprint(mobile_cart_bp)
+    from app.routes.mobile_rewards_routes import mobile_rewards_bp
+    app.register_blueprint(mobile_rewards_bp)
     from app.routes.category_routes import category_bp
     app.register_blueprint(category_bp)
     from app.routes.product_routes import product_bp

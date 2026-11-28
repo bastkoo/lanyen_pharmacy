@@ -276,3 +276,26 @@ riêng biệt đã lưu qua JWT, không cộng tổng số lượng hoặc đế
   lệnh ghi khi chưa rõ commit; báo `CART_MERGE_PENDING` và giữ dữ liệu để đối chiếu.
   Batch hết hạn trả `CART_MERGE_EXPIRED`; lỗi kho biên nhận trả `CART_SYNC_UNAVAILABLE`.
   Không thay schema, không thay endpoint/session/cookie giỏ Web.
+
+### Điểm thưởng và điểm danh hằng ngày (Mobile)
+
+- `GET /api/mobile/rewards?page=1`: Bearer JWT Customer, số dư/lịch sử 20 dòng mỗi
+  trang và bảng tuần hiện tại. Response `REWARDS_LISTED`: balance (chuỗi số nguyên),
+  items (MaDiemThuong, SoDiem, LoaiGiaoDich, LyDo, ThoiGianTichDiem), page/pages/total,
+  week_start/today (YYYY-MM-DD), server_time/next_refresh_at (ISO UTC+07), days gồm
+  đúng 7 ngày thứ Hai–Chủ nhật với date/reward/status.
+- `POST /api/mobile/rewards/check-in`: JWT Customer, JSON rỗng `{}`; không nhận
+  ngày, số xu hay mã tài khoản từ client. Mỗi ngày Thứ 2–Thứ 7 cộng 5 xu, Chủ nhật
+  cộng 10 xu. Response `CHECK_IN_RECORDED` hoặc `CHECK_IN_ALREADY_RECORDED` có
+  awarded (chuỗi; 0 nếu đã nhận) và date. Hai thiết bị cùng gọi không được cộng trùng.
+- Dùng bảng DiemThuong hiện có, LoaiGiaoDich=true, LyDo cố định `Điểm danh hằng ngày`.
+  Khóa bản ghi NguoiDung bằng FOR UPDATE, đọc giờ Việt Nam sau khi nhận khóa,
+  kiểm tra lý do + người dùng + khoảng ngày [00:00, 00:00 hôm sau), rồi ghi/commit.
+  Không thay cột, bảng, index, constraint hay migration. API xu Website giữ nguyên.
+- Bảng tuần lấy thứ Hai của ngày Backend, không cần job xóa/reset dữ liệu. Ngày đã
+  nhận là claimed (nền xanh + dấu tích), ngày đã qua chưa nhận là missed (nền xám
+  + nhãn), hôm nay chưa nhận là today, các ngày sau là upcoming. Lịch sử cũ giữ nguyên.
+- Flutter hiển thị số dư → điểm danh → lịch sử. Tải lại khi trở về app, kéo tải lại
+  hoặc qua nửa đêm theo chênh lệch server_time/next_refresh_at; không dựa vào đồng
+  hồ điện thoại để cấp xu. Sau POST tải lại số dư/lịch sử; nếu mất phản hồi chỉ GET
+  để đối chiếu, không tự phát lại POST. Chỉ refresh/retry khi TOKEN_EXPIRED trước xử lý.
