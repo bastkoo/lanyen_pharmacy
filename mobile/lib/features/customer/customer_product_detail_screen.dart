@@ -22,6 +22,32 @@ class CustomerDetailColors {
   static const divider = AppColors.border;
   // Biểu tượng mục lưu ý và điều kiện cần dược sĩ tư vấn.
   static const advice = AppColors.primaryDark;
+  // Nền Appbar trang chi tiết.
+  static const headerBackground = AppColors.background;
+  // Chữ Chi tiết sản phẩm trên Appbar.
+  static const headerTitle = AppColors.textPrimary;
+  // Mũi tên quay lại trên Appbar.
+  static const headerBackIcon = AppColors.textPrimary;
+  // Biểu tượng giỏ hàng góc trên bên phải.
+  static const cartIcon = AppColors.primaryDark;
+  // Nền huy hiệu số sản phẩm của giỏ hàng.
+  static const cartBadgeBackground = AppColors.error;
+  // Số sản phẩm/dấu cảnh báo trong huy hiệu giỏ hàng.
+  static const cartBadgeText = AppColors.surface;
+  // Nền khối tên sản phẩm, giá và đơn vị tính.
+  static const summaryBackground = AppColors.surface;
+  // Nền khối các thuộc tính thuốc.
+  static const factsBackground = AppColors.surface;
+  // Nền các phần Mô tả, Cách dùng, Chống chỉ định và Bảo quản.
+  static const informationBackground = AppColors.surface;
+  // Nền thanh mua/nhắn tin cố định phía dưới.
+  static const bottomBackground = AppColors.surface;
+  // Đường phân cách phía trên thanh mua cố định.
+  static const bottomBorder = AppColors.border;
+  // Nền nút liên hệ hỗ trợ tròn bên phải nút mua.
+  static const supportBackground = AppColors.primaryDark;
+  // Biểu tượng tai nghe trên nút liên hệ hỗ trợ.
+  static const supportIcon = AppColors.surface;
 }
 
 // Trang chi tiết độc lập trên Navigator; nhận đúng ngữ cảnh chương trình khi mở từ ưu đãi.
@@ -31,12 +57,14 @@ class CustomerProductDetailScreen extends StatefulWidget {
     required this.home,
     required this.productId,
     required this.onConsult,
+    required this.onCart,
     this.promotionId,
   });
   final CustomerHomeController home;
   final int productId;
   final int? promotionId;
   final VoidCallback onConsult;
+  final VoidCallback onCart;
   @override
   State<CustomerProductDetailScreen> createState() =>
       _CustomerProductDetailScreenState();
@@ -46,6 +74,7 @@ class CustomerProductDetailScreen extends StatefulWidget {
 class _CustomerProductDetailScreenState
     extends State<CustomerProductDetailScreen> {
   late Future<CatalogProduct> request;
+  int? selectedUnitId;
   @override
   void initState() {
     super.initState();
@@ -57,31 +86,152 @@ class _CustomerProductDetailScreenState
     promotionId: widget.promotionId,
   );
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: CustomerDetailColors.background,
-    appBar: AppBar(
-      title: const Text(
-        'Chi tiết sản phẩm',
-        style: TextStyle(color: CustomerDetailColors.heading),
+  Widget build(BuildContext context) => FutureBuilder<CatalogProduct>(
+    future: request,
+    builder: (context, snapshot) => Scaffold(
+      backgroundColor: CustomerDetailColors.background,
+      appBar: AppBar(
+        backgroundColor: CustomerDetailColors.headerBackground,
+        iconTheme: const IconThemeData(
+          color: CustomerDetailColors.headerBackIcon,
+        ),
+        title: const Text(
+          'Chi tiết sản phẩm',
+          style: TextStyle(color: CustomerDetailColors.headerTitle),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _DetailCartAction(
+              home: widget.home,
+              onPressed: widget.onCart,
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: snapshot.hasData
+          ? _DetailBottomBar(
+              home: widget.home,
+              product: snapshot.data!,
+              selectedUnitId: selectedUnitId,
+              onConsult: widget.onConsult,
+            )
+          : null,
+      body: Builder(
+        builder: (context) {
+          if (snapshot.hasError) {
+            return CustomerStatus(
+              message: 'Chưa tải được thông tin sản phẩm.',
+              onRetry: () => setState(() => request = _read()),
+            );
+          }
+          final product = snapshot.data;
+          if (product == null) return const CustomerStatus(loading: true);
+          return _ProductDetailContent(
+            product: product,
+            home: widget.home,
+            onConsult: widget.onConsult,
+            selectedUnitId: selectedUnitId,
+            onUnitChanged: (id) => setState(() => selectedUnitId = id),
+          );
+        },
       ),
     ),
-    body: FutureBuilder<CatalogProduct>(
-      future: request,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return CustomerStatus(
-            message: 'Chưa tải được thông tin sản phẩm.',
-            onRetry: () => setState(() => request = _read()),
-          );
-        }
-        final product = snapshot.data;
-        if (product == null) return const CustomerStatus(loading: true);
-        return _ProductDetailContent(
-          product: product,
-          home: widget.home,
-          onConsult: widget.onConsult,
-        );
-      },
+  );
+}
+
+// Giỏ hàng ở Appbar: đếm thuốc riêng biệt và cập nhật sau mỗi lần thêm.
+class _DetailCartAction extends StatelessWidget {
+  const _DetailCartAction({required this.home, required this.onPressed});
+  final CustomerHomeController home;
+  final VoidCallback onPressed;
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: home,
+    builder: (context, _) {
+      final failed = home.cartError != null;
+      final count = home.cart?.productCount;
+      return IconButton(
+        key: const ValueKey('detail-cart'),
+        tooltip: 'Giỏ hàng',
+        onPressed: onPressed,
+        icon: Semantics(
+          label: failed
+              ? 'Giỏ hàng chưa tải được'
+              : 'Giỏ hàng, ${count ?? 0} sản phẩm',
+          child: Badge(
+            isLabelVisible: failed || (count ?? 0) > 0,
+            backgroundColor: CustomerDetailColors.cartBadgeBackground,
+            textColor: CustomerDetailColors.cartBadgeText,
+            label: Text(failed ? '!' : '$count'),
+            child: const Icon(
+              Icons.shopping_cart_outlined,
+              color: CustomerDetailColors.cartIcon,
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+// Thanh cố định luôn giữ nút mua/nhắn tin/hết hàng và nút hỗ trợ tròn trong vùng an toàn.
+class _DetailBottomBar extends StatelessWidget {
+  const _DetailBottomBar({
+    required this.home,
+    required this.product,
+    required this.selectedUnitId,
+    required this.onConsult,
+  });
+  final CustomerHomeController home;
+  final CatalogProduct product;
+  final int? selectedUnitId;
+  final VoidCallback onConsult;
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const ValueKey('detail-bottom-bar'),
+    decoration: const BoxDecoration(
+      color: CustomerDetailColors.bottomBackground,
+      border: Border(top: BorderSide(color: CustomerDetailColors.bottomBorder)),
+    ),
+    child: SafeArea(
+      top: false,
+      child: Center(
+        heightFactor: 1,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 792),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: CustomerPurchaseControls(
+                    home: home,
+                    product: product,
+                    onConsult: onConsult,
+                    showDetails: false,
+                    selectedUnitId: selectedUnitId,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                IconButton.filled(
+                  key: const ValueKey('detail-support'),
+                  tooltip: 'Liên hệ hỗ trợ',
+                  onPressed: onConsult,
+                  style: IconButton.styleFrom(
+                    backgroundColor: CustomerDetailColors.supportBackground,
+                    foregroundColor: CustomerDetailColors.supportIcon,
+                    minimumSize: const Size(52, 52),
+                    shape: const CircleBorder(),
+                  ),
+                  icon: const Icon(Icons.support_agent),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -92,10 +242,14 @@ class _ProductDetailContent extends StatelessWidget {
     required this.product,
     required this.home,
     required this.onConsult,
+    required this.selectedUnitId,
+    required this.onUnitChanged,
   });
   final CatalogProduct product;
   final CustomerHomeController home;
   final VoidCallback onConsult;
+  final int? selectedUnitId;
+  final ValueChanged<int> onUnitChanged;
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: home,
@@ -108,36 +262,73 @@ class _ProductDetailContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ColoredBox(
-                color: CustomerDetailColors.imageBackground,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 340),
-                      child: CustomerProductImage(
-                        product: product,
-                        showOffer: product.prices.any((unit) => unit.quota > 0),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: ColoredBox(
+                  color: CustomerDetailColors.imageBackground,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 340),
+                        child: CustomerProductImage(
+                          product: product,
+                          showOffer: product.prices.any(
+                            (unit) => unit.quota > 0,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
-              CustomerHeading(
-                product.displayName,
-                color: CustomerDetailColors.heading,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: CustomerDetailColors.summaryBackground,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    CustomerHeading(
+                      product.displayName,
+                      color: CustomerDetailColors.heading,
+                    ),
+                    const SizedBox(height: 16),
+                    CustomerPurchaseControls(
+                      home: home,
+                      product: product,
+                      onConsult: onConsult,
+                      showEmptyQuota: false,
+                      showAction: false,
+                      selectedUnitId: selectedUnitId,
+                      onUnitChanged: onUnitChanged,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
-              CustomerPurchaseControls(
-                home: home,
-                product: product,
-                onConsult: onConsult,
-                showEmptyQuota: false,
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: CustomerDetailColors.factsBackground,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const CustomerHeading(
+                      'Thông tin sản phẩm',
+                      color: CustomerDetailColors.heading,
+                    ),
+                    const SizedBox(height: 12),
+                    _ProductFacts(product: product),
+                  ],
+                ),
               ),
-              const SizedBox(height: 24),
-              _ProductFacts(product: product),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               _InformationSection(title: 'Mô tả', content: product.description),
               _InformationSection(title: 'Cách dùng', content: product.usage),
               _InformationSection(
@@ -187,17 +378,35 @@ class _FactRow extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: CustomerDetailColors.fieldLabel,
-            fontSize: 14,
-          ),
-        ),
-        const SizedBox(height: 4),
-        SelectableText(
-          value.isEmpty ? 'Chưa cập nhật' : value,
-          style: const TextStyle(color: CustomerDetailColors.fieldValue),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final labelWidget = Text(
+              label,
+              style: const TextStyle(
+                color: CustomerDetailColors.fieldLabel,
+                fontSize: 14,
+              ),
+            );
+            final valueWidget = SelectableText(
+              value.isEmpty ? 'Chưa cập nhật' : value,
+              style: const TextStyle(color: CustomerDetailColors.fieldValue),
+            );
+            if (constraints.maxWidth < 300 ||
+                MediaQuery.textScalerOf(context).scale(16) > 20) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [labelWidget, const SizedBox(height: 4), valueWidget],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(width: constraints.maxWidth * .38, child: labelWidget),
+                const SizedBox(width: 12),
+                Expanded(child: valueWidget),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 8),
         const Divider(color: CustomerDetailColors.divider, height: 1),
@@ -212,17 +421,24 @@ class _InformationSection extends StatelessWidget {
   final String title, content;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 24),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        CustomerHeading(title, color: CustomerDetailColors.heading),
-        const SizedBox(height: 8),
-        SelectableText(
-          content.isEmpty ? 'Chưa cập nhật' : content,
-          style: const TextStyle(color: CustomerDetailColors.fieldValue),
-        ),
-      ],
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: CustomerDetailColors.informationBackground,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          CustomerHeading(title, color: CustomerDetailColors.heading),
+          const SizedBox(height: 8),
+          SelectableText(
+            content.isEmpty ? 'Chưa cập nhật' : content,
+            style: const TextStyle(color: CustomerDetailColors.fieldValue),
+          ),
+        ],
+      ),
     ),
   );
 }

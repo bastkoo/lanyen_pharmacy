@@ -5,6 +5,8 @@ import 'package:lan_yen_pharmacy/core/network/api.dart';
 import 'package:lan_yen_pharmacy/core/theme/app_theme.dart';
 import 'package:lan_yen_pharmacy/features/customer/customer_products_controller.dart';
 import 'package:lan_yen_pharmacy/features/customer/customer_product_widgets.dart';
+import 'package:lan_yen_pharmacy/features/customer/customer_product_detail_screen.dart';
+import 'package:lan_yen_pharmacy/features/customer/customer_home_controller.dart';
 
 import 'auth_test_support.dart';
 import 'customer_home_test.dart' show catalogFixture, page, productFixture;
@@ -27,6 +29,125 @@ Map<String, dynamic> detailedProduct(int id) => {
 };
 
 void main() {
+  for (final scenario in ['mua', 'mua chữ lớn', 'tư vấn', 'hết hàng']) {
+    testWidgets(
+      'Chi tiết $scenario: thanh thao tác cố định, hỗ trợ và giỏ có padding',
+      (tester) async {
+        final large = scenario == 'mua chữ lớn';
+        final width = large ? 320.0 : 390.0;
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(width, 900);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        final transport = catalogFixture();
+        final data = detailedProduct(1);
+        data['PhanLoai'] = scenario == 'tư vấn';
+        final first = Map<String, dynamic>.from(
+          (data['DonViGia'] as List).first as Map,
+        );
+        first['ConHang'] = scenario != 'hết hàng';
+        data['DonViGia'] = [
+          first,
+          {
+            ...first,
+            'MaDonGia': 201,
+            'DonViTinh': 'Vỉ',
+            'GiaBan': 20000,
+            'GiaKhuyenMai': 18000,
+          },
+        ];
+        transport.catalogData['products/1'] = {
+          'code': 'PRODUCT_FOUND',
+          'product': data,
+        };
+        final auth = testController(transport);
+        addTearDown(auth.dispose);
+        final home = CustomerHomeController(
+          CatalogApi(auth.api.client),
+          cartApi: CartApi(auth.api),
+          guestCart: auth.guestCart,
+        );
+        await home.loadCart();
+        var support = 0, cart = 0;
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: MediaQuery(
+              data: MediaQueryData(
+                textScaler: TextScaler.linear(large ? 2 : 1),
+              ),
+              child: CustomerProductDetailScreen(
+                home: home,
+                productId: 1,
+                onConsult: () => support++,
+                onCart: () => cart++,
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final bar = find.byKey(const ValueKey('detail-bottom-bar'));
+        final before = tester.getRect(bar);
+        final button = find.descendant(
+          of: bar,
+          matching: find.byType(FilledButton),
+        );
+        expect(button, findsOneWidget);
+        expect(
+          tester.getRect(find.byKey(const ValueKey('detail-cart'))).right,
+          lessThanOrEqualTo(width - 12),
+        );
+        if (scenario.startsWith('mua')) {
+          final unit = find.byKey(const ValueKey('unit-option-201'));
+          await tester.ensureVisible(unit);
+          await tester.tap(unit);
+          await tester.pumpAndSettle();
+          await tester.tap(button);
+          await tester.pumpAndSettle();
+          expect(home.cart!.items.single.unitId, 201);
+          expect(
+            find.descendant(
+              of: find.byKey(const ValueKey('detail-cart')),
+              matching: find.text('1'),
+            ),
+            findsOneWidget,
+          );
+        } else if (scenario == 'hết hàng') {
+          expect(
+            find.descendant(of: bar, matching: find.text('Hết hàng')),
+            findsOneWidget,
+          );
+          expect(tester.widget<FilledButton>(button).onPressed, isNull);
+        } else {
+          expect(
+            find.descendant(of: bar, matching: find.text('Nhắn tin')),
+            findsOneWidget,
+          );
+          await tester.tap(button);
+          expect(support, 1);
+        }
+        await tester.scrollUntilVisible(
+          find.text('Bảo quản từ API kiểm thử'),
+          350,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const ValueKey('product-detail-scroll')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        await tester.pumpAndSettle();
+        expect(tester.getRect(bar), before);
+        await tester.tap(find.byKey(const ValueKey('detail-support')));
+        expect(support, scenario == 'tư vấn' ? 2 : 1);
+        await tester.tap(find.byKey(const ValueKey('detail-cart')));
+        expect(cart, 1);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+        home.dispose();
+      },
+    );
+  }
   test(
     'Bộ lọc kê đơn và danh mục giữ lại qua phân trang, giá lấy từ chi tiết API',
     () async {

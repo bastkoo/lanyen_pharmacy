@@ -262,6 +262,10 @@ class CustomerPurchaseControls extends StatefulWidget {
     this.compact = false,
     this.dense = false,
     this.showEmptyQuota = true,
+    this.showDetails = true,
+    this.showAction = true,
+    this.selectedUnitId,
+    this.onUnitChanged,
   });
   final CustomerHomeController home;
   final CatalogProduct product;
@@ -269,6 +273,9 @@ class CustomerPurchaseControls extends StatefulWidget {
   final bool compact;
   final bool dense;
   final bool showEmptyQuota;
+  final bool showDetails, showAction;
+  final int? selectedUnitId;
+  final ValueChanged<int>? onUnitChanged;
   @override
   State<CustomerPurchaseControls> createState() =>
       CustomerPurchaseControlsState();
@@ -282,7 +289,9 @@ class CustomerPurchaseControlsState extends State<CustomerPurchaseControls> {
   Widget build(BuildContext context) {
     final product = widget.product, home = widget.home;
     final price =
-        product.prices.where((unit) => unit.id == selectedId).firstOrNull ??
+        product.prices
+            .where((unit) => unit.id == (widget.selectedUnitId ?? selectedId))
+            .firstOrNull ??
         product.displayPrice;
     final available = price?.available == true;
     final exhausted = product.hasOffer && (price?.quota ?? 0) <= 0;
@@ -300,82 +309,89 @@ class CustomerPurchaseControlsState extends State<CustomerPurchaseControls> {
       builder: (context, _) => DefaultTextStyle.merge(
         style: TextStyle(fontSize: widget.dense ? 12 : 14, height: 1.35),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _PriceLabel(product: product, selectedPrice: price),
-            const SizedBox(height: 6),
-            if (price != null &&
-                (product.hasOffer || price.activeOffer) &&
-                (widget.showEmptyQuota || price.quota > 0)) ...[
-              Text(
-                product.upcomingOffer
-                    ? 'Dự kiến ${price.quota} ${price.unit} ưu đãi'
-                    : 'Còn ${price.quota} ${price.unit} ưu đãi',
-                style: TextStyle(
-                  fontSize: widget.dense ? 10 : 12,
-                  color: CustomerProductColors.productQuota,
-                ),
-              ),
+            if (widget.showDetails) ...[
+              _PriceLabel(product: product, selectedPrice: price),
               const SizedBox(height: 6),
-            ],
-            if (product.prices.length > 1 && !product.consultation) ...[
-              _UnitOptions(
-                prices: product.prices,
-                selectedId: price?.id,
-                dense: widget.dense,
-                onSelected: (value) => setState(() => selectedId = value),
-              ),
-              const SizedBox(height: 6),
-            ],
-            FilledButton(
-              style: CustomerProductColors.purchaseStyle(context).copyWith(
-                minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
-                padding: WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(
-                    horizontal: widget.dense ? 2 : 6,
-                    vertical: 8,
+              if (price != null &&
+                  (product.hasOffer || price.activeOffer) &&
+                  (widget.showEmptyQuota || price.quota > 0)) ...[
+                Text(
+                  product.upcomingOffer
+                      ? 'Dự kiến ${price.quota} ${price.unit} ưu đãi'
+                      : 'Còn ${price.quota} ${price.unit} ưu đãi',
+                  style: TextStyle(
+                    fontSize: widget.dense ? 10 : 12,
+                    color: CustomerProductColors.productQuota,
                   ),
                 ),
-                textStyle: WidgetStateProperty.resolveWith(
-                  (states) =>
-                      (CustomerProductColors.purchaseStyle(context).textStyle
-                                  ?.resolve(states) ??
-                              Theme.of(context).textTheme.labelLarge!)
-                          .copyWith(
-                            fontSize: widget.dense ? 11 : 13,
-                            fontWeight: FontWeight.w600,
-                          ),
+                const SizedBox(height: 6),
+              ],
+              if (product.prices.length > 1 && !product.consultation) ...[
+                _UnitOptions(
+                  prices: product.prices,
+                  selectedId: price?.id,
+                  dense: widget.dense,
+                  onSelected: (value) {
+                    setState(() => selectedId = value);
+                    widget.onUnitChanged?.call(value);
+                  },
                 ),
-              ),
-              onPressed: product.consultation
-                  ? widget.onConsult
-                  : !available ||
-                        exhausted ||
-                        product.upcomingOffer ||
-                        home.adding
-                  ? null
-                  : () async {
-                      await home.addToCart(product, price!);
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            home.purchaseMessage ??
-                                'Vui lòng kiểm tra giỏ hàng.',
-                            style: const TextStyle(
-                              color: CustomerProductColors.snackbarText,
+                const SizedBox(height: 6),
+              ],
+            ],
+            if (widget.showAction)
+              FilledButton(
+                style: CustomerProductColors.purchaseStyle(context).copyWith(
+                  minimumSize: const WidgetStatePropertyAll(Size(0, 48)),
+                  padding: WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(
+                      horizontal: widget.dense ? 2 : 6,
+                      vertical: 8,
+                    ),
+                  ),
+                  textStyle: WidgetStateProperty.resolveWith(
+                    (states) =>
+                        (CustomerProductColors.purchaseStyle(context).textStyle
+                                    ?.resolve(states) ??
+                                Theme.of(context).textTheme.labelLarge!)
+                            .copyWith(
+                              fontSize: widget.dense ? 11 : 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                  ),
+                ),
+                onPressed: product.consultation
+                    ? widget.onConsult
+                    : !available ||
+                          exhausted ||
+                          product.upcomingOffer ||
+                          home.adding
+                    ? null
+                    : () async {
+                        await home.addToCart(product, price!);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              home.purchaseMessage ??
+                                  'Vui lòng kiểm tra giỏ hàng.',
+                              style: const TextStyle(
+                                color: CustomerProductColors.snackbarText,
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-              child: Text(
-                home.adding && home.addingProductId == product.id
-                    ? 'Đang thêm…'
-                    : label,
+                        );
+                      },
+                child: Text(
+                  home.adding && home.addingProductId == product.id
+                      ? 'Đang thêm…'
+                      : label,
+                ),
               ),
-            ),
           ],
         ),
       ),

@@ -138,6 +138,7 @@ class _CustomerShellState extends State<CustomerShell>
           productId: product.id,
           promotionId: promotionId ?? product.promotionId,
           onConsult: openMessages,
+          onCart: showCart,
         ),
       );
   Future<void> openProducts(String query, CatalogCategory? category) =>

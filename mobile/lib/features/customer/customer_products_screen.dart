@@ -123,7 +123,12 @@ class _CustomerProductsScreenState extends State<CustomerProductsScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        actions: [_CartAction(home: widget.home, onPressed: widget.onCart)],
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: _CartAction(home: widget.home, onPressed: widget.onCart),
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(
             80 +
