@@ -46,6 +46,7 @@ class CartLine {
   String get promotionName => promotion?['TenChuongTrinh'] is String
       ? promotion!['TenChuongTrinh'] as String
       : '';
+  String? get discountPercent => catalogPromotionPercent(promotion);
   Map<String, dynamic> toEntry() => {
     'MaThuoc': productId,
     'MaDonGia': unitId,

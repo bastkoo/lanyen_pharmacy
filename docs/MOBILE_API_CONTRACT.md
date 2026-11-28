@@ -198,8 +198,10 @@ Phần này thay trạng thái giỏ hàng chờ triển khai ở mục trước
 - Chọn mua lưu vào giỏ cục bộ khi chưa đăng nhập, vào Backend khi đã đăng nhập
   và có hàng, đủ điều kiện ưu đãi. Huy hiệu
   đếm MaThuoc riêng biệt, không cộng SoLuong hoặc đếm trùng cùng thuốc khác đơn vị.
-  Trang giỏ đọc lại dữ liệu đã lưu, có tải lại và báo lỗi. Chưa có thanh toán,
-  chỉnh số lượng hoặc xóa giỏ trong phần Mobile này.
+  Trang giỏ có chọn sản phẩm, chỉnh số lượng/đơn vị, giảm về 0 để xóa và vuốt trái
+  để mở nút xóa đỏ. Thành tiền, tiết kiệm và xu dự kiến cố định dưới cùng.
+  Bấm Mua hàng khi chưa đăng nhập mở thẳng biểu mẫu đăng nhập; bước xác nhận đặt
+  hàng sau đăng nhập chưa triển khai theo phạm vi hiện hành.
 - Nút tư vấn nhô lên giữa thanh dưới, luân phiên icon nhắn tin/hỗ trợ/AI.
   Tên truy cập luôn là Tư vấn; ngừng đổi icon khi bật giảm chuyển động.
 
@@ -207,6 +209,19 @@ Phần này thay trạng thái giỏ hàng chờ triển khai ở mục trước
 |---|---|---|---|
 | GET | /api/mobile/cart | Bearer access token, không query | CART_LISTED, authenticated=true, items theo contract cart_service hiện có |
 | POST | /api/mobile/cart/items | Bearer access token; JSON MaThuoc, MaDonGia | CART_ITEM_ADDED |
+| POST | /api/mobile/cart/quote | items: [{MaThuoc, MaDonGia, SoLuong}]; JWT nếu đã đăng nhập | CART_LISTED, total, estimated_points |
+| POST | /api/mobile/cart/items/update | JWT; MaDonGia, DonViMoi, SoLuong > 0 | CART_ITEM_UPDATED |
+| POST | /api/mobile/cart/items/remove | JWT; MaDonGia | CART_ITEM_REMOVED |
+
+Quote khách chỉ đọc danh mục/giá/stock, bỏ qua cookie Web, không lưu giỏ vào DB.
+Quote tài khoản lấy số lượng đã lưu và owner từ JWT, chỉ dùng các mã đơn vị đã
+chọn trong request. Tổng tiền/giá từ Backend được parse chính xác bằng BigInt;
+số xu dự kiến theo `points_service.earned_points` (1.000đ/1 xu), không có đổi xu.
+Nếu thiếu giá hoặc cần tư vấn, không xác nhận thành tiền/xu và khóa Mua hàng.
+Ưu đãi có thể chỉ áp dụng một phần số lượng: dùng ThanhTien từ Backend, không
+nhân GiaBan đã giảm với toàn bộ SoLuong. Các dòng đang giảm hiển thị Đang ưu đãi,
+tên chương trình và % nếu LoaiGiamGia=true; giảm tiền mặt không tự suy ra %.
+Giá gốc từng dòng và tổng giá gốc được gạch ngang với chữ nhỏ hơn giá hiện tại.
 
 Chỉ role khách hàng 0, đối chiếu trạng thái tài khoản và phiên JWT trên Backend.
 Không nhận owner từ client, không dùng session/cookie Web hay CSRF token Web.

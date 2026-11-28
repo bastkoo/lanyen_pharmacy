@@ -29,6 +29,7 @@ class CustomerCartController extends ChangeNotifier {
       selected.isNotEmpty &&
       summary?.total != null &&
       summary!.items.isNotEmpty &&
+      summary!.items.length == selected.length &&
       summary!.items.every(
         (i) => i.available && !i.consultation && i.total != null,
       );

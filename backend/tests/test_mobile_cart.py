@@ -104,6 +104,13 @@ class MobileCartTests(unittest.TestCase):
         self.assertEqual(response.json['total'], '6000')
         self.assertEqual(response.json['estimated_points'], '6')
         self.assertNotIn('Set-Cookie', response.headers)
+        detail = NS(MaChuongTrinh=1, MaThuoc=7, SoLuong=2, LoaiGiamGia=True, GiaTriGiam=10)
+        program = NS(MaChuongTrinh=1, TenChuongTrinh='Ưu đãi kiểm thử')
+        self.mock('app.services.cart_service.promotion_items.active_for_products', return_value=[(detail, program)])
+        response = self.client.post('/api/mobile/cart/quote', json={'items': self.batch()['items']})
+        self.assertEqual(response.json['total'], '5600')
+        self.assertEqual(response.json['estimated_points'], '5')
+        self.assertEqual(response.json['items'][0]['SoLuongKhuyenMai'], 2)
         product.PhanLoai = True
         response = self.client.post('/api/mobile/cart/quote', json={'items': self.batch()['items']})
         self.assertIsNone(response.json['items'][0]['GiaBan'])
@@ -114,6 +121,29 @@ class MobileCartTests(unittest.TestCase):
         response = self.client.post('/api/mobile/cart/quote', headers=self.headers, json={'items': self.batch()['items']})
         self.assertEqual(response.status_code, 200)
         read.assert_called_once_with(selected_ids={8}, owner_id=42, mobile=True)
+
+    def test_service_edit_and_remove_use_explicit_owner_without_web_session(self):
+        from app.services import cart_service
+        source = NS(MaThuoc=7, MaDonGia=8, SoLuong=1)
+        self.mock('app.services.cart_service.owner', side_effect=AssertionError('Web session forbidden'))
+        self.mock('app.services.cart_service.carts.lock_user', return_value=self.user)
+        owned = self.mock('app.services.cart_service.carts.list_items', return_value=[source])
+        self.mock('app.services.cart_service.units.find_by_id', return_value=NS(GiaBan=2000, SoLuongQuyDoi=1))
+        self.mock('app.services.cart_service.usable_stock', return_value={7: 10})
+        authorize = self.mock('app.services.consultation_service.require_authorization')
+        self.mock('app.services.cart_service.db.session.commit')
+        remove = self.mock('app.services.cart_service.carts.remove')
+        with self.app.app_context():
+            cart_service.update_item(8, 8, 3, owner_id=42)
+            self.assertEqual(source.SoLuong, 3)
+            owned.assert_called_with(42)
+            authorize.assert_called_once_with(42, [(7, 8)])
+            cart_service.remove_item(8, owner_id=42)
+            remove.assert_called_once_with(source)
+            owned.return_value = []
+            cart_service.remove_item(8, owner_id=43)
+            owned.assert_called_with(43)
+            self.assertEqual(remove.call_count, 1)
 
     def test_update_delete_require_jwt_and_cannot_accept_an_owner(self):
         update = self.mock('app.services.cart_service.update_item', return_value={'code': 'CART_ITEM_UPDATED'})

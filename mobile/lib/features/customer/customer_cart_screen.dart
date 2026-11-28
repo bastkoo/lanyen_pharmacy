@@ -34,6 +34,10 @@ class CustomerCartColors {
   static const quantityIcon = AppColors.textPrimary;
   // Chữ số lượng sản phẩm.
   static const quantityText = AppColors.textPrimary;
+  // Hai vạch ngăn cách nút trừ, số lượng và nút cộng trong ô số lượng.
+  static const quantityDivider = AppColors.border;
+  // Nền ô số lượng chia ba ngăn.
+  static const quantityBackground = AppColors.surface;
   // Viền ô số lượng và đơn vị.
   static const controlBorder = AppColors.border;
   // Chữ đơn vị bán đang chọn.
@@ -48,6 +52,8 @@ class CustomerCartColors {
   static const promotionIcon = AppColors.primaryDark;
   // Nội dung chương trình khuyến mãi.
   static const promotionText = AppColors.textSecondary;
+  // Tiêu đề Giảm ...% / Chương trình khuyến mãi ở dưới thẻ sản phẩm.
+  static const promotionTitle = AppColors.primaryDark;
   // Nền đỏ của nút xóa khi vuốt thẻ.
   static const deleteBackground = AppColors.error;
   // Icon thùng rác trong vùng xóa.
@@ -56,6 +62,8 @@ class CustomerCartColors {
   static const selection = AppColors.primaryDark;
   // Dấu tích của ô chọn.
   static const selectionCheck = AppColors.surface;
+  // Ẩn dấu tích mặc định để dùng dấu tích nhỏ hơn ở chính giữa ô tròn.
+  static const selectionNativeCheck = Color(0x00000000);
   // Nhãn Chọn tất cả và số sản phẩm.
   static const selectionLabel = AppColors.textPrimary;
   // Chữ Tiếp tục mua sắm.
@@ -70,6 +78,8 @@ class CustomerCartColors {
   static const totalLabel = AppColors.textPrimary;
   // Số tiền thanh toán dự kiến.
   static const totalAmount = AppColors.primaryDark;
+  // Tổng giá gốc gạch ngang, nhỏ hơn giá hiện tại, dưới dòng Thành tiền.
+  static const totalOriginalAmount = AppColors.textSecondary;
   // Nhãn Tiết kiệm được.
   static const savingLabel = AppColors.textSecondary;
   // Số tiền tiết kiệm được.
@@ -243,11 +253,9 @@ class _CartSelection extends StatelessWidget {
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Checkbox(
+            _CartCheck(
               value: controller.allSelected,
               onChanged: controller.busy ? null : (_) => controller.selectAll(),
-              activeColor: CustomerCartColors.selection,
-              checkColor: CustomerCartColors.selectionCheck,
             ),
             const Flexible(
               child: Text(
@@ -264,6 +272,46 @@ class _CartSelection extends StatelessWidget {
           ),
           child: const Text('Tiếp tục mua sắm'),
         ),
+      ],
+    ),
+  );
+}
+
+// Ô chọn tròn giữ hành vi bàn phím của Checkbox, dấu tích nhỏ 11px ở chính giữa.
+class _CartCheck extends StatelessWidget {
+  const _CartCheck({
+    required this.value,
+    required this.onChanged,
+    this.semanticLabel,
+  });
+  final bool value;
+  final ValueChanged<bool?>? onChanged;
+  final String? semanticLabel;
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 40,
+    height: 40,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Checkbox(
+          value: value,
+          onChanged: onChanged,
+          semanticLabel: semanticLabel,
+          shape: const CircleBorder(),
+          activeColor: CustomerCartColors.selection,
+          checkColor: CustomerCartColors.selectionNativeCheck,
+        ),
+        if (value)
+          const IgnorePointer(
+            child: ExcludeSemantics(
+              child: Icon(
+                Icons.check,
+                size: 11,
+                color: CustomerCartColors.selectionCheck,
+              ),
+            ),
+          ),
       ],
     ),
   );
@@ -362,15 +410,13 @@ class _CartProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     color: CustomerCartColors.card,
-    padding: const EdgeInsets.fromLTRB(4, 16, 14, 16),
+    padding: const EdgeInsets.fromLTRB(4, 12, 12, 12),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Checkbox(
+        _CartCheck(
           value: selected,
           onChanged: busy ? null : (_) => onToggle(),
-          activeColor: CustomerCartColors.selection,
-          checkColor: CustomerCartColors.selectionCheck,
           semanticLabel: 'Chọn ${line.name}',
         ),
         Expanded(
@@ -381,7 +427,7 @@ class _CartProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _CartImage(line: line),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -397,12 +443,14 @@ class _CartProductCard extends StatelessWidget {
                               color: CustomerCartColors.offerBackground,
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Text(
-                              'Đang ưu đãi',
-                              style: TextStyle(
+                            child: Text(
+                              line.discountPercent == null
+                                  ? 'Đang ưu đãi'
+                                  : 'Đang ưu đãi · -${line.discountPercent}%',
+                              style: const TextStyle(
                                 color: CustomerCartColors.offerText,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 12,
+                                fontSize: 11,
                               ),
                             ),
                           ),
@@ -413,66 +461,78 @@ class _CartProductCard extends StatelessWidget {
                           style: const TextStyle(
                             color: CustomerCartColors.productName,
                             fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            height: 1.45,
                           ),
+                        ),
+                        const SizedBox(height: 8),
+                        if (line.consultation)
+                          const Text(
+                            'Cần dược sĩ tư vấn',
+                            style: TextStyle(color: CustomerCartColors.warning),
+                          )
+                        else
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                line.price == null
+                                    ? 'Chưa tính được giá'
+                                    : formatVnd(line.price!),
+                                key: ValueKey('cart-price-${line.unitId}'),
+                                style: const TextStyle(
+                                  color: CustomerCartColors.productPrice,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (line.discounted)
+                                Text(
+                                  formatVnd(line.original!),
+                                  key: ValueKey('cart-original-${line.unitId}'),
+                                  style: const TextStyle(
+                                    color: CustomerCartColors.originalPrice,
+                                    fontSize: 11,
+                                    decorationColor:
+                                        CustomerCartColors.originalPrice,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        if (!line.available)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 6),
+                            child: Text(
+                              'Cần kiểm tra lại tồn kho',
+                              style: TextStyle(
+                                color: CustomerCartColors.warning,
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _QuantityControl(
+                              line: line,
+                              busy: busy,
+                              onChanged: onQuantity,
+                            ),
+                            _UnitSelector(
+                              line: line,
+                              busy: busy,
+                              onSelected: onUnit,
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (line.consultation)
-                const Text(
-                  'Cần dược sĩ tư vấn',
-                  style: TextStyle(color: CustomerCartColors.warning),
-                )
-              else
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    Text(
-                      line.price == null
-                          ? 'Chưa tính được giá'
-                          : formatVnd(line.price!),
-                      style: const TextStyle(
-                        color: CustomerCartColors.productPrice,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (line.discounted)
-                      Text(
-                        formatVnd(line.original!),
-                        style: const TextStyle(
-                          color: CustomerCartColors.originalPrice,
-                          decorationColor: CustomerCartColors.originalPrice,
-                          decoration: TextDecoration.lineThrough,
-                        ),
-                      ),
-                  ],
-                ),
-              if (!line.available)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text(
-                    'Cần kiểm tra lại tồn kho',
-                    style: TextStyle(color: CustomerCartColors.warning),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 10,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _QuantityControl(
-                    line: line,
-                    busy: busy,
-                    onChanged: onQuantity,
-                  ),
-                  _UnitSelector(line: line, busy: busy, onSelected: onUnit),
                 ],
               ),
               if (line.discounted)
@@ -493,12 +553,40 @@ class _CartProductCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          'Chương trình khuyến mãi${line.promotionName.isEmpty ? '' : '\n${line.promotionName}'}${line.promotionalQuantity > 0 && line.promotionalQuantity < line.quantity ? '\nÁp dụng ${line.promotionalQuantity}/${line.quantity} ${line.unit}' : ''}',
-                          style: const TextStyle(
-                            color: CustomerCartColors.promotionText,
-                            fontSize: 13,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              line.discountPercent == null
+                                  ? 'Chương trình khuyến mãi'
+                                  : 'Giảm ${line.discountPercent}% · Chương trình khuyến mãi',
+                              style: const TextStyle(
+                                color: CustomerCartColors.promotionTitle,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (line.promotionName.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                line.promotionName,
+                                style: const TextStyle(
+                                  color: CustomerCartColors.promotionText,
+                                  fontSize: 11,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ],
+                            if (line.promotionalQuantity > 0 &&
+                                line.promotionalQuantity < line.quantity)
+                              Text(
+                                'Áp dụng ${line.promotionalQuantity}/${line.quantity} ${line.unit}',
+                                style: const TextStyle(
+                                  color: CustomerCartColors.promotionText,
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ],
@@ -525,8 +613,8 @@ class _CartImage extends StatelessWidget {
     );
     final uri = Uri.tryParse(line.image);
     return Container(
-      width: 68,
-      height: 76,
+      width: 48,
+      height: 56,
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: CustomerCartColors.imageBackground,
@@ -556,35 +644,85 @@ class _QuantityControl extends StatelessWidget {
   final ValueChanged<int> onChanged;
   @override
   Widget build(BuildContext context) => Container(
+    key: ValueKey('cart-quantity-control-${line.unitId}'),
+    clipBehavior: Clip.antiAlias,
     decoration: BoxDecoration(
+      color: CustomerCartColors.quantityBackground,
       border: Border.all(color: CustomerCartColors.controlBorder),
       borderRadius: BorderRadius.circular(24),
     ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          key: ValueKey('cart-minus-${line.unitId}'),
-          tooltip: line.quantity == 1 ? 'Xóa ${line.name}' : 'Giảm số lượng',
-          onPressed: busy ? null : () => onChanged(line.quantity - 1),
-          icon: const Icon(
-            Icons.remove,
-            color: CustomerCartColors.quantityIcon,
+    child: SizedBox(
+      height: (MediaQuery.textScalerOf(context).scale(12) * 1.5)
+          .clamp(34.0, double.infinity)
+          .toDouble(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 34,
+            child: IconButton(
+              key: ValueKey('cart-minus-${line.unitId}'),
+              padding: EdgeInsets.zero,
+              iconSize: 17,
+              tooltip: line.quantity == 1
+                  ? 'Xóa ${line.name}'
+                  : 'Giảm số lượng',
+              onPressed: busy ? null : () => onChanged(line.quantity - 1),
+              icon: const Icon(
+                Icons.remove,
+                color: CustomerCartColors.quantityIcon,
+              ),
+            ),
           ),
-        ),
-        Text(
-          '${line.quantity}',
-          style: const TextStyle(color: CustomerCartColors.quantityText),
-        ),
-        IconButton(
-          key: ValueKey('cart-plus-${line.unitId}'),
-          tooltip: 'Tăng số lượng',
-          onPressed: busy || !line.available
-              ? null
-              : () => onChanged(line.quantity + 1),
-          icon: const Icon(Icons.add, color: CustomerCartColors.quantityIcon),
-        ),
-      ],
+          const VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: CustomerCartColors.quantityDivider,
+          ),
+          SizedBox(
+            width: 30,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    '${line.quantity}',
+                    key: ValueKey('cart-quantity-${line.unitId}'),
+                    style: const TextStyle(
+                      color: CustomerCartColors.quantityText,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const VerticalDivider(
+            width: 1,
+            thickness: 1,
+            color: CustomerCartColors.quantityDivider,
+          ),
+          SizedBox(
+            width: 34,
+            child: IconButton(
+              key: ValueKey('cart-plus-${line.unitId}'),
+              padding: EdgeInsets.zero,
+              iconSize: 17,
+              tooltip: 'Tăng số lượng',
+              onPressed: busy || !line.available
+                  ? null
+                  : () => onChanged(line.quantity + 1),
+              icon: const Icon(
+                Icons.add,
+                color: CustomerCartColors.quantityIcon,
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
@@ -607,8 +745,12 @@ class _UnitSelector extends StatelessWidget {
       line.unitId: line.unit,
     };
     return Container(
-      constraints: const BoxConstraints(minHeight: 48, maxWidth: 150),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      width: MediaQuery.textScalerOf(context).scale(12) > 18 ? 104 : 76,
+      height: (MediaQuery.textScalerOf(context).scale(12) * 1.5)
+          .clamp(36.0, double.infinity)
+          .toDouble(),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         border: Border.all(color: CustomerCartColors.controlBorder),
         borderRadius: BorderRadius.circular(24),
@@ -618,8 +760,10 @@ class _UnitSelector extends StatelessWidget {
           key: ValueKey('cart-unit-${line.unitId}'),
           value: line.unitId,
           isExpanded: true,
+          isDense: true,
+          iconSize: 16,
           style: Theme.of(context).textTheme.bodyMedium
-              ?.copyWith(color: CustomerCartColors.unitText),
+              ?.copyWith(color: CustomerCartColors.unitText, fontSize: 12),
           onChanged: busy || units.length < 2
               ? null
               : (id) {
@@ -639,6 +783,83 @@ class _UnitSelector extends StatelessWidget {
               .toList(),
         ),
       ),
+    );
+  }
+}
+
+// Hai mức giá luôn cùng một hàng; giá gốc nhỏ hơn và gạch ngang.
+class _CartTotal extends StatelessWidget {
+  const _CartTotal({required this.controller});
+  final CustomerCartController controller;
+  @override
+  Widget build(BuildContext context) {
+    final summary = controller.summary;
+    const label = Text(
+      'Thành tiền',
+      style: TextStyle(
+        color: CustomerCartColors.totalLabel,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+    final prices = FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          if (!controller.loading &&
+              controller.error == null &&
+              summary?.total != null &&
+              summary!.savings > BigInt.zero) ...[
+            Text(
+              formatVnd(summary.originalTotal),
+              key: const ValueKey('cart-original-total'),
+              semanticsLabel:
+                  'Tổng giá gốc ${formatVnd(summary.originalTotal)}',
+              style: const TextStyle(
+                color: CustomerCartColors.totalOriginalAmount,
+                fontSize: 11,
+                decoration: TextDecoration.lineThrough,
+                decorationColor: CustomerCartColors.totalOriginalAmount,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            controller.loading
+                ? 'Đang tính…'
+                : summary?.total == null || controller.error != null
+                ? 'Chưa tính được'
+                : formatVnd(summary!.total!),
+            key: const ValueKey('cart-total'),
+            style: const TextStyle(
+              color: CustomerCartColors.totalAmount,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+    if (MediaQuery.textScalerOf(context).scale(14) > 21) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          label,
+          const SizedBox(height: 4),
+          Align(alignment: Alignment.centerRight, child: prices),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        label,
+        const SizedBox(width: 12),
+        Expanded(child: prices),
+      ],
     );
   }
 }
@@ -666,33 +887,7 @@ class _CartSummary extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              spacing: 12,
-              runSpacing: 4,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                const Text(
-                  'Thành tiền',
-                  style: TextStyle(
-                    color: CustomerCartColors.totalLabel,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  controller.loading
-                      ? 'Đang tính…'
-                      : summary?.total == null || controller.error != null
-                      ? 'Chưa tính được'
-                      : formatVnd(summary!.total!),
-                  style: const TextStyle(
-                    color: CustomerCartColors.totalAmount,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
+            _CartTotal(controller: controller),
             const SizedBox(height: 8),
             Wrap(
               alignment: WrapAlignment.spaceBetween,
@@ -750,6 +945,7 @@ class _CartSummary extends StatelessWidget {
                     backgroundColor: CustomerCartColors.buyBackground,
                     foregroundColor: CustomerCartColors.buyText,
                     minimumSize: const Size(130, 48),
+                    shape: const StadiumBorder(),
                   ),
                   child: const Text('Mua hàng'),
                 ),

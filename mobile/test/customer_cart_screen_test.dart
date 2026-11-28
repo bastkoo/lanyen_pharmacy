@@ -37,13 +37,48 @@ class _HomeOwnerState extends State<_HomeOwner> {
 
 void main() {
   test(
+    'Mức giảm % theo chương trình; giảm tiền mặt không tự đổi thành phần trăm',
+    () {
+      CartLine line(Map<String, dynamic> promotion) => CartLine.fromJson({
+        'MaThuoc': 1,
+        'MaDonGia': 101,
+        'SoLuong': 1,
+        'TenThuoc': 'Thuốc kiểm thử',
+        'KhuyenMai': promotion,
+      });
+      expect(
+        line({'LoaiGiamGia': true, 'GiaTriGiam': '15.50'}).discountPercent,
+        '15.5',
+      );
+      expect(
+        line({'LoaiGiamGia': true, 'GiaTriGiam': '15.00'}).discountPercent,
+        '15',
+      );
+      expect(
+        line({'LoaiGiamGia': false, 'GiaTriGiam': '5000'}).discountPercent,
+        isNull,
+      );
+      expect(
+        line({'LoaiGiamGia': true, 'GiaTriGiam': '101'}).discountPercent,
+        isNull,
+      );
+    },
+  );
+  test(
     'Đổi sang đơn vị đã có trong giỏ khách sẽ gộp lượng, không tạo dòng trùng',
     () async {
       final transport = catalogFixture();
       final data = productFixture(1);
       data['DonViGia'] = [
         ...data['DonViGia'] as List,
-        {'MaDonGia': 201, 'DonViTinh': 'Vỉ', 'GiaBan': 20000, 'ConHang': true},
+        {
+          'MaDonGia': 201,
+          'DonViTinh': 'Vỉ',
+          'GiaBan': 20000,
+          'GiaKhuyenMai': 18000,
+          'SoLuongKhuyenMai': 4,
+          'ConHang': true,
+        },
       ];
       transport.catalogData['products/1'] = {
         'code': 'PRODUCT_FOUND',
@@ -73,7 +108,7 @@ void main() {
       expect(home.cart!.items.single.unitId, 201);
       expect(home.cart!.items.single.quantity, 2);
       expect(home.cart!.productCount, 1);
-      expect(controller.summary!.total, BigInt.from(40000));
+      expect(controller.summary!.total, BigInt.from(36000));
     },
   );
   test('Tổng giảm giá chỉ áp dụng một phần số lượng, không nhân giá giảm cho cả dòng', () {
@@ -210,13 +245,83 @@ void main() {
           ),
         );
         await tester.pumpAndSettle();
+        final card = find.byKey(const ValueKey('cart-line-101'));
+        await tester.scrollUntilVisible(
+          card,
+          160,
+          scrollable: find
+              .descendant(
+                of: find.byKey(const ValueKey('customer-cart')),
+                matching: find.byType(Scrollable),
+              )
+              .first,
+        );
+        await tester.pumpAndSettle();
         expect(find.text('Đang ưu đãi'), findsAtLeastNWidgets(1));
         expect(find.textContaining('Flash sale'), findsNothing);
         expect(find.textContaining('Đổi xu'), findsNothing);
         expect(find.text('Dự kiến +198 xu'), findsOneWidget);
+        for (final box in tester.widgetList<Checkbox>(find.byType(Checkbox))) {
+          expect(box.shape, isA<CircleBorder>());
+        }
+        expect(
+          find.descendant(
+            of: find.byKey(const ValueKey('cart-quantity-control-101')),
+            matching: find.byType(VerticalDivider),
+          ),
+          findsNWidgets(2),
+        );
+        final oldPrice = tester.widget<Text>(
+          find.byKey(const ValueKey('cart-original-101')),
+        );
+        expect(oldPrice.style!.fontSize, lessThan(18));
+        expect(oldPrice.style!.decoration, TextDecoration.lineThrough);
+        final oldTotal = tester.widget<Text>(
+          find.byKey(const ValueKey('cart-original-total')),
+        );
+        final newTotal = tester.widget<Text>(
+          find.byKey(const ValueKey('cart-total')),
+        );
+        expect(oldTotal.data, '240.000đ');
+        expect(oldTotal.style!.fontSize, lessThan(newTotal.style!.fontSize!));
+        expect(oldTotal.style!.decoration, TextDecoration.lineThrough);
+        expect(
+          tester
+              .widgetList<Icon>(find.byIcon(Icons.check))
+              .every((icon) => icon.size == 11),
+          isTrue,
+        );
+        final buy = tester.widget<FilledButton>(
+          find.byKey(const ValueKey('cart-buy')),
+        );
+        expect(buy.style!.shape!.resolve({}), isA<StadiumBorder>());
+        if (size.width == 390) {
+          final quantity = tester.getRect(
+            find.byKey(const ValueKey('cart-quantity-control-101')),
+          );
+          final unit = tester.getRect(
+            find.byKey(const ValueKey('cart-unit-101')),
+          );
+          expect(quantity.width, lessThanOrEqualTo(110));
+          expect(quantity.height, lessThanOrEqualTo(40));
+          expect(quantity.center.dy, closeTo(unit.center.dy, 1));
+          expect(unit.left, greaterThan(quantity.right));
+          expect(
+            tester.getTopLeft(find.text('Sản phẩm kiểm thử 1')).dx,
+            tester.getTopLeft(find.byKey(const ValueKey('cart-price-101'))).dx,
+          );
+          expect(
+            tester
+                .getCenter(find.byKey(const ValueKey('cart-original-total')))
+                .dy,
+            closeTo(
+              tester.getCenter(find.byKey(const ValueKey('cart-total'))).dy,
+              8,
+            ),
+          );
+        }
         final summary = find.byKey(const ValueKey('cart-summary'));
         final before = tester.getRect(summary);
-        final card = find.byKey(const ValueKey('cart-line-101'));
         await tester.dragFrom(
           tester.getTopLeft(card) + const Offset(160, 55),
           const Offset(-110, 0),
@@ -257,7 +362,16 @@ void main() {
     await (FontLoader(
       'MaterialIcons',
     )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
-    final auth = testController(catalogFixture());
+    final transport = catalogFixture();
+    transport.catalogData['products/1']!['product']['KhuyenMai'] = {
+      'TrangThai': 'ACTIVE',
+      'LoaiGiamGia': true,
+      'GiaTriGiam': '15.00',
+    };
+    transport
+            .catalogData['products/1']!['product']['DonViGia'][0]['GiaKhuyenMai'] =
+        102000;
+    final auth = testController(transport);
     addTearDown(auth.dispose);
     final home = CustomerHomeController(
       CatalogApi(auth.api.client),
@@ -285,6 +399,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    expect(find.text('Đang ưu đãi · -15%'), findsOneWidget);
+    expect(find.text('Giảm 15% · Chương trình khuyến mãi'), findsOneWidget);
     final boundary =
         key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     await tester.runAsync(() async {

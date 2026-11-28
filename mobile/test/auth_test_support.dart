@@ -71,10 +71,12 @@ class AuthStubTransport implements ApiTransport {
     if (path.startsWith('/api/mobile/cart')) {
       if (path.endsWith('/quote')) {
         final authorized = headers.containsKey('Authorization');
-        if (authorized && !loggedIn)
+        if (authorized && !loggedIn) {
           return const ApiResponse(401, '{"code":"UNAUTHENTICATED"}');
-        if (cartFailure != null)
+        }
+        if (cartFailure != null) {
           return ApiResponse(409, jsonEncode({'code': cartFailure}));
+        }
         final entries = (body!['items'] as List).cast<Map<String, dynamic>>();
         final ids = entries.map((i) => i['MaDonGia']).toSet();
         final source = authorized
@@ -117,7 +119,11 @@ class AuthStubTransport implements ApiTransport {
             'ThanhTien': sum,
             'DonViGia': units,
             'SoLuongKhuyenMai': applied,
-            if (discounted) 'KhuyenMai': {'TenChuongTrinh': 'Ưu đãi kiểm thử'},
+            if (discounted)
+              'KhuyenMai': {
+                ...?product?['KhuyenMai'] as Map<String, dynamic>?,
+                'TenChuongTrinh': 'Ưu đãi kiểm thử',
+              },
           });
         }
         return ApiResponse(
@@ -148,8 +154,9 @@ class AuthStubTransport implements ApiTransport {
         final source = cartItems
             .where((i) => i['MaDonGia'] == body!['MaDonGia'])
             .firstOrNull;
-        if (source == null)
+        if (source == null) {
           return const ApiResponse(404, '{"code":"CART_ITEM_NOT_FOUND"}');
+        }
         final duplicate = cartItems
             .where(
               (i) =>
